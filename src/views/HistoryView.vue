@@ -350,6 +350,33 @@ const batchDeleteAll = () => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
+// 页面容器样式（规范 #1）
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-6;
+  padding-top: $spacing-4;
+  max-width: 100%;
+
+  h1 {
+    font-family: $font-family-heading;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .page-header-subtitle {
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    margin-top: $spacing-2;
+  }
+
+  @media (min-width: $breakpoint-xl) {
+    gap: $spacing-8;
+  }
+}
+
 .filter-bar {
   display: flex;
   gap: $spacing-3;
@@ -608,6 +635,11 @@ const batchDeleteAll = () => {
 
 // 响应式
 @media (max-width: $breakpoint-md) {
+  .page-header {
+    flex-direction: column;
+    gap: $spacing-4;
+  }
+
   .filter-bar {
     flex-direction: column;
     align-items: stretch;

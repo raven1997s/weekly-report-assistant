@@ -38,6 +38,19 @@ npm run build
 
 ### 1. UI 一致性规范
 
+**UI 设计必须使用 `/ui-ux-pro-max` skill**：
+- 所有新建或重构的 UI 组件、页面必须调用 `/ui-ux-pro-max` skill 进行设计
+- 技能提供 50 种样式、21 种调色板、50 种字体组合和 20 种图表类型
+- 支持 React、Next.js、Vue、Svelte、SwiftUI、React Native、Flutter、Tailwind 等技术栈
+- 可生成代码、设计规范、描述和提示词
+
+**调用方式**：
+```
+使用 /ui-ux-pro-max skill 设计 [组件/页面名称]
+风格：glassmorphism/minimalism/brutalism/neumorphism/bento grid/dark mode/responsive/skeuomorphism/flat design
+主题：[具体描述]
+```
+
 **所有页面视图必须使用统一的页面容器样式：**
 
 ```scss
@@ -78,6 +91,37 @@ npm run build
   }
 }
 ```
+
+**禁止使用普通表情符号（Emoji）**：
+- ❌ 禁止在 UI 中使用 Unicode 表情符号（如 🏖️、⚠️、📊、📝）
+- ✅ 必须使用 SVG 图标代替表情符号
+- ✅ 图标应使用 `<svg>` 标签内联，保持风格统一
+- ✅ 推荐使用 Heroicons 风格的图标
+
+**为什么禁止表情符号**：
+- 跨平台显示不一致（Windows/macOS/Android 显示效果不同）
+- 无法自定义颜色和大小
+- 可访问性差（屏幕阅读器支持不佳）
+- 专业度不足，影响品牌形象
+
+**正确示例**：
+```vue
+<!-- ❌ 错误：使用表情符号 -->
+<span>🏖️ 假期提醒</span>
+<span>⚠️ 警告信息</span>
+
+<!-- ✅ 正确：使用 SVG 图标 -->
+<span>
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+  </svg>
+  假期提醒
+</span>
+```
+
+**例外情况**：
+- Console 日志中可以使用表情符号（不在 UI 上显示）
+- 用户生成内容（UGC）中的表情符号应保留显示
 
 ### 2. 标签排序规范
 
@@ -665,6 +709,168 @@ const fetchDeletedRecords = async () => {
 }
 ```
 
+### 15. 回收站功能规范
+
+**功能概述**：
+回收站提供已删除项目的查看、恢复和永久删除功能，支持 30 天内的数据恢复。
+
+**访问路径**：`/recycle-bin`
+
+**支持的操作**：
+
+1. **查看已删除项目**：
+   - 分类显示：已删除的周报、已删除的工作记录
+   - 显示信息：周标签、日期范围、删除时间
+   - 数量徽章：显示各类已删除项目数量
+
+2. **恢复操作**：
+   - 点击"恢复"按钮恢复数据
+   - 调用 `POST /api/:resource/:id/restore`
+   - 确认提示："确定要恢复这份周报/记录吗？"
+   - 恢复后从回收站移除，重新出现在主列表
+
+3. **永久删除**：
+   - 点击"永久删除"按钮彻底删除数据
+   - 调用 `DELETE /api/:resource/:id/permanent`
+   - 二次确认提示："⚠️ 此操作不可恢复！确定要永久删除吗？"
+   - 永久删除后无法恢复
+
+**前端实现**：
+
+```javascript
+// 获取已删除的数据
+const fetchDeletedData = async () => {
+  await Promise.all([
+    reportsStore.fetchDeletedReports(),
+    recordsStore.fetchDeletedRecords()
+  ])
+}
+
+// 恢复周报
+const handleRestoreReport = async (id) => {
+  const confirmed = await dialogStore.confirm({
+    message: '确定要恢复这份周报吗？'
+  })
+  if (!confirmed) return
+
+  const success = await reportsStore.restoreReport(id)
+  if (success) {
+    showToast('周报已恢复')
+    await fetchDeletedData()
+  } else {
+    showToast('恢复失败，请重试', true)
+  }
+}
+
+// 永久删除周报
+const handlePermanentDeleteReport = async (id) => {
+  const confirmed = await dialogStore.confirm({
+    message: '⚠️ 此操作不可恢复！确定要永久删除这份周报吗？'
+  })
+  if (!confirmed) return
+
+  const success = await reportsStore.permanentDeleteReport(id)
+  if (success) {
+    showToast('周报已永久删除')
+    await fetchDeletedData()
+  } else {
+    showToast('删除失败，请重试', true)
+  }
+}
+```
+
+**关键文件**：
+- 回收站页面：`src/views/RecycleBinView.vue`
+- Records Store：`src/stores/records.js`
+- Reports Store：`src/stores/reports.js`
+
+### 16. 文档更新规范（强制）
+
+**核心原则**：
+CLAUDE.md 是项目的"活文档"，必须与代码实现保持同步。任何重要变更都必须及时更新文档。
+
+**必须更新文档的情况**：
+
+1. **新增核心规则时**：
+   - 发现新的开发规范或最佳实践
+   - 确立新的技术标准（如 z-index 层级规范）
+   - 避免重复犯错的关键规则
+
+2. **发现重要问题时**：
+   - 容易重复犯错的技术陷阱
+   - 需要特别注意的兼容性问题
+   - 调试过程中的关键发现
+
+3. **架构变更时**：
+   - 新增核心功能模块（如软删除、回收站）
+   - 修改数据库结构
+   - 重大 API 变更
+
+4. **流程变更时**：
+   - 新增开发工作流
+   - 修改部署流程
+   - 更新迁移步骤
+
+**更新内容要求**：
+
+```markdown
+### XX. [规则名称]
+
+**规则定义**：
+清晰说明规则的核心要求。
+
+**适用范围**：
+明确规则适用于哪些场景。
+
+**实现示例**：
+提供代码示例或配置示例。
+
+**例外情况**：
+如有例外，明确说明。
+
+**为什么这样做**：
+解释规则背后的原因，帮助理解。
+```
+
+**版本更新规范**：
+
+每次更新 CLAUDE.md 时，必须同步更新版本号：
+
+```markdown
+## 最后更新
+
+- **日期**: YYYY-MM-DD
+- **版本**: X.X
+- **主要更新**:
+  - 新增规则 #XX：[规则名称]
+  - 修复问题 #X：[问题描述]
+  - 更新章节：[章节名称]
+```
+
+**版本号规则**：
+- 主版本（X.0）：重大架构变更
+- 次版本（X.X）：新增规则或重要更新
+- 补丁版本（X.x.X）：文档小修正
+
+**检查清单**：
+
+在提交代码前，检查是否需要更新 CLAUDE.md：
+- [ ] 是否新增了开发规范？
+- [ ] 是否发现了重要的技术陷阱？
+- [ ] 是否修改了核心架构？
+- [ ] 是否更新了数据库结构？
+- [ ] 版本号和日期是否已更新？
+
+**违反此规则的后果**：
+- ❌ 文档与代码脱节，误导后续开发
+- ❌ 重复犯错，浪费时间
+- ❌ 新人上手困难
+- ✅ 及时更新文档 = 提高团队效率
+
+**相关文档**：
+- 代码审查清单：必须检查文档是否需要更新
+- 已知问题和解决方案：记录常见问题和解决方法
+
 ---
 
 ## 重要代码位置索引
@@ -686,6 +892,10 @@ const fetchDeletedRecords = async () => {
 ### 工具函数
 - **日期处理**: `src/utils/date.js` - 周边界、工作日计算、节假日判断
 - **钉钉集成**: `src/utils/dingtalk.js` - Webhook 签名生成
+
+### 回收站功能
+- **回收站页面**: `src/views/RecycleBinView.vue`
+- **数据库迁移**: `server/migrations/add_soft_delete.cjs`
 
 ---
 
@@ -803,6 +1013,73 @@ rm data/app.db
 
 ---
 
+## 数据库迁移指南
+
+### 为现有数据库添加软删除功能
+
+如果您的数据库是在软删除功能添加之前创建的，需要手动添加字段：
+
+#### 方法一：使用迁移脚本（推荐）
+
+```bash
+node server/migrations/add_soft_delete.cjs
+```
+
+#### 方法二：手动执行 SQL
+
+```bash
+sqlite3 data/app.db
+```
+
+```sql
+-- 为 records 表添加软删除字段
+ALTER TABLE records ADD COLUMN deleted INTEGER DEFAULT 0;
+ALTER TABLE records ADD COLUMN deletedAt TEXT;
+CREATE INDEX IF NOT EXISTS idx_records_deleted ON records(deleted);
+
+-- 为 reports 表添加软删除字段
+ALTER TABLE reports ADD COLUMN deleted INTEGER DEFAULT 0;
+ALTER TABLE reports ADD COLUMN deletedAt TEXT;
+CREATE INDEX IF NOT EXISTS idx_reports_deleted ON reports(deleted);
+
+-- 为 scheduled_tasks 表添加软删除字段
+ALTER TABLE scheduled_tasks ADD COLUMN deleted INTEGER DEFAULT 0;
+ALTER TABLE scheduled_tasks ADD COLUMN deletedAt TEXT;
+CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_deleted ON scheduled_tasks(deleted);
+```
+
+#### 验证迁移结果
+
+```sql
+-- 查看 records 表结构
+.schema records
+
+-- 查询已删除的记录
+SELECT * FROM records WHERE deleted = 1;
+
+-- 查询索引
+.index idx_records_deleted
+```
+
+### 新建数据库包含软删除字段
+
+在 `server/db.js` 中创建表时，应包含软删除字段：
+
+```javascript
+CREATE TABLE IF NOT EXISTS records (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  project TEXT,
+  workType TEXT,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  deleted INTEGER DEFAULT 0,
+  deletedAt TEXT
+)
+```
+
+---
+
 ## 周报生成流程
 
 1. **收集数据**：
@@ -881,7 +1158,9 @@ curl http://localhost:3000/api/reports
 
 提交代码前检查：
 
+- [ ] **UI 组件/页面使用了 `/ui-ux-pro-max` skill 设计**
 - [ ] 所有页面容器样式统一（.page-header）
+- [ ] **禁止使用普通表情符号，必须使用 SVG 图标**
 - [ ] 标签排序使用了 `sortByPriority`
 - [ ] "本周得与失" 使用固定编号（1. 2.）
 - [ ] Markdown 格式带 `**`，纯文本不带
@@ -894,11 +1173,19 @@ curl http://localhost:3000/api/reports
 - [ ] API 路由顺序正确（具体路由在前）
 - [ ] 删除操作使用软删除，禁止硬删除
 - [ ] API 响应格式统一（{ success, data?, error? }）
+- [ ] Toast z-index 为 1070（$z-tooltip）
+- [ ] Dialogs z-index 为 1060（$z-popover）
+- [ ] Modals z-index 为 1040-1050（$z-modal-backdrop/$z-modal）
+- [ ] **检查是否需要更新 CLAUDE.md 文档**
 
 ---
 
 ## 最后更新
 
 - **日期**: 2026-01-09
-- **版本**: 2.1
-- **主要更新**: 添加软删除规范（规则 #14）、完善代码审查清单
+- **版本**: 2.5
+- **主要更新**:
+  - 完善规则 #1：添加禁止使用普通表情符号规范（强制）
+  - 修复回收站 fetchDeletedReports 数据路径错误
+  - 替换所有 UI 中的表情符号为 SVG 图标（4处）
+  - 更新代码审查清单

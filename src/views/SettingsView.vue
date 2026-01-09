@@ -202,11 +202,21 @@
               <div class="radio-group">
                 <label class="radio-option">
                   <input type="radio" v-model="taskForm.type" value="report" />
-                  <span>📊 周报推送</span>
+                  <span>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: text-bottom; margin-right: 4px;">
+                      <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    周报推送
+                  </span>
                 </label>
                 <label class="radio-option">
                   <input type="radio" v-model="taskForm.type" value="reminder" />
-                  <span>📝 填写提醒</span>
+                  <span>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: text-bottom; margin-right: 4px;">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
+                    </svg>
+                    填写提醒
+                  </span>
                 </label>
               </div>
             </div>
@@ -569,6 +579,33 @@ const handleReset = async () => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
+// 页面容器样式（规范 #1）
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-6;
+  padding-top: $spacing-4;
+  max-width: 100%;
+
+  h1 {
+    font-family: $font-family-heading;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .page-header-subtitle {
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    margin-top: $spacing-2;
+  }
+
+  @media (min-width: $breakpoint-xl) {
+    gap: $spacing-8;
+  }
+}
+
 // Toast 提示
 .toast-message {
   position: fixed;
@@ -586,7 +623,7 @@ const handleReset = async () => {
   font-weight: $font-weight-medium;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba($accent-primary, 0.3);
-  z-index: 1070;
+  z-index: $z-tooltip;
 
   &.error {
     background: $error;
@@ -1058,6 +1095,11 @@ const handleReset = async () => {
 
 // 响应式
 @media (max-width: $breakpoint-md) {
+  .page-header {
+    flex-direction: column;
+    gap: $spacing-4;
+  }
+
   .setting-section {
     padding: $spacing-4;
   }

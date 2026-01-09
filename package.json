@@ -12,7 +12,17 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "hooks:detect": "node scripts/hooks/detect-patterns.js",
+    "hooks:check": "node scripts/hooks/check-patterns.js",
+    "hooks:collect": "node scripts/hooks/collect-issues.js",
+    "hooks:errors": "node scripts/hooks/collect-errors.js",
+    "hooks:git": "node scripts/hooks/analyze-git-history.js",
+    "hooks:generate": "node scripts/hooks/generate-rule.js",
+    "hooks:update": "node scripts/hooks/update-claude-md.js",
+    "hooks:suggest": "node scripts/hooks/suggest-rules.js",
+    "hooks:auto": "node scripts/hooks/full-workflow.js --auto",
+    "hooks:workflow": "node scripts/hooks/full-workflow.js --interactive"
   },
   "dependencies": {
     "body-parser": "^2.2.2",
@@ -29,6 +39,8 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@babel/parser": "^7.28.5",
+    "@babel/traverse": "^7.28.5",
     "@pinia/testing": "^1.0.3",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/coverage-v8": "^4.0.16",

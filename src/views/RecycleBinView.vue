@@ -199,7 +199,8 @@ const handleRestoreReport = async (id) => {
 // 永久删除周报
 const handlePermanentDeleteReport = async (id) => {
   const confirmed = await dialogStore.confirm({
-    message: '⚠️ 此操作不可恢复！确定要永久删除这份周报吗？'
+    message: '此操作不可恢复！确定要永久删除这份周报吗？',
+    details: '警告：永久删除后无法恢复'
   })
   if (!confirmed) return
 
@@ -231,7 +232,8 @@ const handleRestoreRecord = async (id) => {
 // 永久删除工作记录
 const handlePermanentDeleteRecord = async (id) => {
   const confirmed = await dialogStore.confirm({
-    message: '⚠️ 此操作不可恢复！确定要永久删除这条工作记录吗？'
+    message: '此操作不可恢复！确定要永久删除这条工作记录吗？',
+    details: '警告：永久删除后无法恢复'
   })
   if (!confirmed) return
 
@@ -247,6 +249,33 @@ const handlePermanentDeleteRecord = async (id) => {
 
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
+
+// 页面容器样式（规范 #1）
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-6;
+  padding-top: $spacing-4;
+  max-width: 100%;
+
+  h1 {
+    font-family: $font-family-heading;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .page-header-subtitle {
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    margin-top: $spacing-2;
+  }
+
+  @media (min-width: $breakpoint-xl) {
+    gap: $spacing-8;
+  }
+}
 
 .toast-message {
   position: fixed;
@@ -264,7 +293,7 @@ const handlePermanentDeleteRecord = async (id) => {
   font-weight: $font-weight-medium;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba($accent-primary, 0.3);
-  z-index: 1070;
+  z-index: $z-tooltip;
 
   &.error {
     background: $error;
@@ -442,6 +471,11 @@ const handlePermanentDeleteRecord = async (id) => {
 
 // 响应式
 @media (max-width: $breakpoint-md) {
+  .page-header {
+    flex-direction: column;
+    gap: $spacing-4;
+  }
+
   .deleted-item {
     flex-direction: column;
     align-items: flex-start;

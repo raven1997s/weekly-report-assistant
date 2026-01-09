@@ -3,7 +3,7 @@
 // ========================================
 
 import cron from 'node-cron'
-import { createDbConnection, queryGet, queryAll } from './db.js'
+import { createDbConnection, queryGet, queryAll, queryRun } from './db.js'
 import { isWorkday, getWorkWeekInfo, formatDate } from './utils/date.js'
 
 // 预设时间模板
@@ -25,6 +25,15 @@ const SCHEDULE_TEMPLATES = [
     minute: 30,
     dayOfWeek: '*', // 每天运行，运行时校验是否为工作日
     type: 'reminder', // 填写提醒
+    enabled: false
+  },
+  {
+    id: 'new_workweek_plan_convert',
+    name: '新工作周计划转换',
+    hour: 9,
+    minute: 0,
+    dayOfWeek: '*', // 每天运行，运行时校验
+    type: 'convert', // 计划转换
     enabled: false
   }
 ]
@@ -148,6 +157,82 @@ async function executeTask(task) {
       }
     }
     // ========== 校验结束 ==========
+
+    // ========== 计划转换任务 ==========
+    if (task.type === 'convert') {
+      const today = new Date()
+
+      // 1. 判断是否为新工作周开始
+      if (!isNewWorkWeekStart(today)) {
+        console.log(`[Cron] 今天不是新工作周开始，跳过转换`)
+        return
+      }
+
+      const todayStr = formatDate(today, 'yyyy-MM-dd')
+      console.log(`[Cron] ✅ 检测到新工作周开始: ${todayStr}`)
+
+      // 2. 打开数据库连接
+      const db = await createDbConnection()
+
+      try {
+        // 3. 查询上周周报的 plans
+        const lastWeekData = await getLastWeekPlans(db, today)
+
+        if (!lastWeekData || lastWeekData.plans.length === 0) {
+          console.log(`[Cron] 上周无下周计划，跳过转换`)
+          return
+        }
+
+        // 4. 检查是否已转换过
+        const alreadyConverted = await isPlansConverted(db, lastWeekData.weekStart)
+        if (alreadyConverted) {
+          console.log(`[Cron] 上周计划已转换过，跳过: ${lastWeekData.weekStart}`)
+          return
+        }
+
+        // 5. 转换 plans 为 records
+        const now = new Date().toISOString()
+        const records = convertPlansToRecords(lastWeekData.plans, now)
+
+        console.log(`[Cron] 准备插入 ${records.length} 条记录`)
+
+        // 6. 批量插入 records 表
+        let successCount = 0
+        let skipCount = 0
+
+        for (const record of records) {
+          try {
+            await queryRun(
+              db,
+              `INSERT INTO records (id, content, project, workType, createdAt, updatedAt, deleted)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [record.id, record.content, record.project, record.workType,
+               record.createdAt, record.updatedAt, record.deleted]
+            )
+            successCount++
+          } catch (error) {
+            if (error.message.includes('UNIQUE constraint')) {
+              skipCount++
+            } else {
+              console.error(`[Cron] 插入记录失败 [${record.id}]:`, error.message)
+            }
+          }
+        }
+
+        // 7. 标记已转换
+        await markPlansAsConverted(db, lastWeekData.weekStart, records.map(r => r.id))
+
+        console.log(`[Cron] ✅ 计划转换成功: ${successCount} 条成功, ${skipCount} 条跳过`)
+
+      } catch (error) {
+        console.error(`[Cron] 计划转换失败:`, error)
+      } finally {
+        await db.close()
+      }
+
+      return
+    }
+    // ========== 转换任务结束 ==========
 
     // 获取钉钉配置
     const db = await createDbConnection()
@@ -336,6 +421,98 @@ async function sendReminder(webhookUrl, secret) {
   } else {
     return { success: false, message: result.errmsg || '发送失败' }
   }
+}
+
+// ========================================
+// 计划转换辅助函数
+// ========================================
+
+/**
+ * 判断是否为新工作周开始
+ * 条件：昨天不是工作日，今天是工作日
+ */
+function isNewWorkWeekStart(today) {
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const isTodayWorkday = isWorkday(today)
+  const wasYesterdayWorkday = isWorkday(yesterday)
+
+  return isTodayWorkday && !wasYesterdayWorkday
+}
+
+/**
+ * 获取上周周报的 plans
+ * 查询最新的已归档周报（weekStart 小于今天的最新周报）
+ */
+async function getLastWeekPlans(db, today) {
+  const todayStr = formatDate(today, 'yyyy-MM-dd')
+
+  const report = await queryGet(
+    db,
+    `SELECT plans, weekStart FROM reports
+     WHERE weekStart < ? AND deleted = 0
+     ORDER BY weekStart DESC
+     LIMIT 1`,
+    [today.toISOString()]
+  )
+
+  if (!report || !report.plans) {
+    console.log(`[Cron] 未找到已归档的周报或无下周计划`)
+    return null
+  }
+
+  const plans = JSON.parse(report.plans)
+  console.log(`[Cron] 找到周报 ${report.weekStart.split('T')[0]} 的 ${plans.length} 条下周计划`)
+
+  return { plans, weekStart: report.weekStart }
+}
+
+/**
+ * 将 plans 转换为 records
+ */
+function convertPlansToRecords(plans, createdAt) {
+  return plans.map(plan => ({
+    id: plan.id,
+    content: plan.content,
+    project: plan.project || null,
+    workType: plan.workType || null,
+    createdAt: createdAt,
+    updatedAt: createdAt,
+    deleted: 0,
+    deletedAt: null
+  }))
+}
+
+/**
+ * 检查该批计划是否已转换过
+ */
+async function isPlansConverted(db, weekStart) {
+  const converted = await queryGet(
+    db,
+    "SELECT value FROM settings WHERE key = ?",
+    [`converted_plans_${weekStart}`]
+  )
+
+  return !!converted
+}
+
+/**
+ * 标记该批计划已转换
+ */
+async function markPlansAsConverted(db, weekStart, recordIds) {
+  const markData = {
+    convertedAt: new Date().toISOString(),
+    recordIds: recordIds,
+    weekStart: weekStart
+  }
+
+  await db.run(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    [`converted_plans_${weekStart}`, JSON.stringify(markData)]
+  )
+
+  console.log(`[Cron] 已标记转换: ${weekStart}, ${recordIds.length} 条记录`)
 }
 
 export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES }

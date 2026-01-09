@@ -141,7 +141,8 @@ export const useReportsStore = defineStore('reports', () => {
             const result = await response.json()
 
             if (result.success) {
-                deletedReports.value = result.data.data || result.data || []
+                // API 返回 { success: true, data: { reports: [...], currentPlans: [], currentReflections: {} } }
+                deletedReports.value = result.data.reports || []
                 return deletedReports.value
             }
             return []
@@ -216,15 +217,6 @@ export const useReportsStore = defineStore('reports', () => {
         const index = currentPlans.value.findIndex(p => p.id === id)
         if (index !== -1) {
             currentPlans.value.splice(index, 1)
-            await persist()
-        }
-    }
-
-    // 更新计划完成状态
-    const updatePlanComplete = async (id, completed) => {
-        const plan = currentPlans.value.find(p => p.id === id)
-        if (plan) {
-            plan.completed = completed
             await persist()
         }
     }
@@ -309,7 +301,6 @@ export const useReportsStore = defineStore('reports', () => {
         updatePlans,
         addPlan,
         removePlan,
-        updatePlanComplete,
         updateReflections,
         searchReports,
         getAllReports,

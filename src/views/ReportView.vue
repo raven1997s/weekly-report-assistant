@@ -15,7 +15,9 @@
         </div>
         <!-- 假期详情 -->
         <div v-if="upcomingHolidaysText" class="upcoming-holidays">
-          <span class="holiday-icon">🏖️</span>
+          <svg class="holiday-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+          </svg>
           <span class="holiday-text">{{ upcomingHolidaysText }}</span>
         </div>
       </div>
@@ -49,17 +51,8 @@
               v-for="plan in displayPlans"
               :key="plan.id"
               class="plan-item"
-              :class="{ completed: plan.completed }"
             >
-              <label class="plan-checkbox">
-                <input
-                  type="checkbox"
-                  :checked="plan.completed"
-                  @change="togglePlanComplete(plan.id, $event.target.checked)"
-                />
-                <span class="checkmark"></span>
-              </label>
-              <span class="plan-text" :class="{ 'line-through': plan.completed }">{{ plan.content }}</span>
+              <span class="plan-text">{{ plan.content }}</span>
               <button class="delete-btn" @click="removePlan(plan.id)">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>
@@ -309,11 +302,6 @@ const handleAddPlan = (plan) => {
 // 删除计划
 const removePlan = (id) => {
   reportsStore.removePlan(id)
-}
-
-// 切换计划完成状态
-const togglePlanComplete = (id, completed) => {
-  reportsStore.updatePlanComplete(id, completed)
 }
 
 // 保存周报
@@ -771,7 +759,7 @@ button:disabled {
   color: white;
   border-radius: $radius-lg;
   box-shadow: var(--shadow-xl);
-  z-index: 1000;
+  z-index: $z-tooltip;
   display: flex;
   align-items: center;
   gap: $spacing-3;
@@ -809,7 +797,7 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-modal-backdrop;
   padding: $spacing-xl;
 }
 

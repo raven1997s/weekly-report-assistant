@@ -60,7 +60,7 @@ const handleCancel = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1060;
+  z-index: $z-popover;
 }
 
 .confirm-dialog {
