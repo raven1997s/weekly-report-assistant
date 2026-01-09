@@ -1,0 +1,426 @@
+// ========================================
+// 智能周报助手 - 主样式入口（极简主义）
+// ========================================
+
+// 导入变量和基础样式
+@use './variables.scss' as *;
+@use './base.scss' as *;
+@use 'sass:color';
+
+// ========================================
+// 应用布局
+// ========================================
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+// 主布局容器
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-primary);
+}
+
+// ========================================
+// 侧边栏
+// ========================================
+
+.app-sidebar {
+    width: $sidebar-width;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: $z-fixed;
+    transition: transform $transition-normal;
+
+    &-header {
+        padding: $spacing-6;
+        border-bottom: 1px solid var(--border-color);
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: $spacing-3;
+
+            &-icon {
+                width: 36px;
+                height: 36px;
+                background: $accent-gradient;
+                border-radius: $radius-md;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: $font-size-lg;
+                flex-shrink: 0;
+            }
+
+            &-text {
+                font-size: $font-size-lg;
+                font-weight: $font-weight-semibold;
+                color: var(--text-primary);
+            }
+        }
+    }
+
+    &-nav {
+        flex: 1;
+        padding: $spacing-4;
+        overflow-y: auto;
+    }
+
+    &-footer {
+        padding: $spacing-4;
+        border-top: 1px solid var(--border-color);
+    }
+}
+
+// ========================================
+// 导航菜单
+// ========================================
+
+.nav-menu {
+    list-style: none;
+
+    &-item {
+        margin-bottom: $spacing-1;
+    }
+
+    &-link {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: $spacing-3;
+        padding: $spacing-3 $spacing-3;
+        border-radius: $radius-md;
+        color: var(--text-secondary);
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        transition: all $transition-fast;
+        text-decoration: none;
+
+        &:hover {
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+
+        &.active {
+            color: $accent-primary;
+            background: $accent-light;
+
+            &::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 3px;
+                height: 20px;
+                background: $accent-primary;
+                border-radius: 0 $radius-full $radius-full 0;
+            }
+        }
+
+        .icon {
+            font-size: $font-size-lg;
+            flex-shrink: 0;
+        }
+
+        .label {
+            flex: 1;
+        }
+    }
+}
+
+// ========================================
+// 主内容区
+// ========================================
+
+.app-main {
+    flex: 1;
+    margin-left: $sidebar-width;
+    padding: $spacing-10 $spacing-8; // 增加基础内边距
+    min-height: 100vh;
+    transition: margin-left $transition-normal;
+
+    // 大屏幕上增加内边距
+    @media (min-width: $breakpoint-xl) {
+        padding: $spacing-10 $spacing-12;
+    }
+
+    // 超大屏幕上增加更多内边距
+    @media (min-width: 1600px) {
+        padding: $spacing-10 $spacing-16;
+    }
+
+    // 极宽屏幕上继续增加内边距
+    @media (min-width: 1920px) {
+        padding: $spacing-10 80px;
+    }
+}
+
+// ========================================
+// 页面容器
+// ========================================
+
+.page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+
+    // 超大屏幕上增加最大宽度和内边距
+    @media (min-width: $breakpoint-xl) {
+        padding: 0 $spacing-12;
+    }
+
+    @media (min-width: 1600px) {
+        max-width: 1600px;
+        padding: 0 $spacing-16;
+    }
+
+    @media (min-width: 1920px) {
+        padding: 0 80px;
+    }
+
+    // 平板设备
+    @media (max-width: $breakpoint-lg) {
+        max-width: 100%;
+        padding: 0 $spacing-4;
+    }
+
+    // 移动设备
+    @media (max-width: $breakpoint-md) {
+        padding: 0 $spacing-3;
+    }
+
+    // 小屏手机
+    @media (max-width: $breakpoint-sm) {
+        padding: 0 $spacing-2;
+    }
+}
+
+// 页面标题
+.page-header {
+    margin-bottom: $spacing-8;
+
+    // 大屏幕上增加底部间距
+    @media (min-width: $breakpoint-xl) {
+        margin-bottom: $spacing-10;
+    }
+
+    &-title {
+        font-size: $font-size-3xl;
+        font-weight: $font-weight-semibold;
+        color: var(--text-primary);
+        margin-bottom: $spacing-2;
+        line-height: $line-height-tight;
+
+        // 大屏幕上增大字体
+        @media (min-width: $breakpoint-xl) {
+            font-size: 32px;
+            margin-bottom: $spacing-3;
+        }
+    }
+
+    &-subtitle {
+        font-size: $font-size-base;
+        color: var(--text-secondary);
+        line-height: $line-height-normal;
+
+        // 大屏幕上增大字体
+        @media (min-width: $breakpoint-xl) {
+            font-size: $font-size-lg;
+        }
+    }
+}
+
+// ========================================
+// 空状态
+// ========================================
+
+.empty-state {
+    text-align: center;
+    padding: $spacing-16 $spacing-8;
+    color: var(--text-muted);
+
+    &-icon {
+        font-size: 48px;
+        margin-bottom: $spacing-4;
+        opacity: 0.5;
+    }
+
+    &-title {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-medium;
+        color: var(--text-secondary);
+        margin-bottom: $spacing-2;
+    }
+
+    &-desc {
+        font-size: $font-size-sm;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    &-action {
+        margin-top: $spacing-6;
+    }
+}
+
+// ========================================
+// 浮动操作按钮
+// ========================================
+
+.fab {
+    position: fixed;
+    bottom: $spacing-6;
+    right: $spacing-6;
+    width: 56px;
+    height: 56px;
+    border-radius: $radius-full;
+    background: $accent-primary;
+    color: white;
+    border: none;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: $font-size-xl;
+    transition: all $transition-fast;
+    z-index: $z-fixed;
+
+    &:hover {
+        filter: brightness(0.92);
+        transform: scale(1.05);
+        box-shadow: var(--shadow-xl);
+    }
+
+    &:active {
+        transform: scale(0.95);
+    }
+}
+
+// ========================================
+// 响应式布局
+// ========================================
+
+@media (max-width: $breakpoint-lg) {
+    .app-sidebar {
+        transform: translateX(-100%);
+
+        &.open {
+            transform: translateX(0);
+            box-shadow: var(--shadow-xl);
+        }
+    }
+
+    .app-main {
+        margin-left: 0;
+        padding: $spacing-6;
+    }
+
+    .page-header-title {
+        font-size: $font-size-2xl;
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .app-main {
+        padding: $spacing-4;
+    }
+
+    .page-header {
+        margin-bottom: $spacing-6;
+
+        &-title {
+            font-size: $font-size-xl;
+        }
+
+        &-subtitle {
+            font-size: $font-size-sm;
+        }
+    }
+
+    .fab {
+        bottom: $spacing-4;
+        right: $spacing-4;
+        width: 48px;
+        height: 48px;
+        font-size: $font-size-lg;
+    }
+}
+
+// ========================================
+// 遮罩层（移动端侧边栏）
+// ========================================
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-overlay);
+    z-index: ($z-fixed - 10);
+    opacity: 0;
+    visibility: hidden;
+    transition: all $transition-normal;
+
+    &.visible {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+// ========================================
+// 过渡动画
+// ========================================
+
+// Vue 过渡
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity $duration-normal $easing-default;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+// 滑动过渡
+.slide-fade-enter-active {
+    transition: all $duration-normal $easing-out;
+}
+
+.slide-fade-leave-active {
+    transition: all $duration-fast $easing-in;
+}
+
+.slide-fade-enter-from {
+    transform: translateX(-10px);
+    opacity: 0;
+}
+
+.slide-fade-leave-to {
+    transform: translateX(10px);
+    opacity: 0;
+}
+
+// 缩放过渡
+.scale-enter-active,
+.scale-leave-active {
+    transition: all $duration-normal $easing-default;
+}
+
+.scale-enter-from,
+.scale-leave-to {
+    opacity: 0;
+    transform: scale(0.95);
+}

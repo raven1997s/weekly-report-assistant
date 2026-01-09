@@ -1,0 +1,315 @@
+<template>
+  <aside class="app-sidebar" :class="{ open: isOpen }">
+    <!-- Logo -->
+    <div class="app-sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/>
+            <path d="M18 9l-5 5-4-4-3 3"/>
+          </svg>
+        </div>
+        <span class="logo-text">周报助手</span>
+      </div>
+    </div>
+
+    <!-- 导航菜单 -->
+    <nav class="app-sidebar-nav">
+      <ul class="nav-menu">
+        <li class="nav-menu-item" v-for="route in navRoutes" :key="route.path">
+          <router-link
+            :to="route.path"
+            class="nav-menu-link"
+            :class="{ active: isActive(route.path) }"
+            :aria-label="route.meta.title"
+            :aria-current="isActive(route.path) ? 'page' : undefined"
+            @click="handleNavClick"
+          >
+            <span class="icon" aria-hidden="true">
+              <!-- 工作记录图标 -->
+              <svg v-if="route.path === '/'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              <!-- 生成周报图标 -->
+              <svg v-else-if="route.path === '/report'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v18h18"/>
+                <path d="M18 9l-5 5-4-4-3 3"/>
+              </svg>
+              <!-- 历史周报图标 -->
+              <svg v-else-if="route.path === '/history'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+              </svg>
+              <!-- 设置图标 -->
+              <svg v-else-if="route.path === '/settings'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6"/>
+                <path d="m4.93 4.93 4.24 4.24m5.66 5.66 4.24 4.24"/>
+                <path d="M1 12h6m6 0h6"/>
+                <path d="m4.93 19.07 4.24-4.24m5.66-5.66 4.24-4.24"/>
+              </svg>
+              <!-- 回收站图标 -->
+              <svg v-else-if="route.path === '/recycle-bin'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              <!-- 默认图标 -->
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1"/>
+              </svg>
+            </span>
+            <span class="label">{{ route.meta.title }}</span>
+          </router-link>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- 底部信息 -->
+    <div class="app-sidebar-footer">
+      <div class="week-info">
+        <div class="week-label">{{ weekLabel }}</div>
+        <div class="week-range">{{ weekRange }}</div>
+      </div>
+      <div class="stats">
+        <span class="stat-item">
+          <span class="stat-value">{{ recordCount }}</span>
+          <span class="stat-label">条记录</span>
+        </span>
+      </div>
+    </div>
+  </aside>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useRecordsStore } from '../../stores/records'
+import { getWeekLabel, getWeekRange } from '../../utils/date'
+
+const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const emit = defineEmits(['close'])
+
+const route = useRoute()
+const recordsStore = useRecordsStore()
+
+// 导航路由
+const navRoutes = [
+  { path: '/', meta: { title: '工作记录' } },
+  { path: '/report', meta: { title: '生成周报' } },
+  { path: '/history', meta: { title: '历史周报' } },
+  { path: '/settings', meta: { title: '设置' } },
+  { path: '/recycle-bin', meta: { title: '回收站' } }
+]
+
+// 当前路由是否激活
+const isActive = (path) => {
+  if (path === '/') {
+    return route.path === '/'
+  }
+  return route.path.startsWith(path)
+}
+
+// 周信息
+const weekLabel = computed(() => getWeekLabel(new Date()))
+const weekRange = computed(() => getWeekRange(new Date()))
+
+// 本周记录数
+const recordCount = computed(() => recordsStore.currentWeekRecords.length)
+
+// 导航点击处理（移动端关闭侧边栏）
+const handleNavClick = () => {
+  if (window.innerWidth < 1024) {
+    emit('close')
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+@use '../../assets/styles/variables.scss' as *;
+
+.app-sidebar {
+  width: $sidebar-width;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: $z-fixed;
+  transition: transform $transition-normal;
+
+  &-header {
+    padding: $spacing-6;
+    border-bottom: 1px solid var(--border-color);
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: $spacing-3;
+
+      &-icon {
+        width: 36px;
+        height: 36px;
+        background: $accent-gradient;
+        border-radius: $radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      &-text {
+        font-size: $font-size-lg;
+        font-weight: $font-weight-semibold;
+        color: var(--text-primary);
+      }
+    }
+  }
+
+  &-nav {
+    flex: 1;
+    padding: $spacing-4;
+    overflow-y: auto;
+  }
+
+  &-footer {
+    padding: $spacing-4;
+    border-top: 1px solid var(--border-color);
+  }
+}
+
+// 导航菜单
+.nav-menu {
+  list-style: none;
+
+  &-item {
+    margin-bottom: $spacing-1;
+  }
+
+  &-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+    padding: $spacing-3;
+    border-radius: $radius-md;
+    color: var(--text-secondary);
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    transition: all $transition-fast;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-card);
+    }
+
+    &.active {
+      color: $accent-primary;
+      background: $accent-light;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 20px;
+        background: $accent-primary;
+        border-radius: 0 $radius-full $radius-full 0;
+      }
+    }
+
+    .icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+
+      svg {
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    .label {
+      flex: 1;
+    }
+  }
+}
+
+// 底部信息区域
+.week-info {
+  padding: $spacing-3;
+  background: var(--bg-card);
+  border-radius: $radius-md;
+  margin-bottom: $spacing-3;
+  border: 1px solid var(--border-color);
+
+  .week-label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--text-primary);
+  }
+
+  .week-range {
+    font-size: $font-size-xs;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+}
+
+.stats {
+  display: flex;
+  gap: $spacing-3;
+
+  .stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+
+    .stat-value {
+      font-size: $font-size-xl;
+      font-weight: $font-weight-semibold;
+      color: $accent-primary;
+    }
+
+    .stat-label {
+      font-size: $font-size-xs;
+      color: var(--text-muted);
+    }
+  }
+}
+
+// 响应式
+@media (max-width: 1024px) {
+  .app-sidebar {
+    transform: translateX(-100%);
+
+    &.open {
+      transform: translateX(0);
+      box-shadow: var(--shadow-xl);
+    }
+  }
+}
+</style>

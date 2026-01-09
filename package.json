@@ -1,0 +1,43 @@
+{
+  "name": "weekly_report_temp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run vite\" --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\"",
+    "dev": "concurrently \"npm run server\" \"npm run vite\" --names \"BACKEND,FRONTEND\" --prefix-colors \"blue,green\"",
+    "server": "node server/api.js",
+    "vite": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.5",
+    "dexie": "^4.2.1",
+    "express": "^5.2.1",
+    "marked": "^17.0.1",
+    "node-cron": "^4.2.1",
+    "pinia": "^3.0.4",
+    "sqlite3": "^5.1.7",
+    "vue": "^3.5.24",
+    "vue-router": "^4.6.4",
+    "vuedraggable": "^4.1.0"
+  },
+  "devDependencies": {
+    "@pinia/testing": "^1.0.3",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/ui": "^4.0.16",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.1.0",
+    "jsdom": "^27.0.1",
+    "sass": "^1.97.2",
+    "vite": "^7.2.4",
+    "vitest": "^4.0.16"
+  }
+}

@@ -1,0 +1,34 @@
+# 依赖
+node_modules/
+
+# 数据库文件（不能上传）
+data/
+
+# 构建产物
+dist/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 临时文件
+.claude/
+*.tmp

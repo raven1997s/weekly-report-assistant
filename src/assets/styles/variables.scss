@@ -1,0 +1,173 @@
+// ========================================
+// 智能周报助手 - 样式变量（极简主义风格）
+// ========================================
+
+// ========================================
+// 配色系统 - 浅色主题（默认）
+// ========================================
+$bg-primary: #ffffff;
+$bg-secondary: #f9fafb;
+$bg-tertiary: #f3f4f6;
+$bg-card: #ffffff;
+$bg-card-hover: #f9fafb;
+$bg-overlay: rgba(0, 0, 0, 0.4);
+
+// 文字颜色
+$text-primary: #111827;
+$text-secondary: #4b5563; // 提升对比度到 WCAG AAA (7.1:1)
+$text-muted: #9ca3af;
+
+// 强调色 - 柔和蓝色系
+$accent-primary: #3b82f6;
+$accent-secondary: #6366f1;
+$accent-gradient: linear-gradient(135deg, $accent-primary, $accent-secondary);
+$accent-light: rgba($accent-primary, 0.08);
+
+// 状态颜色
+$success: #10b981;
+$warning: #f59e0b;
+$error: #ef4444;
+$info: #3b82f6;
+
+// 边框
+$border-color: #e5e7eb;
+$border-color-hover: #d1d5db;
+$divider-color: #f3f4f6;
+
+// 阴影 - 极简风格
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
+$shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08);
+
+// ========================================
+// 深色主题变量 - 高级黑风格
+// ========================================
+// 纯黑背景系统
+$dark-bg-primary: #000000;
+$dark-bg-secondary: #0a0a0a;
+$dark-bg-tertiary: #141414;
+$dark-bg-card: #0a0a0a;
+$dark-bg-card-hover: #141414;
+$dark-bg-overlay: rgba(0, 0, 0, 0.85);
+
+// 深色模式文字 - 高对比度白色
+$dark-text-primary: #ffffff;
+$dark-text-secondary: #a1a1aa;
+$dark-text-muted: #71717a;
+
+// 深色模式边框 - 微妙的边界
+$dark-border-color: #333333; // 提升可见性
+$dark-border-color-hover: #404040;
+$dark-divider-color: #1a1a1a;
+
+// 深色模式阴影 - 白色光晕效果
+$dark-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+$dark-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+$dark-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+$dark-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+$dark-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.3);
+
+// 深色模式白色光晕效果
+$dark-glow-sm: 0 0 0 1px rgba(255, 255, 255, 0.05);
+$dark-glow-md: 0 0 20px rgba(255, 255, 255, 0.03);
+
+// ========================================
+// 圆角 - 极简风格
+// ========================================
+$radius-sm: 6px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 16px;
+$radius-full: 9999px;
+
+// ========================================
+// 间距系统 - 8px 基础单位
+// ========================================
+$spacing-1: 4px;
+$spacing-2: 8px;
+$spacing-3: 12px;
+$spacing-4: 16px;
+$spacing-5: 20px;
+$spacing-6: 24px;
+$spacing-8: 32px;
+$spacing-10: 40px;
+$spacing-12: 48px;
+$spacing-16: 64px;
+
+// 兼容旧命名
+$spacing-xs: $spacing-1;
+$spacing-sm: $spacing-2;
+$spacing-md: $spacing-4;
+$spacing-lg: $spacing-6;
+$spacing-xl: $spacing-8;
+$spacing-2xl: $spacing-12;
+
+// ========================================
+// 字体系统 - 现代字体栈
+// ========================================
+// 优化后的系统字体栈，优先使用现代高质量字体
+$font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+$font-family-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+$font-family-heading: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+$font-size-xs: 12px;
+$font-size-sm: 14px;
+$font-size-base: 16px;
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-2xl: 24px;
+$font-size-3xl: 30px;
+$font-size-4xl: 36px;
+
+// 字重
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// 行高
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.75;
+
+// ========================================
+// 过渡动画
+// ========================================
+$duration-fast: 150ms;
+$duration-normal: 250ms;
+$duration-slow: 400ms;
+
+$easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+$easing-in: cubic-bezier(0.4, 0, 1, 1);
+$easing-out: cubic-bezier(0, 0, 0.2, 1);
+$easing-in-out: cubic-bezier(0.4, 0, 0.6, 1);
+
+$transition-fast: $duration-fast $easing-default;
+$transition-normal: $duration-normal $easing-default;
+$transition-slow: $duration-slow $easing-default;
+
+// ========================================
+// 布局
+// ========================================
+$sidebar-width: 260px;
+$header-height: 60px;
+$content-max-width: 1024px;
+
+// 响应式断点
+$breakpoint-sm: 640px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 1024px;
+$breakpoint-xl: 1280px;
+
+// ========================================
+// Z-index 层级
+// ========================================
+$z-dropdown: 1000;
+$z-sticky: 1020;
+$z-fixed: 1030;
+$z-modal-backdrop: 1040;
+$z-modal: 1050;
+$z-popover: 1060;
+$z-tooltip: 1070;
