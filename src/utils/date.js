@@ -277,7 +277,8 @@ export const getWorkWeekInfo = (date) => {
         }
     }
 
-    const endDate = lastWorkday
+    const endDate = new Date(lastWorkday)
+    endDate.setHours(23, 59, 59, 999)  // 设置为当天最后一刻，确保包含当天的所有记录
 
     // ============ 第五步：收集从startDate到endDate的所有日期 ============
     const workdays = []
