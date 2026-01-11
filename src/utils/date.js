@@ -221,59 +221,65 @@ export const getWeekRange = (date) => {
 }
 
 /**
- * 获取工作周范围（方案A：充分包含调休补班）
+ * 获取工作周范围（明确规则版本）
  *
- * 核心逻辑：
- * 1. 工作周从第一个连续工作日序列的开始（可以包括上周的调休补班）
- * 2. 工作周到最后一个连续工作日序列的结束
- * 3. 在自然周基础上，向前向后扩展，包含所有连续的工作日
+ * 核心规则：
+ * 1. 如果上周日是工作日/补班 → 工作周从上周日开始
+ * 2. 否则 → 工作周从本周第一个工作日开始
+ * 3. 工作周到本周最后一个工作日结束，不向后扩展
+ * 4. 如果自然周全是节假日 → 返回 hasNoWorkdays: true
  *
  * 示例：
- * - 自然周：周一到周日
- * - 如果上周日是调休补班，工作周从上周日开始
- * - 如果下周一是调休补班，工作周到下周一结束
+ * - 1/5-1/11周：上周日1/4是补班，工作周从1/4开始
+ * - 2/16-2/22周：全周是节假日，hasNoWorkdays: true
  *
  * @param {Date} date - 参考日期
- * @returns {Object} { start: Date, end: Date, workdays: Array, holidayCount: number, workdayCount: number, upcomingHolidays: Array }
+ * @returns {Object} { start: Date, end: Date, workdays: Array, holidayCount: number, workdayCount: number, upcomingHolidays: Array, hasNoWorkdays: boolean }
  */
 export const getWorkWeekInfo = (date) => {
-    // ============ 第一步：获取自然周边界（周一到周日） ============
+    // ============ 第一步：获取自然周起始（周一） ============
     const naturalWeekStart = getWeekStart(date)
-    const naturalWeekEnd = getWeekEnd(date)
 
-    // ============ 第二步：从自然周开始往前查找连续的工作日（作为工作周开始） ============
-    let startDate = new Date(naturalWeekStart)
-    const maxSearchDays = 7
-    let searchCount = 0
+    // ============ 第二步：查找自然周内第一个和最后一个工作日 ============
+    let firstWorkday = null
+    let lastWorkday = null
 
-    // 往前查找连续的工作日（最多7天），包含调休补班
-    while (searchCount < maxSearchDays) {
-        const prevDay = new Date(startDate)
-        prevDay.setDate(prevDay.getDate() - 1)
-
-        // 如果前一天不是工作日，停止查找
-        if (!isWorkday(prevDay)) {
-            break
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(naturalWeekStart)
+        d.setDate(d.getDate() + i)
+        if (isWorkday(d)) {
+            if (!firstWorkday) firstWorkday = new Date(d)
+            lastWorkday = new Date(d)
         }
-
-        // 前一天是工作日，继续往前找
-        startDate = prevDay
-        searchCount++
     }
 
-    // ============ 第三步：从自然周结束往前查找最后一个工作日（作为工作周结束） ============
-    let endDate = new Date(naturalWeekEnd)
-
-    // 往前查找，从自然周结束开始找第一个工作日
-    // 这样确保工作周结束在自然周范围内
-    while (endDate >= startDate) {
-        if (isWorkday(endDate)) {
-            break
+    // ============ 第三步：检查上周日是否是工作日 ============
+    let startDate = firstWorkday
+    if (firstWorkday) {
+        const lastSunday = new Date(naturalWeekStart)
+        lastSunday.setDate(lastSunday.getDate() - 1)
+        if (isWorkday(lastSunday)) {
+            startDate = new Date(lastSunday)  // 包含上周日的补班
         }
-        endDate.setDate(endDate.getDate() - 1)
     }
 
-    // ============ 第四步：收集从startDate到endDate的所有日期 ============
+    // ============ 第四步：处理全节假日周 ============
+    if (!firstWorkday || !lastWorkday) {
+        // 返回"本周无工作日"标记
+        return {
+            start: null,
+            end: null,
+            workdays: [],
+            holidayCount: 7,
+            workdayCount: 0,
+            upcomingHolidays: [],
+            hasNoWorkdays: true
+        }
+    }
+
+    const endDate = lastWorkday
+
+    // ============ 第五步：收集从startDate到endDate的所有日期 ============
     const workdays = []
     let currentDate = new Date(startDate)
     let totalWorkdays = 0
@@ -303,7 +309,7 @@ export const getWorkWeekInfo = (date) => {
 
     const holidayCount = workdays.filter(d => !d.isWorkday).length
 
-    // ============ 第五步：找出本周接下来的休息日（从最后一个工作日的后一天开始，最多7天） ============
+    // ============ 第六步：找出本周接下来的休息日（从最后一个工作日的后一天开始，最多7天） ============
     const upcomingHolidays = []
     const searchEnd = new Date(endDate)
     searchEnd.setDate(searchEnd.getDate() + 7)
@@ -329,7 +335,8 @@ export const getWorkWeekInfo = (date) => {
         workdays,
         holidayCount,
         workdayCount: totalWorkdays,
-        upcomingHolidays
+        upcomingHolidays,
+        hasNoWorkdays: false
     }
 }
 
