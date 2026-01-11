@@ -1,0 +1,80 @@
+// ============ 标签组件样式 ============
+// 提供基础标签样式
+// 支持 primary、success、warning、error 颜色变体
+// 包含可关闭标签和徽章
+
+@use '../variables.scss' as *;
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-1;
+  padding: $spacing-1 $spacing-3;
+  font-size: $font-size-xs;
+  font-weight: 500;
+  border-radius: $radius-full;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+
+  // ============ 颜色变体 ============
+  &-primary {
+    background: rgba($accent-primary, 0.1);
+    color: $accent-primary;
+  }
+
+  &-success {
+    background: rgba($success, 0.1);
+    color: $success;
+  }
+
+  &-warning {
+    background: rgba($warning, 0.1);
+    color: $warning;
+  }
+
+  &-error {
+    background: rgba($error, 0.1);
+    color: $error;
+  }
+
+  // ============ 可关闭标签 ============
+  &-closeable {
+    padding-right: $spacing-2;
+  }
+
+  &-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all $transition-fast;
+    padding: $spacing-1;
+    width: 16px;
+    height: 16px;
+    color: inherit;
+    opacity: 0.6;
+    border-radius: $radius-md;
+
+    &:hover {
+      opacity: 1;
+      background: var(--bg-secondary);
+    }
+  }
+
+  // ============ 徽章 ============
+  &-badge {
+    background: $error;
+    color: white;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 $spacing-1;
+    border-radius: $radius-full;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}

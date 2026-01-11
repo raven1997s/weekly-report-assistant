@@ -4,7 +4,7 @@
       <input
         v-model="inputText"
         type="text"
-        class="input-field"
+        class="form-control"
         placeholder="添加下周计划，如：WMS 完成库存优化..."
         @keyup.enter="handleSubmit"
         @input="handleInput"
@@ -75,20 +75,11 @@ const handleSubmit = () => {
   display: flex;
   gap: $spacing-2;
 
-  input {
+  .form-control {
     flex: 1;
+    // 继承 form-control 样式，这里可以添加特定于这个组件的调整
     padding: $spacing-2 $spacing-3;
     font-size: $font-size-sm;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: $radius-md;
-    color: var(--text-primary);
-
-    &:focus {
-      outline: none;
-      border-color: $accent-primary;
-      box-shadow: 0 0 0 3px $accent-light;
-    }
   }
 }
 

@@ -1,0 +1,98 @@
+// ============ 模态框组件样式 ============
+// 统一的模态框样式
+// 支持 sm、md、lg、xl、fullscreen 尺寸
+// 包含 overlay、content、header、body、footer
+
+@use '../variables.scss' as *;
+
+.modal {
+  // ============ 遮罩层 ============
+  &-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: $z-modal-backdrop;
+    padding: $spacing-4;
+    animation: fadeIn $transition-fast;
+  }
+
+  // ============ 内容容器 ============
+  &-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: $radius-xl;
+    box-shadow: var(--shadow-xl);
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: scaleIn $transition-fast;
+
+    // ============ 尺寸变体 ============
+    &-sm { max-width: 400px; }
+    &-md { max-width: 600px; }
+    &-lg { max-width: 800px; }
+    &-xl { max-width: 1000px; }
+    &-fullscreen {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 0;
+    }
+  }
+
+  // ============ 头部 ============
+  &-header {
+    padding: $spacing-5 $spacing-6;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h3 {
+      font-size: $font-size-xl;
+      font-weight: 600;
+      margin: 0;
+    }
+  }
+
+  // ============ 主体 ============
+  &-body {
+    padding: $spacing-6;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  // ============ 底部 ============
+  &-footer {
+    padding: $spacing-5 $spacing-6;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: $spacing-3;
+    justify-content: flex-end;
+  }
+
+  // ============ 关闭按钮 ============
+  &-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all $transition-fast;
+    padding: $spacing-2;
+    width: 40px;
+    height: 40px;
+    border-radius: $radius-md;
+    color: var(--text-muted);
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+    }
+  }
+}

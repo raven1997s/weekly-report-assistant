@@ -1,36 +1,60 @@
 <template>
   <Teleport to="body">
-    <div v-if="show && message" class="confirm-overlay" @click="handleCancel">
-      <div class="confirm-dialog" @click.stop>
-        <div class="confirm-header">
-          <h3>{{ title }}</h3>
-        </div>
-        <div class="confirm-body">
-          <p>{{ message }}</p>
-          <input
-            ref="inputRef"
-            v-model="inputValue"
-            type="text"
-            class="prompt-input"
-            :placeholder="placeholder"
-            @keyup.enter="handleConfirm"
-          />
-        </div>
-        <div class="confirm-footer">
-          <button class="btn btn-secondary" @click="handleCancel">
-            取消
-          </button>
-          <button class="btn btn-primary" @click="handleConfirm" :disabled="!inputValue">
-            确定
-          </button>
+    <Transition name="modal">
+      <div
+        v-if="show && message"
+        ref="modalRef"
+        class="modal-overlay"
+        @click="handleCancel"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="dialogTitleId"
+        :aria-describedby="dialogDescId"
+      >
+        <div class="modal-content modal-content-sm" @click.stop>
+          <div class="modal-header">
+            <h3 :id="dialogTitleId">{{ title }}</h3>
+          </div>
+
+          <div class="modal-body">
+            <p :id="dialogDescId">{{ message }}</p>
+            <input
+              ref="inputRef"
+              v-model="inputValue"
+              type="text"
+              class="form-control"
+              :placeholder="placeholder"
+              :aria-label="placeholder || '请输入内容'"
+              @keyup.enter="handleConfirm"
+            />
+          </div>
+
+          <div class="modal-footer">
+            <button
+              class="btn btn-ghost"
+              @click="handleCancel"
+              aria-label="取消"
+            >
+              取消
+            </button>
+            <button
+              class="btn btn-primary"
+              @click="handleConfirm"
+              :disabled="!inputValue"
+              aria-label="确定"
+            >
+              确定
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useModalFocusTrap } from '../composables/useFocusTrap'
 
 const props = defineProps({
   show: Boolean,
@@ -41,13 +65,27 @@ const props = defineProps({
 
 const emit = defineEmits(['confirm', 'cancel', 'update:show'])
 
+// 模态框 ref
+const modalRef = ref(null)
 const inputValue = ref('')
 const inputRef = ref(null)
+
+// 生成唯一的 ARIA ID
+const dialogTitleId = computed(() =>
+  `dialog-title-${Math.random().toString(36).substring(2, 11)}`
+)
+const dialogDescId = computed(() =>
+  `dialog-desc-${Math.random().toString(36).substring(2, 11)}`
+)
+
+// 使用焦点陷阱
+useModalFocusTrap(modalRef, () => props.show)
 
 watch(() => props.show, async (show) => {
   if (show) {
     inputValue.value = ''
     await nextTick()
+    // 焦点陷阱会自动聚焦到第一个元素，但我们需要聚焦到输入框
     inputRef.value?.focus()
   }
 })
@@ -68,61 +106,24 @@ const handleCancel = () => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
-.confirm-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: $z-popover;
+// Modal 过渡动画
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity $transition-normal;
 }
 
-.confirm-dialog {
-  background: var(--bg-primary);
-  border-radius: $radius-lg;
-  padding: $spacing-6;
-  min-width: 400px;
-  max-width: 500px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 
-.confirm-header h3 {
-  margin: 0 0 $spacing-4 0;
-  font-size: $font-size-lg;
-  font-weight: 600;
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform $transition-normal;
 }
 
-.confirm-body {
-  margin-bottom: $spacing-4;
-
-  p {
-    margin: 0 0 $spacing-4 0;
-    color: var(--text-secondary);
-  }
-}
-
-.confirm-footer {
-  display: flex;
-  gap: $spacing-3;
-  justify-content: flex-end;
-}
-
-.prompt-input {
-  width: 100%;
-  padding: $spacing-3;
-  border: 1px solid var(--border-color);
-  border-radius: $radius-md;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: $font-size-base;
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary-color);
-  }
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: scale(0.95);
 }
 </style>

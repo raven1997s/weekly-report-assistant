@@ -89,7 +89,12 @@
     <!-- 钉钉配置 -->
     <div class="card setting-section">
       <div class="section-header">
-        <h3>📱 钉钉机器人配置</h3>
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+          </svg>
+          钉钉机器人配置
+        </h3>
       </div>
       <div class="dingtalk-config">
         <div class="input-group">
@@ -113,7 +118,10 @@
           />
         </div>
         <button class="btn btn-secondary mt-md" @click="testDingTalk" :disabled="isTesting">
-          {{ isTesting ? '测试中...' : '🧪 发送测试消息' }}
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
+          </svg>
+          {{ isTesting ? '测试中...' : '发送测试消息' }}
         </button>
       </div>
     </div>

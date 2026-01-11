@@ -171,3 +171,90 @@ $z-modal-backdrop: 1040;
 $z-modal: 1050;
 $z-popover: 1060;
 $z-tooltip: 1070;
+
+// ========================================
+// 颜色系统 - 色阶
+// ========================================
+// 蓝色系（主色）
+$blue: (
+  50: #eff6ff,
+  100: #dbeafe,
+  200: #bfdbfe,
+  300: #93c5fd,
+  400: #60a5fa,
+  500: #3b82f6,  // primary
+  600: #2563eb,
+  700: #1d4ed8,
+  800: #1e40af,
+  900: #1e3a8a
+);
+
+// 灰色系
+$gray: (
+  50: #f9fafb,
+  100: #f3f4f6,
+  200: #e5e7eb,
+  300: #d1d5db,
+  400: #9ca3af,
+  500: #6b7280,
+  600: #4b5563,
+  700: #374151,
+  800: #1f2937,
+  900: #111827
+);
+
+// 语义化颜色映射
+$color-primary: map-get($blue, 500);
+$color-primary-hover: map-get($blue, 600);
+$color-primary-light: map-get($blue, 50);
+
+$accent-primary-hover: $color-primary-hover;
+$accent-light-extended: $color-primary-light;
+
+// ========================================
+// 行高 - 扩展选项
+// ========================================
+$line-height-1: 1;     // 单行文本
+$line-height-2: 1.25;  // tight (已有 tight，这里用数字)
+$line-height-3: 1.5;   // normal (已有 normal，这里用数字)
+$line-height-4: 1.75;  // relaxed (已有 relaxed，这里用数字)
+$line-height-5: 2;     // loose
+
+// ========================================
+// 字体大小 - 更细粒度
+// ========================================
+$font-size-11: 11px;
+$font-size-13: 13px;
+$font-size-15: 15px;
+$font-size-18: 18px;
+
+// ========================================
+// 间距 - 语义化和扩展
+// ========================================
+// 语义化间距
+$spacing-element: $spacing-4;      // 元素内部间距
+$spacing-component: $spacing-6;    // 组件间距
+$spacing-section: $spacing-12;     // 区块间距
+$spacing-section-lg: $spacing-16;  // 大区块间距
+
+// 更大的间距
+$spacing-20: 80px;
+$spacing-24: 96px;
+$spacing-32: 128px;
+
+// ========================================
+// 缓动函数 - 扩展
+// ========================================
+$easing-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+$easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+$easing-circ: cubic-bezier(0.075, 0.82, 0.165, 1);
+
+// ========================================
+// 过渡属性 - 明确指定
+// ========================================
+$transition-color: color $transition-fast;
+$transition-opacity: opacity $transition-fast;
+$transition-transform: transform $transition-normal;
+$transition-shadow: box-shadow $transition-normal;
+$transition-background: background-color $transition-fast;
+

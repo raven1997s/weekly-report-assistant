@@ -1,0 +1,102 @@
+// ============ 表单组件样式 ============
+// 统一的表单控件样式
+// 支持错误、成功状态
+// 包含 input、textarea、select、checkbox、radio
+
+@use '../variables.scss' as *;
+
+// ============ 表单控件基础 ============
+.form-control {
+  width: 100%;
+  padding: $spacing-3 $spacing-4;
+  font-size: $font-size-base;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  transition: all $transition-fast;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px rgba($accent-primary, 0.1);
+  }
+
+  &:disabled {
+    background: var(--bg-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  // ============ 错误状态 ============
+  &-error {
+    border-color: $error;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($error, 0.1);
+    }
+  }
+
+  // ============ 成功状态 ============
+  &-success {
+    border-color: $success;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($success, 0.1);
+    }
+  }
+}
+
+// ============ 文本域 ============
+textarea.form-control {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+// ============ 选择框 ============
+select.form-control {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right $spacing-3 center;
+  background-size: 1.5em 1.5em;
+  padding-right: $spacing-10;
+  cursor: pointer;
+}
+
+// ============ 复选框和单选框 ============
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  cursor: pointer;
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    accent-color: $accent-primary;
+    cursor: pointer;
+  }
+}
+
+// ============ 标签 ============
+.form-label {
+  display: block;
+  margin-bottom: $spacing-2;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-hint {
+  display: block;
+  margin-top: $spacing-2;
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}

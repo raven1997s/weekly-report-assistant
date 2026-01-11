@@ -1,29 +1,51 @@
 <template>
   <Teleport to="body">
-    <div v-if="show && message" class="confirm-overlay" @click="handleCancel">
-      <div class="confirm-dialog" @click.stop>
-        <div class="confirm-header">
-          <h3>{{ title }}</h3>
-        </div>
-        <div class="confirm-body">
-          <p>{{ message }}</p>
-          <div v-if="details" class="confirm-details">{{ details }}</div>
-        </div>
-        <div class="confirm-footer">
-          <button class="btn btn-secondary" @click="handleCancel">
-            {{ cancelText }}
-          </button>
-          <button class="btn btn-primary" @click="handleConfirm">
-            {{ confirmText }}
-          </button>
+    <Transition name="modal">
+      <div
+        v-if="show && message"
+        ref="modalRef"
+        class="modal-overlay"
+        @click="handleCancel"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="dialogTitleId"
+        :aria-describedby="dialogDescId"
+      >
+        <div class="modal-content modal-content-sm" @click.stop>
+          <div class="modal-header">
+            <h3 :id="dialogTitleId">{{ title }}</h3>
+          </div>
+
+          <div class="modal-body">
+            <p :id="dialogDescId">{{ message }}</p>
+            <div v-if="details" class="confirm-details">{{ details }}</div>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              class="btn btn-ghost"
+              @click="handleCancel"
+              :aria-label="cancelText"
+            >
+              {{ cancelText }}
+            </button>
+            <button
+              class="btn btn-primary"
+              @click="handleConfirm"
+              :aria-label="confirmText"
+            >
+              {{ confirmText }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useModalFocusTrap } from '../composables/useFocusTrap'
 
 const props = defineProps({
   show: Boolean,
@@ -35,6 +57,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel', 'update:show'])
+
+// 模态框 ref
+const modalRef = ref(null)
+
+// 生成唯一的 ARIA ID
+const dialogTitleId = computed(() =>
+  `dialog-title-${Math.random().toString(36).substring(2, 11)}`
+)
+const dialogDescId = computed(() =>
+  `dialog-desc-${Math.random().toString(36).substring(2, 11)}`
+)
+
+// 使用焦点陷阱
+useModalFocusTrap(modalRef, () => props.show)
 
 const handleConfirm = () => {
   emit('confirm')
@@ -50,39 +86,7 @@ const handleCancel = () => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
-.confirm-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: $z-popover;
-}
-
-.confirm-dialog {
-  background: var(--bg-primary);
-  border-radius: $radius-lg;
-  padding: $spacing-6;
-  min-width: 400px;
-  max-width: 500px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-}
-
-.confirm-header h3 {
-  margin: 0 0 $spacing-4 0;
-  font-size: $font-size-lg;
-  font-weight: 600;
-}
-
-.confirm-body p {
-  margin: 0 0 $spacing-4 0;
-  color: var(--text-secondary);
-}
-
+// 使用统一的 modal 样式，这里只添加 confirm-details 特殊样式
 .confirm-details {
   background: var(--bg-secondary);
   padding: $spacing-3;
@@ -91,12 +95,27 @@ const handleCancel = () => {
   max-height: 200px;
   overflow-y: auto;
   font-size: $font-size-sm;
+  margin-top: $spacing-3;
 }
 
-.confirm-footer {
-  display: flex;
-  gap: $spacing-3;
-  justify-content: flex-end;
-  margin-top: $spacing-4;
+// Modal 过渡动画
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity $transition-normal;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .modal-content,
+.modal-leave-active .modal-content {
+  transition: transform $transition-normal;
+}
+
+.modal-enter-from .modal-content,
+.modal-leave-to .modal-content {
+  transform: scale(0.95);
 }
 </style>

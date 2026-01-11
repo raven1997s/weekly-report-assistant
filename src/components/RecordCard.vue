@@ -49,7 +49,7 @@
           ref="editInputRef"
           v-model="editContent"
           type="text"
-          class="edit-input"
+          class="form-control"
           @keyup.enter="saveEdit"
           @keyup.escape="cancelEdit"
         />
@@ -289,26 +289,10 @@ const confirmDelete = () => {
   margin-bottom: $spacing-3; // 增加内容与底部的间距
 }
 
-.edit-input {
-  width: 100%;
-  padding: $spacing-2 $spacing-3;
-  font-size: $font-size-base;
-  font-family: $font-family;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  border: 1px solid $accent-primary;
-  border-radius: $radius-md;
-  margin-bottom: $spacing-3;
-
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px $accent-light;
-  }
-}
-
 .edit-actions {
   display: flex;
   gap: $spacing-2;
+  margin-top: $spacing-2;
 }
 
 .record-footer {

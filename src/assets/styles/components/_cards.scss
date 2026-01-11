@@ -1,0 +1,65 @@
+// ============ 卡片组件样式 ============
+// 提供基础卡片样式
+// 支持 interactive、flat、elevated 变体
+// 包含 header、body、footer 子元素
+
+@use '../variables.scss' as *;
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  padding: $spacing-6;
+  transition: all $transition-normal;
+
+  // ============ 交互式卡片 ============
+  &-interactive {
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--border-color-hover);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+  }
+
+  // ============ 扁平卡片 ============
+  &-flat {
+    border: none;
+    box-shadow: none;
+    background: var(--bg-secondary);
+  }
+
+  // ============ 悬浮卡片 ============
+  &-elevated {
+    box-shadow: var(--shadow-md);
+    border: none;
+  }
+
+  // ============ 卡片内部区块 ============
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-4;
+
+    h3 {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+  }
+
+  &-body {
+    color: var(--text-secondary);
+  }
+
+  &-footer {
+    margin-top: $spacing-6;
+    padding-top: $spacing-4;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: $spacing-3;
+  }
+}

@@ -25,15 +25,16 @@ import { join, dirname, relative } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 import { parse } from '@babel/parser'
-import { spawn } from 'child_process'
 
 // 使用 createRequire 导入 CommonJS 模块
 const require = createRequire(import.meta.url)
 const traverse = require('@babel/traverse').default || require('@babel/traverse')
 
+// 导入问题收集核心模块
+import { addIssues } from './lib/issues-core.js'
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = join(__dirname, '../..')
-const ISSUES_FILE = join(PROJECT_ROOT, '.claude/issues.json')
 
 // ============ 配置 ============
 
@@ -62,7 +63,6 @@ function detectEmojiInTemplate(content, filePath) {
   const emojiRegex = /[\u{1F300}-\u{1F9FF}]/gu
 
   let inTemplate = false
-  let templateStart = -1
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -71,7 +71,6 @@ function detectEmojiInTemplate(content, filePath) {
     // 检测 template 标签
     if (trimmed.includes('<template')) {
       inTemplate = true
-      templateStart = i
     } else if (trimmed.includes('</template>')) {
       inTemplate = false
     }
@@ -602,39 +601,35 @@ async function main() {
     }
 
     // 自动记录到 issues.json
-    if (CONFIG.autoRecord && errors.length > 0) {
+    if (CONFIG.autoRecord && allViolations.length > 0) {
       console.log('💡 正在记录问题到 issues.json...\n')
 
-      // 为每个唯一的错误类型创建一个问题记录
-      const uniquePatterns = [...new Set(errors.map(e => e.pattern))]
+      // 将检测到的问题转换为问题记录格式
+      const issuesToRecord = allViolations.map(v => ({
+        pattern: v.pattern,
+        file: v.file,
+        line: v.line,
+        severity: v.severity,
+        type: 'auto-detect',
+        example: v.example
+      }))
 
-      for (const pattern of uniquePatterns) {
-        const example = errors.find(e => e.pattern === pattern && e.example)
+      // 批量添加问题
+      const result = addIssues(issuesToRecord)
 
-        const args = [
-          '--pattern', pattern,
-          '--severity', 'error',
-          '--type', 'code-review'
-        ]
+      console.log(`✅ 已记录 ${result.total} 个问题到 issues.json`)
+      console.log(`   - 新增: ${result.created}`)
+      console.log(`   - 更新: ${result.updated}`)
 
-        if (example && example.file) {
-          args.push('--file', example.file)
-          args.push('--line', example.line.toString())
-        }
-
-        // 调用 collect-issues.js
-        const collectProcess = spawn('node', ['scripts/hooks/collect-issues.js', ...args], {
-          cwd: PROJECT_ROOT,
-          stdio: 'inherit'
+      // 如果有问题达到阈值，显示提示
+      if (result.thresholdIssues.length > 0) {
+        console.log(`\n💡 发现 ${result.thresholdIssues.length} 个问题已达到建议阈值：`)
+        result.thresholdIssues.forEach(issue => {
+          console.log(`   - ${issue.pattern}（已出现 ${issue.occurrence} 次）`)
+          console.log(`     建议规则: ${issue.suggestedRule}`)
         })
-
-        await new Promise((resolve, reject) => {
-          collectProcess.on('close', resolve)
-          collectProcess.on('error', reject)
-        })
+        console.log()
       }
-
-      console.log('✅ 问题已记录到 issues.json')
     }
 
     console.log(`\n📖 相关规范请参考: CLAUDE.md`)

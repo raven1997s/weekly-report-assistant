@@ -40,6 +40,26 @@
   --success: #{$success};
   --warning: #{$warning};
   --error: #{$error};
+
+  // ============ 间距 ============
+  --spacing-xs: #{$spacing-xs};
+  --spacing-sm: #{$spacing-sm};
+  --spacing-md: #{$spacing-md};
+  --spacing-lg: #{$spacing-lg};
+  --spacing-xl: #{$spacing-xl};
+
+  // ============ 圆角 ============
+  --radius-sm: #{$radius-sm};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --radius-xl: #{$radius-xl};
+
+  // ============ 字体大小 ============
+  --font-size-xs: #{$font-size-xs};
+  --font-size-sm: #{$font-size-sm};
+  --font-size-base: #{$font-size-base};
+  --font-size-lg: #{$font-size-lg};
+  --font-size-xl: #{$font-size-xl};
 }
 
 // 深色主题 CSS 变量
@@ -533,6 +553,85 @@ dl {
     }
 }
 
+// ============ 微交互动画 ============
+
+// 抖动动画（用于错误提示）
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+// 弹跳动画（用于成功反馈）
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-8px); }
+    60% { transform: translateY(-4px); }
+}
+
+// 脉冲动画（用于引起注意）
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+// 下滑动画（用于 Toast）
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+// 左滑动画（用于侧边栏）
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+// 闪光动画（用于加载骨架屏）
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+// 微摆动画（用于趣味交互）
+@keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+}
+
+// 旋转进入动画
+@keyframes rotateIn {
+    from {
+        opacity: 0;
+        transform: rotate(-10deg) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: rotate(0deg) scale(1);
+    }
+}
+
+// 安全脉冲动画（替代危险的 blink）
+// 注意：原来的 blink 动画对光敏性用户有危险，已替换为更温和的 pulse-safe
+@keyframes pulse-safe {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 // ========================================
 // 工具类
 // ========================================
@@ -552,6 +651,46 @@ dl {
 
 .scale-in {
     animation: scaleIn $duration-normal $easing-default;
+}
+
+// ============ 微交互动画工具类 ============
+
+.shake {
+    animation: shake 0.5s $easing-default;
+}
+
+.bounce {
+    animation: bounce 0.6s $easing-spring;
+}
+
+.pulse {
+    animation: pulse 1s $easing-default;
+}
+
+.slide-in-down {
+    animation: slideInDown $transition-fast;
+}
+
+.slide-in-left {
+    animation: slideInLeft $transition-normal;
+}
+
+.wiggle {
+    animation: wiggle 0.3s $easing-spring;
+}
+
+.rotate-in {
+    animation: rotateIn $transition-normal;
+}
+
+// 警告闪烁（使用安全的 pulse-safe 动画）
+.blink {
+    animation: pulse-safe 2s ease-in-out infinite;
+
+    // 尊重用户的动画偏好设置
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
 }
 
 // 文本对齐
@@ -626,6 +765,176 @@ dl {
     overflow: hidden;
 }
 
+// ============ 骨架屏加载 ============
+.skeleton {
+    background: var(--bg-secondary);
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary) 0%,
+        var(--bg-tertiary) 50%,
+        var(--bg-secondary) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: $radius-md;
+
+    &-text {
+        height: 1em;
+        margin-bottom: $spacing-2;
+        border-radius: $radius-sm;
+    }
+
+    &-title {
+        height: 1.5em;
+        width: 60%;
+        margin-bottom: $spacing-3;
+        border-radius: $radius-sm;
+    }
+
+    &-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: $radius-full;
+    }
+
+    &-button {
+        height: 40px;
+        width: 100px;
+        border-radius: $radius-md;
+    }
+
+    &-card {
+        height: 120px;
+        border-radius: $radius-lg;
+    }
+}
+
+// ============ 微交互效果 ============
+
+// 悬停上升效果
+.hover-lift {
+    transition: transform $transition-fast, box-shadow $transition-fast;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+}
+
+// 悬停缩放效果
+.hover-scale {
+    transition: transform $transition-fast;
+
+    &:hover {
+        transform: scale(1.02);
+    }
+}
+
+// 悬停发光效果
+.hover-glow {
+    transition: box-shadow $transition-fast;
+
+    &:hover {
+        box-shadow: 0 0 20px rgba($accent-primary, 0.3);
+    }
+}
+
+// 点击涟漪效果（CSS 实现）
+.ripple {
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.5);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+
+    &:active::after {
+        width: 300px;
+        height: 300px;
+    }
+}
+
+// 焦点环动画
+.focus-ring {
+    &:focus-visible {
+        outline: none;
+        position: relative;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 2px solid var(--accent-primary);
+            border-radius: inherit;
+            animation: pulse 1s infinite;
+        }
+    }
+}
+
+// 加载中遮罩
+.loading-overlay {
+    position: relative;
+    pointer-events: none;
+
+    &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(2px);
+        z-index: 1;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border: 3px solid var(--border-color);
+        border-top-color: var(--accent-primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        z-index: 2;
+    }
+}
+
+// ============ 加载状态 ============
+.is-loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+
+    &::after {
+        content: '';
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+}
+
+// ============ 旋转动画（用于加载状态） ============
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 // ========================================
 // 可访问性 - 减少动画偏好
 // ========================================
@@ -637,5 +946,182 @@ dl {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+}
+
+// ========================================
+// 移动端体验增强
+// ========================================
+
+// ============ 触摸优化 ============
+
+// 增加触摸目标最小尺寸（WCAG 推荐 44x44px）
+@media (hover: none) and (pointer: coarse) {
+    // 按钮、链接等可点击元素
+    .btn,
+    button,
+    a,
+    input[type="checkbox"],
+    input[type="radio"],
+    .nav-menu-link {
+        min-height: 44px;
+        min-width: 44px;
+        padding: $spacing-3 $spacing-4;
+    }
+
+    // 图标按钮
+    .btn-icon,
+    .toast-close,
+    .modal-close,
+    .tag-close {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    // 禁用悬停效果，改用点击反馈
+    .hover-lift:hover,
+    .hover-scale:hover,
+    .hover-glow:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    // 添加触摸反馈
+    .btn:active,
+    button:active,
+    a:active {
+        background: var(--bg-tertiary);
+        transform: scale(0.98);
+    }
+
+    // 表单控件增大
+    .form-control,
+    select.form-control {
+        min-height: 48px;
+        font-size: 16px; // 防止 iOS 自动缩放
+    }
+
+    // 标签增加点击区域
+    .tag {
+        min-height: 32px;
+        padding: $spacing-2 $spacing-3;
+    }
+}
+
+// ============ 安全区域（支持刘海屏） ============
+@supports (padding: env(safe-area-inset-bottom)) {
+    .app-main {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    .fab {
+        right: calc($spacing-6 + env(safe-area-inset-right));
+        bottom: calc($spacing-6 + env(safe-area-inset-bottom));
+    }
+
+    .modal-content {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+// ============ 触摸滚动优化 ============
+.scrollable {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+}
+
+// 隐藏滚动条但保留功能
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+// ============ 移动端专用样式 ============
+@media (max-width: $breakpoint-md) {
+    // 卡片在小屏幕上紧凑排列
+    .card {
+        padding: $spacing-4;
+        border-radius: $radius-md;
+    }
+
+    // 模态框全屏显示
+    .modal-content {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+
+        &-sm,
+        &-md,
+        &-lg,
+        &-xl {
+            max-width: 100%;
+        }
+    }
+
+    // Toast 更紧凑
+    .toast {
+        min-width: auto;
+        width: calc(100% - $spacing-4);
+        margin: 0 $spacing-2;
+    }
+
+    // 标签在移动端换行
+    .tag {
+        font-size: $font-size-xs;
+    }
+}
+
+// ============ 文本选择优化 ============
+// 防止用户意外选择文本
+.user-select-none {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+// 允许选择文本
+.user-select-text {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+// ============ 高对比度模式支持 ============
+@media (prefers-contrast: high) {
+    .btn,
+    .form-control,
+    .card {
+        border-width: 2px;
+    }
+
+    .toast {
+        border: 2px solid currentColor;
+    }
+}
+
+// ============ 深色模式增强 ============
+@media (prefers-color-scheme: dark) {
+    // 减少白色发光
+    .hover-glow:hover {
+        box-shadow: 0 0 20px rgba($accent-primary, 0.5);
+    }
+
+    // 骨架屏在深色模式下的颜色
+    .skeleton {
+        background: var(--bg-tertiary);
+        background: linear-gradient(
+            90deg,
+            var(--bg-tertiary) 0%,
+            rgba(255, 255, 255, 0.05) 50%,
+            var(--bg-tertiary) 100%
+        );
     }
 }

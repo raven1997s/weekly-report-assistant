@@ -73,6 +73,9 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Toast 提示组件 -->
+    <Toast />
   </div>
 </template>
 
@@ -84,6 +87,7 @@ import { useReportsStore } from './stores/reports'
 import { useSettingsStore } from './stores/settings'
 import { useKeyboard, SHORTCUTS } from './composables/useKeyboard'
 import AppSidebar from './components/layout/AppSidebar.vue'
+import Toast from './components/Toast.vue'
 
 const router = useRouter()
 const recordsStore = useRecordsStore()
