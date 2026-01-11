@@ -46,7 +46,7 @@ export async function initDatabase() {
 
   return new Promise((resolve, reject) => {
     db.serialize(() => {
-      // 工作记录表
+      // 工作记录表（含软删除字段）
       db.run(`
         CREATE TABLE IF NOT EXISTS records (
           id TEXT PRIMARY KEY,
@@ -54,14 +54,21 @@ export async function initDatabase() {
           project TEXT,
           workType TEXT,
           createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL
+          updatedAt TEXT NOT NULL,
+          deleted INTEGER DEFAULT 0,
+          deletedAt TEXT
         )
       `, (err) => {
         if (err) console.error('[DB] 创建 records 表失败:', err)
         else console.log('[DB] records 表已就绪')
       })
 
-      // 周报归档表
+      // 为 records 表创建软删除索引
+      db.run(`CREATE INDEX IF NOT EXISTS idx_records_deleted ON records(deleted)`, (err) => {
+        if (err) console.error('[DB] 创建 records deleted 索引失败:', err)
+      })
+
+      // 周报归档表（含软删除字段）
       db.run(`
         CREATE TABLE IF NOT EXISTS reports (
           id TEXT PRIMARY KEY,
@@ -75,14 +82,21 @@ export async function initDatabase() {
           plans TEXT NOT NULL,
           reflections TEXT NOT NULL,
           createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL
+          updatedAt TEXT NOT NULL,
+          deleted INTEGER DEFAULT 0,
+          deletedAt TEXT
         )
       `, (err) => {
         if (err) console.error('[DB] 创建 reports 表失败:', err)
         else console.log('[DB] reports 表已就绪')
       })
 
-      // 定时推送配置表
+      // 为 reports 表创建软删除索引
+      db.run(`CREATE INDEX IF NOT EXISTS idx_reports_deleted ON reports(deleted)`, (err) => {
+        if (err) console.error('[DB] 创建 reports deleted 索引失败:', err)
+      })
+
+      // 定时推送配置表（含软删除字段）
       db.run(`
         CREATE TABLE IF NOT EXISTS scheduled_tasks (
           id TEXT PRIMARY KEY,
@@ -93,12 +107,18 @@ export async function initDatabase() {
           type TEXT DEFAULT 'report',
           enabled INTEGER DEFAULT 0,
           created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
+          updated_at TEXT NOT NULL,
+          deleted INTEGER DEFAULT 0,
+          deletedAt TEXT
         )
       `, (err) => {
         if (err) console.error('[DB] 创建 scheduled_tasks 表失败:', err)
         else {
           console.log('[DB] scheduled_tasks 表已就绪')
+          // 为 scheduled_tasks 表创建软删除索引
+          db.run(`CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_deleted ON scheduled_tasks(deleted)`, (err) => {
+            if (err) console.error('[DB] 创建 scheduled_tasks deleted 索引失败:', err)
+          })
           // 检查并添加 type 字段（兼容旧数据库）
           db.run(`ALTER TABLE scheduled_tasks ADD COLUMN type TEXT DEFAULT 'report'`, (err) => {
             if (err && !err.message.includes('duplicate column name')) {

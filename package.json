@@ -22,7 +22,12 @@
     "hooks:update": "node scripts/hooks/update-claude-md.js",
     "hooks:suggest": "node scripts/hooks/suggest-rules.js",
     "hooks:auto": "node scripts/hooks/full-workflow.js --auto",
-    "hooks:workflow": "node scripts/hooks/full-workflow.js --interactive"
+    "hooks:workflow": "node scripts/hooks/full-workflow.js --interactive",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v && docker system prune -f"
   },
   "dependencies": {
     "body-parser": "^2.2.2",

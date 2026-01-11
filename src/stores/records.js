@@ -7,6 +7,9 @@ import { ref, computed } from 'vue'
 import { getWeekStart, getWeekEnd, formatDate } from '../utils/date'
 import { saveToStorage, loadFromStorage } from '../utils/api'
 
+// API 基础 URL（支持环境变量）
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const STORAGE_KEY = 'weekly_report_records'
 
 export const useRecordsStore = defineStore('records', () => {
@@ -150,7 +153,7 @@ export const useRecordsStore = defineStore('records', () => {
     // 删除记录（软删除，调用后端 API）
     const deleteRecord = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/records/${id}`, {
+            const response = await fetch(`${API_BASE}/records/${id}`, {
                 method: 'DELETE'
             })
             const result = await response.json()
@@ -173,7 +176,7 @@ export const useRecordsStore = defineStore('records', () => {
     // 获取已删除的记录
     const fetchDeletedRecords = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/records?deleted=1')
+            const response = await fetch(`${API_BASE}/records?deleted=1`)
             const result = await response.json()
 
             if (result.success) {
@@ -190,7 +193,7 @@ export const useRecordsStore = defineStore('records', () => {
     // 恢复记录
     const restoreRecord = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/records/${id}/restore`, {
+            const response = await fetch(`${API_BASE}/records/${id}/restore`, {
                 method: 'POST'
             })
             const result = await response.json()
@@ -210,7 +213,7 @@ export const useRecordsStore = defineStore('records', () => {
     // 永久删除记录
     const permanentDeleteRecord = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/records/${id}/permanent`, {
+            const response = await fetch(`${API_BASE}/records/${id}/permanent`, {
                 method: 'DELETE'
             })
             const result = await response.json()

@@ -6,16 +6,24 @@ import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import crypto from 'crypto'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { initDatabase, queryAll, queryGet, queryRun, createDbConnection } from './db.js'
 import { initTemplates, startScheduledTasks } from './cron.js'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 const app = express()
-const PORT = 3000
+const PORT = process.env.PORT || 3000
 
 // 中间件
 app.use(cors())
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
+
+// 托管静态文件（前端构建产物）
+app.use(express.static(path.join(__dirname, '../dist')))
 
 // 日志中间件
 app.use((req, res, next) => {
@@ -714,6 +722,20 @@ app.delete('/api/scheduled-tasks/:id/permanent', async (req, res) => {
     console.error('[API] 永久删除定时任务失败:', error)
     res.status(500).json({ success: false, error: error.message })
   }
+})
+
+// ============================================
+// SPA 路由 fallback
+// ============================================
+
+// 所有非 API 请求返回 index.html（支持 Vue Router）
+app.use((req, res) => {
+  // 如果是 API 请求，返回 404
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, error: 'API endpoint not found' })
+  }
+  // 其他请求返回 index.html
+  res.sendFile(path.join(__dirname, '../dist/index.html'))
 })
 
 // ============================================

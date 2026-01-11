@@ -873,6 +873,198 @@ CLAUDE.md 是项目的"活文档"，必须与代码实现保持同步。任何�
 
 ---
 
+### 17. Docker 部署规范
+
+**Docker 部署概述**：
+项目支持使用 Docker 进行容器化部署，确保开发、测试、生产环境的一致性。
+
+**Dockerfile 配置**：
+
+项目根目录下的 `Dockerfile` 使用多阶段构建：
+
+```dockerfile
+# 构建阶段
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# 运行阶段
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/package*.json ./
+RUN npm ci --production
+EXPOSE 3000
+CMD ["node", "server/index.js"]
+```
+
+**docker-compose.yml 配置**：
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+```
+
+**部署命令**：
+
+```bash
+# 构建镜像
+docker-compose build
+
+# 启动服务（后台运行）
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+
+# 清理数据和镜像
+docker-compose down -v && docker system prune -f
+```
+
+**数据持久化**：
+- 数据库文件存储在 `./data` 目录
+- 通过 volumes 映射到容器内 `/app/data`
+- 容器重启后数据不丢失
+
+**环境变量配置**：
+在 docker-compose.yml 中配置环境变量：
+
+```yaml
+environment:
+  - NODE_ENV=production
+  - PORT=3000
+```
+
+**生产环境注意事项**：
+1. 修改 `EXPOSE` 端口为实际使用的端口
+2. 配置反向代理（Nginx）处理 HTTPS
+3. 定期备份数据目录 `./data`
+4. 使用 `restart: always` 确保服务自动重启
+
+**为什么使用 Docker**：
+- ✅ 环境一致性：开发、测试、生产环境完全一致
+- ✅ 快速部署：一条命令即可启动服务
+- ✅ 易于扩展：支持水平扩展和负载均衡
+- ✅ 隔离性：避免依赖冲突
+
+**相关文件**：
+- `Dockerfile` - 镜像构建配置
+- `docker-compose.yml` - 容器编排配置
+- `.dockerignore` - 排除不需要打包的文件
+
+---
+
+### 18. 环境变量配置规范
+
+**环境变量概述**：
+使用环境变量管理不同环境的配置，避免硬编码敏感信息。
+
+**支持的环境变量**：
+
+| 变量名 | 说明 | 默认值 | 适用环境 |
+|--------|------|--------|----------|
+| `VITE_API_URL` | 后端 API 基础 URL | `/api` | 前端 |
+| `PORT` | 后端服务端口 | `3000` | 后端 |
+| `NODE_ENV` | 运行环境 | `development` | 后端 |
+
+**配置文件**：
+
+创建 `.env` 文件（不提交到 Git，已在 `.gitignore` 中）：
+
+```bash
+# 开发环境
+VITE_API_URL=http://localhost:3000/api
+PORT=3000
+NODE_ENV=development
+```
+
+**环境变量使用示例**：
+
+```javascript
+// 前端 (src/utils/api.js)
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
+// 后端 (server/index.js)
+const PORT = process.env.PORT || 3000
+const NODE_ENV = process.env.NODE_ENV || 'development'
+
+app.listen(PORT, () => {
+  console.log(`[${NODE_ENV}] 服务运行在 http://localhost:${PORT}`)
+})
+```
+
+**不同环境的配置**：
+
+**开发环境** (`.env.development`):
+```bash
+VITE_API_URL=http://localhost:3000/api
+NODE_ENV=development
+```
+
+**生产环境** (`.env.production`):
+```bash
+VITE_API_URL=/api
+NODE_ENV=production
+PORT=3000
+```
+
+**环境变量优先级**：
+1. 命令行指定（最高优先级）
+2. `.env.local` 文件
+3. `.env.[mode]` 文件
+4. `.env` 文件
+5. 系统环境变量
+
+**安全注意事项**：
+- ❌ 不要在 `.env` 文件中存储密码、密钥等敏感信息
+- ✅ 使用密钥管理服务（如 AWS Secrets Manager）
+- ✅ `.env` 文件必须在 `.gitignore` 中
+- ✅ 提供 `.env.example` 作为配置模板
+
+**.env.example 模板**：
+
+```bash
+# API 配置
+VITE_API_URL=http://localhost:3000/api
+
+# 服务配置
+PORT=3000
+
+# 环境配置
+NODE_ENV=development
+```
+
+**为什么必须使用环境变量**：
+- ✅ 不同环境使用不同配置，无需修改代码
+- ✅ 敏感信息不暴露在代码和版本控制中
+- ✅ 便于部署和运维（CI/CD 集成）
+- ✅ 符合 12-Factor App 最佳实践
+
+**相关文档**：
+- Vite 环境变量：https://vitejs.dev/guide/env-and-mode.html
+- Docker 部署规范（规则 #17）
+
+---
+
 ## 重要代码位置索引
 
 ### 数据持久化
@@ -1176,16 +1368,20 @@ curl http://localhost:3000/api/reports
 - [ ] Toast z-index 为 1070（$z-tooltip）
 - [ ] Dialogs z-index 为 1060（$z-popover）
 - [ ] Modals z-index 为 1040-1050（$z-modal-backdrop/$z-modal）
+- [ ] 环境变量配置正确（VITE_API_URL、PORT、NODE_ENV）
+- [ ] Docker 构建和部署配置正确
+- [ ] 数据库表结构包含软删除字段（deleted、deletedAt）
 - [ ] **检查是否需要更新 CLAUDE.md 文档**
 
 ---
 
 ## 最后更新
 
-- **日期**: 2026-01-09
-- **版本**: 2.5
+- **日期**: 2026-01-11
+- **版本**: 2.6
 - **主要更新**:
-  - 完善规则 #1：添加禁止使用普通表情符号规范（强制）
-  - 修复回收站 fetchDeletedReports 数据路径错误
-  - 替换所有 UI 中的表情符号为 SVG 图标（4处）
-  - 更新代码审查清单
+  - 新增规则 #17：Docker 部署规范
+  - 新增规则 #18：环境变量配置规范
+  - 修复代码问题：ReportPreview.vue 表情符号违规（2处）
+  - 修复代码问题：server/db.js 数据库表结构缺少软删除字段
+  - 更新代码审查清单：添加 Docker 和环境变量检查项

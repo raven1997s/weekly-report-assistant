@@ -7,6 +7,9 @@ import { ref, computed } from 'vue'
 import { getWeekStart, formatDate } from '../utils/date'
 import { saveToStorage, loadFromStorage } from '../utils/api'
 
+// API 基础 URL（支持环境变量）
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const STORAGE_KEY = 'weekly_reports'
 
 export const useReportsStore = defineStore('reports', () => {
@@ -113,7 +116,7 @@ export const useReportsStore = defineStore('reports', () => {
     // 删除周报（软删除，调用后端 API）
     const deleteReport = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/reports/${id}`, {
+            const response = await fetch(`${API_BASE}/reports/${id}`, {
                 method: 'DELETE'
             })
             const result = await response.json()
@@ -137,7 +140,7 @@ export const useReportsStore = defineStore('reports', () => {
     // 获取已删除的周报
     const fetchDeletedReports = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/reports?deleted=1')
+            const response = await fetch(`${API_BASE}/reports?deleted=1`)
             const result = await response.json()
 
             if (result.success) {
@@ -155,7 +158,7 @@ export const useReportsStore = defineStore('reports', () => {
     // 恢复周报
     const restoreReport = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/reports/${id}/restore`, {
+            const response = await fetch(`${API_BASE}/reports/${id}/restore`, {
                 method: 'POST'
             })
             const result = await response.json()
@@ -175,7 +178,7 @@ export const useReportsStore = defineStore('reports', () => {
     // 永久删除周报
     const permanentDeleteReport = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/reports/${id}/permanent`, {
+            const response = await fetch(`${API_BASE}/reports/${id}/permanent`, {
                 method: 'DELETE'
             })
             const result = await response.json()

@@ -6,6 +6,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { saveToStorage, loadFromStorage } from '../utils/api'
 
+// API 基础 URL（支持环境变量）
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const STORAGE_KEY = 'weekly_report_settings'
 
 // 默认配置
@@ -209,7 +212,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // 获取定时任务列表
     const fetchScheduledTasks = async () => {
         try {
-            const response = await fetch('http://localhost:3000/api/scheduled-tasks')
+            const response = await fetch(`${API_BASE}/scheduled-tasks`)
             const result = await response.json()
             if (result.success) {
                 scheduledTasks.value = result.data
@@ -225,7 +228,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // 更新定时任务状态
     const updateScheduledTask = async (id, enabled) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/scheduled-tasks/${id}`, {
+            const response = await fetch(`${API_BASE}/scheduled-tasks/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled })
@@ -249,8 +252,8 @@ export const useSettingsStore = defineStore('settings', () => {
         try {
             const isEdit = !!task.id
             const url = isEdit
-                ? `http://localhost:3000/api/scheduled-tasks/${task.id}`
-                : 'http://localhost:3000/api/scheduled-tasks'
+                ? `${API_BASE}/scheduled-tasks/${task.id}`
+                : `${API_BASE}/scheduled-tasks`
 
             const response = await fetch(url, {
                 method: isEdit ? 'PUT' : 'POST',
@@ -280,7 +283,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // 删除定时任务
     const deleteScheduledTask = async (id) => {
         try {
-            const response = await fetch(`http://localhost:3000/api/scheduled-tasks/${id}`, {
+            const response = await fetch(`${API_BASE}/scheduled-tasks/${id}`, {
                 method: 'DELETE'
             })
 
