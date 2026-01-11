@@ -221,59 +221,84 @@ export const getWeekRange = (date) => {
 }
 
 /**
- * 获取工作周范围（从最近的工作日往前和往后各找3个工作日）
- * @param {Date} date
- * @returns {Object} { start: Date, end: Date, workdays: Array, holidayCount: number }
+ * 获取工作周范围
+ *
+ * 核心逻辑：在自然周范围内（周一到周日），识别工作周边界
+ * 这样可以确保在同一周内不同日期打开页面，周信息保持一致
+ *
+ * 特殊处理：如果自然周内全是节假日，扩展到相邻的工作日
+ *
+ * @param {Date} date - 参考日期
+ * @returns {Object} { start: Date, end: Date, workdays: Array, holidayCount: number, workdayCount: number, upcomingHolidays: Array }
  */
 export const getWorkWeekInfo = (date) => {
-    const referenceDate = new Date(date)
+    // ============ 第一步：获取自然周边界（周一到周日） ============
+    const naturalWeekStart = getWeekStart(date)
+    const naturalWeekEnd = getWeekEnd(date)
 
-    // 第一步：从参考日期往回找工作周的开始（第一个连续工作日序列的开始）
-    let startDate = new Date(referenceDate)
-    const maxSearchDays = 14
+    // ============ 第二步：在自然周范围内，查找第一个工作日作为工作周开始 ============
+    let startDate = null
+    let currentDate = new Date(naturalWeekStart)
 
-    // 往回找，直到遇到非工作日
-    while (true) {
-        const prevDay = new Date(startDate)
-        prevDay.setDate(prevDay.getDate() - 1)
-
-        // 如果前一天不是工作日，则当前日期是周开始
-        if (!isWorkday(prevDay)) {
+    while (currentDate <= naturalWeekEnd) {
+        if (isWorkday(currentDate)) {
+            startDate = new Date(currentDate)
             break
         }
-
-        // 继续往前搜索
-        startDate = prevDay
-
-        // 安全检查
-        const daysDiff = Math.round((referenceDate - startDate) / (1000 * 60 * 60 * 24))
-        if (daysDiff > maxSearchDays) break
+        currentDate.setDate(currentDate.getDate() + 1)
     }
 
-    // 第二步：从参考日期往后找本周最后一个工作日
-    let endDate = new Date(referenceDate)
+    // 特殊处理：如果自然周内没有工作日，往回找最近的工作日
+    if (!startDate) {
+        // 往回找最多7天
+        startDate = new Date(naturalWeekStart)
+        let searchCount = 0
+        const maxSearchDays = 7
 
-    // 往后找，直到找到最后一个连续工作日
-    while (true) {
-        const nextDay = new Date(endDate)
-        nextDay.setDate(nextDay.getDate() + 1)
-
-        // 如果后一天不是工作日，或者是周日，则当前日期是周结束
-        if (!isWorkday(nextDay) || nextDay.getDay() === 0) {
-            break
+        while (!isWorkday(startDate) && searchCount < maxSearchDays) {
+            startDate.setDate(startDate.getDate() - 1)
+            searchCount++
         }
 
-        // 继续往后搜索
-        endDate = nextDay
-
-        // 安全检查
-        const daysDiff = Math.round((endDate - referenceDate) / (1000 * 60 * 60 * 24))
-        if (daysDiff > maxSearchDays) break
+        // 如果还是找不到，使用自然周开始（兜底）
+        if (!isWorkday(startDate)) {
+            startDate = new Date(naturalWeekStart)
+        }
     }
 
-    // 第三步：收集从startDate到endDate的所有日期
+    // ============ 第三步：在自然周范围内，查找最后一个工作日作为工作周结束 ============
+    let endDate = null
+    currentDate = new Date(naturalWeekEnd)
+
+    while (currentDate >= naturalWeekStart) {
+        if (isWorkday(currentDate)) {
+            endDate = new Date(currentDate)
+            break
+        }
+        currentDate.setDate(currentDate.getDate() - 1)
+    }
+
+    // 特殊处理：如果自然周内没有工作日，往后找最近的工作日
+    if (!endDate) {
+        // 往后找最多7天
+        endDate = new Date(naturalWeekEnd)
+        let searchCount = 0
+        const maxSearchDays = 7
+
+        while (!isWorkday(endDate) && searchCount < maxSearchDays) {
+            endDate.setDate(endDate.getDate() + 1)
+            searchCount++
+        }
+
+        // 如果还是找不到，使用自然周结束（兜底）
+        if (!isWorkday(endDate)) {
+            endDate = new Date(naturalWeekEnd)
+        }
+    }
+
+    // ============ 第四步：收集从startDate到endDate的所有日期 ============
     const workdays = []
-    let currentDate = new Date(startDate)
+    currentDate = new Date(startDate)
     let totalWorkdays = 0
 
     while (currentDate <= endDate) {
@@ -301,7 +326,7 @@ export const getWorkWeekInfo = (date) => {
 
     const holidayCount = workdays.filter(d => !d.isWorkday).length
 
-    // 第四步：找出本周接下来的休息日（从最后一个工作日的后一天开始，最多7天）
+    // ============ 第五步：找出本周接下来的休息日（从最后一个工作日的后一天开始，最多7天） ============
     const upcomingHolidays = []
     const searchEnd = new Date(endDate)
     searchEnd.setDate(searchEnd.getDate() + 7)
