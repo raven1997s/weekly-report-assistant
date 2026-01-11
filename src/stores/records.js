@@ -4,7 +4,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getWeekStart, getWeekEnd, formatDate } from '../utils/date'
+import { getWeekStart, getWeekEnd, formatDate, getWorkWeekInfo } from '../utils/date'
 import { saveToStorage, loadFromStorage } from '../utils/api'
 
 // API 基础 URL（支持环境变量）
@@ -39,6 +39,22 @@ export const useRecordsStore = defineStore('records', () => {
         return records.value.filter(record => {
             const recordDate = new Date(record.createdAt)
             return recordDate >= weekStart && recordDate <= weekEnd
+        })
+    })
+
+    // 基于工作周的本周记录
+    const currentWorkWeekRecords = computed(() => {
+        const workWeekInfo = getWorkWeekInfo(new Date())
+
+        // 处理全节假日周的情况
+        if (workWeekInfo.hasNoWorkdays) {
+            return []
+        }
+
+        const { start, end } = workWeekInfo
+        return records.value.filter(record => {
+            const recordDate = new Date(record.createdAt)
+            return recordDate >= start && recordDate <= end
         })
     })
 
@@ -291,7 +307,8 @@ export const useRecordsStore = defineStore('records', () => {
         records,
         deletedRecords,
         // 计算属性
-        currentWeekRecords,
+        currentWeekRecords,        // 保留：基于自然周（向后兼容）
+        currentWorkWeekRecords,    // 新增：基于工作周
         currentWeekByProject,
         currentWeekStats,
         // 方法

@@ -69,25 +69,29 @@
 
     <!-- 底部信息 -->
     <div class="app-sidebar-footer">
-      <div class="week-info">
+      <div v-if="weekInfo" class="week-info">
         <div class="week-label">{{ weekLabel }}</div>
         <div class="week-range">{{ weekRange }}</div>
       </div>
-      <div class="stats">
+      <div v-if="!weekInfo?.hasNoWorkdays" class="stats">
         <span class="stat-item">
           <span class="stat-value">{{ recordCount }}</span>
           <span class="stat-label">条记录</span>
         </span>
+      </div>
+      <!-- 全节假日周提示 -->
+      <div v-else class="no-workdays-hint">
+        <span class="hint-text">本周无工作日</span>
       </div>
     </div>
   </aside>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRecordsStore } from '../../stores/records'
-import { getWeekLabel, getWeekRange } from '../../utils/date'
+import { getWeekLabel, getWorkWeekInfo, formatDate } from '../../utils/date'
 
 const props = defineProps({
   isOpen: {
@@ -118,12 +122,30 @@ const isActive = (path) => {
   return route.path.startsWith(path)
 }
 
-// 周信息
-const weekLabel = computed(() => getWeekLabel(new Date()))
-const weekRange = computed(() => getWeekRange(new Date()))
+// 工作周信息（使用 ref 响应式数据）
+const weekInfo = ref(null)
 
-// 本周记录数
-const recordCount = computed(() => recordsStore.currentWeekRecords.length)
+// 周标签（保持不变：2026年第2周）
+const weekLabel = computed(() => getWeekLabel(new Date()))
+
+// 工作周日期范围
+const weekRange = computed(() => {
+  if (!weekInfo.value || weekInfo.value.hasNoWorkdays) {
+    return '本周无工作日'
+  }
+  const { start, end } = weekInfo.value
+  return `${formatDate(start, 'MM.DD')} - ${formatDate(end, 'MM.DD')}`
+})
+
+// 本周记录数（基于工作周）
+const recordCount = computed(() => {
+  return recordsStore.currentWorkWeekRecords.length
+})
+
+// 初始化工作周信息
+onMounted(() => {
+  weekInfo.value = getWorkWeekInfo(new Date())
+})
 
 // 导航点击处理（移动端关闭侧边栏）
 const handleNavClick = () => {
@@ -298,6 +320,21 @@ const handleNavClick = () => {
       font-size: $font-size-xs;
       color: var(--text-muted);
     }
+  }
+}
+
+// 全节假日周提示
+.no-workdays-hint {
+  padding: $spacing-3;
+  background: var(--bg-card);
+  border-radius: $radius-md;
+  border: 1px solid var(--border-color);
+  text-align: center;
+
+  .hint-text {
+    font-size: $font-size-xs;
+    color: var(--text-muted);
+    font-weight: $font-weight-medium;
   }
 }
 
