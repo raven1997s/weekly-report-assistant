@@ -246,7 +246,7 @@ export const getWorkWeekInfo = (date) => {
     const maxSearchDays = 7
     let searchCount = 0
 
-    // 往前查找连续的工作日（最多7天）
+    // 往前查找连续的工作日（最多7天），包含调休补班
     while (searchCount < maxSearchDays) {
         const prevDay = new Date(startDate)
         prevDay.setDate(prevDay.getDate() - 1)
