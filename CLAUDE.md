@@ -294,6 +294,95 @@ onMounted(() => {
 - 数据来源：国务院办公厅发布的法定节假日安排
 - 前后端同步更新：`src/utils/date.js` 和 `server/utils/date.js`
 
+**工作周计算规则**：
+
+工作周的计算由 `getWorkWeekInfo()` 函数实现，遵循以下核心规则：
+
+1. **补班日归属规则**：如果上周日是工作日/补班 → 工作周从上周日开始
+2. **正常情况规则**：否则 → 工作周从本周第一个工作日开始
+3. **结束边界规则**：工作周到本周最后一个工作日结束，不向后扩展
+4. **全节假日周规则**：如果自然周全是节假日 → 返回 `hasNoWorkdays: true`
+
+**实现示例**（`src/utils/date.js` 和 `server/utils/date.js`）：
+
+```javascript
+/**
+ * 获取工作周信息（明确规则版本）
+ *
+ * 核心规则：
+ * 1. 如果上周日是工作日/补班 → 工作周从上周日开始
+ * 2. 否则 → 工作周从本周第一个工作日开始
+ * 3. 工作周到本周最后一个工作日结束，不向后扩展
+ * 4. 如果自然周全是节假日 → 返回 hasNoWorkdays: true
+ */
+const getWorkWeekInfo = (date) => {
+    // 步骤1：获取自然周起始（周一）
+    const naturalWeekStart = getWeekStart(date)
+
+    // 步骤2：查找自然周内第一个和最后一个工作日
+    let firstWorkday = null
+    let lastWorkday = null
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(naturalWeekStart)
+        d.setDate(d.getDate() + i)
+        if (isWorkday(d)) {
+            if (!firstWorkday) firstWorkday = new Date(d)
+            lastWorkday = new Date(d)
+        }
+    }
+
+    // 步骤3：检查上周日是否是工作日
+    let startDate = firstWorkday
+    if (firstWorkday) {
+        const lastSunday = new Date(naturalWeekStart)
+        lastSunday.setDate(lastSunday.getDate() - 1)
+        if (isWorkday(lastSunday)) {
+            startDate = new Date(lastSunday)  // 包含上周日的补班
+        }
+    }
+
+    // 步骤4：处理全节假日周
+    if (!firstWorkday || !lastWorkday) {
+        return {
+            start: null,
+            end: null,
+            workdays: [],
+            holidayCount: 7,
+            workdayCount: 0,
+            upcomingHolidays: [],
+            hasNoWorkdays: true  // 本周无工作日
+        }
+    }
+
+    const endDate = lastWorkday
+
+    // 收集工作日和休息日信息...
+    return {
+        start: startDate,
+        end: endDate,
+        workdays,
+        holidayCount,
+        workdayCount: totalWorkdays,
+        upcomingHolidays,
+        hasNoWorkdays: false
+    }
+}
+```
+
+**典型场景示例**：
+
+- **元旦补班周**（1/5-1/11）：上周日1/4是补班，工作周从1/4开始，到1/9结束（6个工作日）
+- **春节假期周**（2/16-2/22）：全周都是节假日，`hasNoWorkdays: true`
+- **春节后补班周**（2/23-3/1）：周一2/23是节假日，周二2/24是补班，工作周从2/24开始到2/27结束（4个工作日）
+- **国庆前补班周**（9/21-9/27）：上周日9/20是补班，工作周从9/20开始到9/24结束（5个工作日）
+
+**为什么这样定义**：
+- ✅ 补班日与工作日连在一起，形成完整的工作周
+- ✅ 不向后扩展，避免工作周跨度过大
+- ✅ 全节假日周有明确标识，便于UI显示特殊状态
+- ✅ 前后端逻辑一致，确保计算结果同步
+
 ### 8. 数据持久化规范
 
 **去除 Vue 响应式包装**：
@@ -1138,6 +1227,29 @@ if (archivedReport.value) {
 </div>
 ```
 
+### 问题 6：补班日跨自然周边界问题
+**现象**：工作周计算时，补班日（调休）可能导致工作周跨越自然周的边界，造成显示不一致。
+
+**原因**：
+- 补班日可能出现在上周日（如1/4、9/20）或本周周六（如2/14）
+- 如果简单按自然周（周一到周日）计算，补班日无法正确归属
+- 向前搜索多个补班日会导致工作周跨度过大
+
+**解决**：遵循明确的4条工作周计算规则（详见规则 #7）：
+1. 如果上周日是工作日/补班 → 工作周从上周日开始
+2. 否则 → 工作周从本周第一个工作日开始
+3. 工作周到本周最后一个工作日结束，不向后扩展
+4. 如果自然周全是节假日 → 返回 `hasNoWorkdays: true`
+
+**实现位置**：
+- `src/utils/date.js` - `getWorkWeekInfo()` 函数
+- `server/utils/date.js` - `getWorkWeekInfo()` 函数
+
+**测试覆盖**：
+- 所有2026年节假日和补班场景已通过测试
+- 包括元旦、春节、清明、劳动节、端午、中秋、国庆等所有节日
+- 测试文件：`test_all_holidays_fixed.js`（已删除，测试完成后移除）
+
 ---
 
 ## 路由定义顺序规则
@@ -1371,6 +1483,8 @@ curl http://localhost:3000/api/reports
 - [ ] 环境变量配置正确（VITE_API_URL、PORT、NODE_ENV）
 - [ ] Docker 构建和部署配置正确
 - [ ] 数据库表结构包含软删除字段（deleted、deletedAt）
+- [ ] 日期计算逻辑前后端一致（`src/utils/date.js` 和 `server/utils/date.js`）
+- [ ] 工作周计算遵循4条核心规则（补班日归属、不向后扩展、全节假日周处理）
 - [ ] **检查是否需要更新 CLAUDE.md 文档**
 
 ---
@@ -1378,10 +1492,9 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-11
-- **版本**: 2.6
+- **版本**: 2.7
 - **主要更新**:
-  - 新增规则 #17：Docker 部署规范
-  - 新增规则 #18：环境变量配置规范
-  - 修复代码问题：ReportPreview.vue 表情符号违规（2处）
-  - 修复代码问题：server/db.js 数据库表结构缺少软删除字段
-  - 更新代码审查清单：添加 Docker 和环境变量检查项
+  - 扩展规则 #7：新增工作周计算规则（4条核心规则）
+  - 新增已知问题 #6：补班日跨自然周边界问题
+  - 更新代码审查清单：添加日期计算一致性检查项
+  - 重新定义工作周计算逻辑，支持补班日正确归属
