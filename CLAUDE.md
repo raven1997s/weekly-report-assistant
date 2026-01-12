@@ -1169,6 +1169,9 @@ NODE_ENV=development
 ### 业务逻辑
 - **输入解析**: `src/composables/useParser.js` - 项目/类型识别、内容润色
 - **周报生成**: `src/composables/useGenerator.js` - Markdown/纯文本生成、标签排序
+- **计划转换**: `src/views/ReportView.vue` - 智能转换上周计划为本周工作记录
+  - `GET /api/convert/status` - 检查转换状态
+  - `POST /api/convert/mark` - 标记转换完成
 
 ### 工具函数
 - **日期处理**: `src/utils/date.js` - 周边界、工作日计算、节假日判断
@@ -1491,10 +1494,10 @@ curl http://localhost:3000/api/reports
 
 ## 最后更新
 
-- **日期**: 2026-01-11
-- **版本**: 2.7
+- **日期**: 2026-01-12
+- **版本**: 2.8
 - **主要更新**:
-  - 扩展规则 #7：新增工作周计算规则（4条核心规则）
-  - 新增已知问题 #6：补班日跨自然周边界问题
-  - 更新代码审查清单：添加日期计算一致性检查项
-  - 重新定义工作周计算逻辑，支持补班日正确归属
+  - 新增功能：智能转换上周计划为本周工作记录
+  - 新增 API：GET /api/convert/status、POST /api/convert/mark
+  - 更新 README.md：添加计划转换功能说明
+  - 更新代码位置索引：添加计划转换相关 API
