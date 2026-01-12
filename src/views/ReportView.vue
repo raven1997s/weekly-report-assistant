@@ -336,7 +336,7 @@ const confirmSaveReport = () => {
 }
 
 // 初始化
-onMounted(() => {
+onMounted(async () => {
   // 如果本周已归档，加载归档的得与失数据
   if (reportsStore.hasCurrentWeekReport) {
     const archived = reportsStore.getCurrentWeekArchivedReport()
@@ -351,16 +351,93 @@ onMounted(() => {
   // 初始化周信息
   weekInfo.value = getWorkWeekInfo(new Date())
 
-  // 如果当前没有计划，尝试导入上周的"下周计划"
-  if (currentPlans.value.length === 0) {
-    importLastWeekPlans()
+  // 检查是否需要转换上周计划（异步）
+  const shouldConvert = await shouldShowConvertPrompt()
+  if (shouldConvert) {
+    convertLastWeekPlansToRecords()
   }
 })
 
-// 导入上周的"下周计划"
-const importLastWeekPlans = () => {
+// ============================================
+// 计划转换相关函数
+// ============================================
+
+/**
+ * 检查是否需要提示转换上周计划
+ * 1. 检查本周是否已有用户手动添加的记录
+ * 2. 检查后端是否已转换过
+ */
+const shouldShowConvertPrompt = async () => {
+  // 1. 检查本周是否已有用户手动添加的记录
+  const hasUserRecords = hasUserAddedRecordsThisWeek()
+  if (hasUserRecords) {
+    console.log('[转换] 本周已有用户记录，跳过转换')
+    return false
+  }
+
+  // 2. 检查后端是否已转换过
+  const thisWeekStart = getWeekStart(new Date()).toISOString()
+  try {
+    const response = await fetch(`/api/convert/status?weekStart=${encodeURIComponent(thisWeekStart)}`)
+    const result = await response.json()
+
+    if (result.success && result.converted) {
+      console.log('[转换] 后端已转换过，跳过提示')
+      return false
+    }
+  } catch (error) {
+    console.error('[转换] 检查转换状态失败:', error)
+  }
+
+  return true
+}
+
+/**
+ * 标记已转换（调用后端 API）
+ */
+const markAsConverted = async (recordIds) => {
+  const thisWeekStart = getWeekStart(new Date()).toISOString()
+  try {
+    const response = await fetch('/api/convert/mark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weekStart: thisWeekStart, recordIds })
+    })
+
+    if (response.ok) {
+      console.log('[转换] 已标记转换:', thisWeekStart)
+    } else {
+      console.error('[转换] 标记转换失败')
+    }
+  } catch (error) {
+    console.error('[转换] 标记转换失败:', error)
+  }
+}
+
+/**
+ * 检查本周是否已有用户手动添加的记录
+ */
+const hasUserAddedRecordsThisWeek = () => {
+  const workWeekInfo = getWorkWeekInfo(new Date())
+
+  // 处理全节假日周
+  if (workWeekInfo.hasNoWorkdays) {
+    return false
+  }
+
+  const { start, end } = workWeekInfo
+  return recordsStore.records.some(record => {
+    const recordDate = new Date(record.createdAt)
+    return recordDate >= start && recordDate <= end
+  })
+}
+
+/**
+ * 获取上周周报
+ */
+const getLastWeekReport = () => {
   const allReports = reportsStore.getAllReports()
-  if (allReports.length === 0) return
+  if (allReports.length === 0) return null
 
   const thisWeekStart = getWeekStart(new Date())
   const previousReports = allReports.filter(r => {
@@ -368,28 +445,68 @@ const importLastWeekPlans = () => {
     return reportWeekStart < thisWeekStart
   })
 
-  if (previousReports.length === 0) return
+  if (previousReports.length === 0) return null
 
-  const lastWeekReport = previousReports[0]
+  return previousReports[0] // 最新的上周周报
+}
 
-  if (lastWeekReport.plans && lastWeekReport.plans.length > 0) {
-    const planSummary = lastWeekReport.plans.map(p => `• ${p.content}`).join('\n')
-    dialogStore.confirm({
-      title: '导入上周计划',
-      message: `检测到上周有 ${lastWeekReport.plans.length} 条"下周计划"`,
-      details: planSummary
-    }).then((confirmed) => {
-      if (confirmed) {
-        lastWeekReport.plans.forEach(plan => {
-          reportsStore.addPlan({
-            content: plan.content,
-            project: plan.project || null,
-            workType: plan.workType || null
-          })
-        })
-      }
-    })
+/**
+ * 将上周的"下周计划"转换为工作记录
+ */
+const convertLastWeekPlansToRecords = async () => {
+  // 1. 获取上周周报
+  const lastWeekReport = getLastWeekReport()
+
+  if (!lastWeekReport?.plans || lastWeekReport.plans.length === 0) {
+    console.log('[转换] 上周无计划，跳过转换')
+    return
   }
+
+  // 2. 生成计划摘要
+  const planSummary = lastWeekReport.plans.map(p => `• ${p.content}`).join('\n')
+
+  // 3. 弹窗询问用户
+  const confirmed = await dialogStore.confirm({
+    title: '转换上周计划',
+    message: `检测到上周有 ${lastWeekReport.plans.length} 条"下周计划"，是否转换为本周工作记录？`,
+    details: planSummary
+  })
+
+  if (!confirmed) {
+    console.log('[转换] 用户取消转换')
+    return
+  }
+
+  // 4. 获取本周第一个工作日作为创建时间
+  const workWeekInfo = getWorkWeekInfo(new Date())
+
+  // 处理全节假日周
+  if (workWeekInfo.hasNoWorkdays) {
+    console.log('[转换] 本周无工作日，跳过转换')
+    return
+  }
+
+  const createdAt = workWeekInfo.start.toISOString()
+  const createdRecordIds = []
+
+  // 5. 转换为工作记录
+  for (const plan of lastWeekReport.plans) {
+    const result = await recordsStore.addRecord({
+      content: plan.content,
+      project: plan.project || null,
+      workType: plan.workType || null,
+      createdAt: createdAt
+    })
+
+    if (result.success) {
+      createdRecordIds.push(result.data.id)
+    }
+  }
+
+  console.log(`[转换] 成功转换 ${createdRecordIds.length} 条计划为工作记录`)
+
+  // 6. 标记已转换
+  await markAsConverted(createdRecordIds)
 }
 </script>
 

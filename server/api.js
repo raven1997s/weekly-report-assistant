@@ -562,6 +562,69 @@ app.post('/api/dingtalk/test', async (req, res) => {
 })
 
 // ============================================
+// 计划转换状态 API
+// ============================================
+
+// GET /api/convert/status?weekStart=xxx - 检查指定周的计划是否已转换
+app.get('/api/convert/status', async (req, res) => {
+  try {
+    const { weekStart } = req.query
+
+    if (!weekStart) {
+      return res.status(400).json({ success: false, error: '缺少 weekStart 参数' })
+    }
+
+    const db = await createDbConnection()
+    const converted = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = ?",
+      [`converted_plans_${weekStart}`]
+    )
+    db.close()
+
+    if (converted) {
+      const data = JSON.parse(converted.value)
+      res.json({ success: true, converted: true, data })
+    } else {
+      res.json({ success: true, converted: false, data: null })
+    }
+  } catch (error) {
+    console.error('[API] 检查转换状态失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/convert/mark - 标记指定周的计划已转换
+app.post('/api/convert/mark', async (req, res) => {
+  try {
+    const { weekStart, recordIds } = req.body
+
+    if (!weekStart) {
+      return res.status(400).json({ success: false, error: '缺少 weekStart 参数' })
+    }
+
+    const markData = {
+      convertedAt: new Date().toISOString(),
+      recordIds: recordIds || [],
+      weekStart: weekStart
+    }
+
+    const db = await createDbConnection()
+    await db.run(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+      [`converted_plans_${weekStart}`, JSON.stringify(markData)]
+    )
+    db.close()
+
+    console.log(`[API] 已标记转换: ${weekStart}`)
+    res.json({ success: true, message: '转换标记已保存' })
+  } catch (error) {
+    console.error('[API] 标记转换失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// ============================================
 // 定时任务 API
 // ============================================
 
