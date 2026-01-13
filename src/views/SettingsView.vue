@@ -306,7 +306,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '../stores/settings'
 import { useDialogStore } from '../stores/dialog'
@@ -321,9 +321,14 @@ const { projects, workTypes, dingtalk, scheduledTasks } = storeToRefs(settingsSt
 // 弹窗（使用全局 store）
 const dialogStore = useDialogStore()
 
-// 钉钉配置
+// 钉钉配置（使用 ref 避免频繁保存，通过 watch 同步 store）
 const dingtalkConfig = ref({ ...dingtalk.value })
 const isTesting = ref(false)
+
+// 监听 store 的 dingtalk 变化，同步到本地 ref
+watch(dingtalk, (newVal) => {
+  dingtalkConfig.value = { ...newVal }
+}, { deep: true })
 
 // 定时任务弹窗状态
 const showAddTaskModal = ref(false)
@@ -360,6 +365,8 @@ const showToast = (message, isErrorMessage = false) => {
 
 // 初始化
 onMounted(async () => {
+  // 重新从 API 获取设置数据，确保与后端同步
+  await settingsStore.init()
   await settingsStore.fetchScheduledTasks()
 })
 
