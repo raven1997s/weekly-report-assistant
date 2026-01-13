@@ -20,8 +20,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# 安装 sqlite3 运行时依赖
-RUN apk add --no-cache sqlite
+# 安装 sqlite3 运行时依赖和时区数据
+RUN apk add --no-cache sqlite tzdata
+
+# 设置时区为中国标准时间
+ENV TZ=Asia/Shanghai
 
 # 复制 package.json 并安装生产依赖
 COPY package*.json ./

@@ -236,6 +236,10 @@ async function executeTask(task) {
 
     // 获取钉钉配置
     const db = await createDbConnection()
+    const enabledConfig = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = 'dingtalk_enabled'"
+    )
     const webhookConfig = await queryGet(
       db,
       "SELECT value FROM settings WHERE key = 'dingtalk_webhookUrl'"
@@ -244,6 +248,13 @@ async function executeTask(task) {
       db,
       "SELECT value FROM settings WHERE key = 'dingtalk_secret'"
     )
+
+    // 检查钉钉功能是否启用
+    if (!enabledConfig || enabledConfig.value !== 'true') {
+      console.log('[Cron] 钉钉功能未启用，跳过推送')
+      await db.close()
+      return
+    }
 
     if (!webhookConfig || !webhookConfig.value) {
       console.log('[Cron] 未配置钉钉 Webhook，跳过推送')

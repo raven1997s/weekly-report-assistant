@@ -58,7 +58,7 @@ export const sendToDingTalk = async (content, config) => {
 
     try {
         // 调用后端代理 API
-        const response = await fetch('http://localhost:3000/api/dingtalk/send', {
+        const response = await fetch('/api/dingtalk/send', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -100,7 +100,7 @@ export const sendMarkdownToDingTalk = async (title, markdown, config) => {
 
     try {
         // 调用后端代理 API
-        const response = await fetch('http://localhost:3000/api/dingtalk/send', {
+        const response = await fetch('/api/dingtalk/send', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -139,7 +139,7 @@ export const testDingTalkConfig = async (config) => {
 
     try {
         // 调用后端测试 API
-        const response = await fetch('http://localhost:3000/api/dingtalk/test', {
+        const response = await fetch('/api/dingtalk/test', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
