@@ -27,6 +27,17 @@
           </svg>
         </button>
         <button
+          class="action-btn"
+          type="button"
+          aria-label="移到下周计划"
+          @click="handleMoveToNextWeek"
+          title="移到下周计划"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 100 10A5 5 0 008 3zm3.25 5.5a.75.75 0 01-.75.75H6.5v1.69a.75.75 0 01-1.28.53l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5a.75.75 0 011.28.53V7.5h4a.75.75 0 01.75.75z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+        <button
           class="action-btn delete"
           type="button"
           aria-label="删除记录"
@@ -112,7 +123,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['deleted', 'updated'])
+const emit = defineEmits(['deleted', 'updated', 'moveToNextWeek'])
 
 const recordsStore = useRecordsStore()
 
@@ -160,6 +171,11 @@ const confirmDelete = () => {
   recordsStore.deleteRecord(props.record.id)
   showDeleteConfirm.value = false
   emit('deleted', props.record)
+}
+
+// 移到下周计划
+const handleMoveToNextWeek = () => {
+  emit('moveToNextWeek', props.record)
 }
 </script>
 

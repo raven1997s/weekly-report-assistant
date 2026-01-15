@@ -4,6 +4,7 @@
 // 支持图标按钮和加载状态
 
 @use '../variables.scss' as *;
+@use 'sass:color';
 
 .btn {
   display: inline-flex;
@@ -47,7 +48,7 @@
     color: white;
 
     &:hover:not(:disabled) {
-      background: darken($accent-primary, 10%);
+      background: color.adjust($accent-primary, $lightness: -10%);
     }
   }
 
@@ -75,7 +76,7 @@
     color: white;
 
     &:hover:not(:disabled) {
-      background: darken($error, 10%);
+      background: color.adjust($error, $lightness: -10%);
     }
   }
 

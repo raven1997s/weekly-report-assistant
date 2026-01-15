@@ -224,6 +224,22 @@ export const useReportsStore = defineStore('reports', () => {
         }
     }
 
+    // 追加计划项（用于"移到下周计划"功能）
+    const appendPlans = async (plans) => {
+        if (!Array.isArray(plans) || plans.length === 0) return
+
+        plans.forEach(plan => {
+            currentPlans.value.push({
+                id: plan.id,
+                content: plan.content,
+                project: plan.project || null,
+                workType: plan.workType || null
+            })
+        })
+
+        await persist()
+    }
+
     // 更新得与失
     const updateReflections = async (reflections) => {
         currentReflections.value = { ...currentReflections.value, ...reflections }
@@ -304,6 +320,7 @@ export const useReportsStore = defineStore('reports', () => {
         updatePlans,
         addPlan,
         removePlan,
+        appendPlans,
         updateReflections,
         searchReports,
         getAllReports,

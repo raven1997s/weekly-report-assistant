@@ -19,6 +19,15 @@ const SCHEDULE_TEMPLATES = [
     enabled: false
   },
   {
+    id: 'workday_930am',
+    name: '工作日上班后提醒',
+    hour: 9,
+    minute: 30,
+    dayOfWeek: '*', // 每天运行，运行时校验是否为工作日
+    type: 'reminder', // 填写提醒
+    enabled: false
+  },
+  {
     id: 'workday_530pm',
     name: '工作日下班前提醒',
     hour: 17,
@@ -87,12 +96,25 @@ async function startScheduledTasks() {
   // 停止现有的任务
   stopAllTasks()
 
+  if (tasks.length === 0) {
+    console.log('[Cron] 没有启用的定时任务')
+    return
+  }
+
   // 启动新任务
   tasks.forEach(task => {
     startTask(task)
   })
 
-  console.log(`[Cron] 已启动 ${tasks.length} 个定时任务`)
+  console.log(`[Cron] ========== 已启动 ${tasks.length} 个定时任务 ==========`)
+  tasks.forEach(task => {
+    console.log(`[Cron]   - ${task.name} (${task.id})`)
+    console.log(`[Cron]     时间: ${String(task.hour).padStart(2, '0')}:${String(task.minute).padStart(2, '0')}`)
+    console.log(`[Cron]     类型: ${task.type}`)
+    console.log(`[Cron]     Cron: ${task.minute} ${task.hour} * * *`)
+    console.log(`[Cron]     时区: Asia/Shanghai`)
+  })
+  console.log(`[Cron] ========================================`)
 }
 
 /**
@@ -129,7 +151,12 @@ function stopAllTasks() {
  */
 async function executeTask(task) {
   try {
-    console.log(`[Cron] 执行任务: ${task.name}`)
+    const now = new Date()
+    console.log(`[Cron] ========== 任务触发 ==========`)
+    console.log(`[Cron] 任务: ${task.name} (${task.id})`)
+    console.log(`[Cron] 当前时间: ${now.toISOString()}`)
+    console.log(`[Cron] 当前时区: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`)
+    console.log(`[Cron] 日期: ${formatDate(now, 'yyyy-MM-dd')} ${formatDate(now, 'HH:mm:ss')}`)
 
     // ========== 新增：工作日校验 ==========
     const today = new Date()
@@ -137,6 +164,7 @@ async function executeTask(task) {
     if (task.type === 'reminder') {
       // 提醒任务：只在真正的工作日执行
       const isTodayWorkday = isWorkday(today)
+      console.log(`[Cron] 工作日校验: ${isTodayWorkday ? '✅ 是工作日' : '❌ 非工作日'}`)
       if (!isTodayWorkday) {
         console.log(`[Cron] 今天不是工作日，跳过提醒`)
         return
@@ -150,11 +178,12 @@ async function executeTask(task) {
       const todayStr = formatDate(today, 'yyyy-MM-dd')
       const lastWorkdayStr = formatDate(lastWorkday, 'yyyy-MM-dd')
 
+      console.log(`[Cron] 今天: ${todayStr}, 最后工作日: ${lastWorkdayStr}`)
       if (todayStr !== lastWorkdayStr) {
         console.log(`[Cron] 今天不是工作周最后一天，跳过周报推送`)
-        console.log(`[Cron] 今天: ${todayStr}, 最后工作日: ${lastWorkdayStr}`)
         return
       }
+      console.log(`[Cron] ✅ 是工作周最后一天，准备推送周报`)
     }
     // ========== 校验结束 ==========
 
@@ -396,6 +425,12 @@ async function sendReminder(webhookUrl, secret) {
     url = `${webhookUrl}&timestamp=${timestamp}&sign=${encodeURIComponent(sign)}`
   }
 
+  // 日志：发送前
+  console.log(`[DingTalk] 准备发送提醒...`)
+  console.log(`[DingTalk] Webhook URL: ${webhookUrl ? '已配置' : '未配置'}`)
+  console.log(`[DingTalk] Secret: ${secret ? '已配置' : '未配置'}`)
+  console.log(`[DingTalk] 使用签名: ${secret ? '是' : '否'}`)
+
   // 获取当前日期
   const now = new Date()
   const dateStr = `${now.getMonth() + 1}月${now.getDate()}日`
@@ -426,6 +461,9 @@ async function sendReminder(webhookUrl, secret) {
   })
 
   const result = await response.json()
+
+  // 日志：发送后
+  console.log(`[DingTalk] 响应: errcode=${result.errcode}, errmsg=${result.errmsg}`)
 
   if (result.errcode === 0) {
     return { success: true, message: '发送成功' }
@@ -526,4 +564,4 @@ async function markPlansAsConverted(db, weekStart, recordIds) {
   console.log(`[Cron] 已标记转换: ${weekStart}, ${recordIds.length} 条记录`)
 }
 
-export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES }
+export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES, sendReminder, executeTask }

@@ -1,6 +1,8 @@
 // ========================================
 // 智能周报助手 - 样式变量（极简主义风格）
 // ========================================
+@use 'sass:map';
+@use 'sass:color';
 
 // ========================================
 // 配色系统 - 浅色主题（默认）
@@ -204,9 +206,9 @@ $gray: (
 );
 
 // 语义化颜色映射
-$color-primary: map-get($blue, 500);
-$color-primary-hover: map-get($blue, 600);
-$color-primary-light: map-get($blue, 50);
+$color-primary: map.get($blue, 500);
+$color-primary-hover: map.get($blue, 600);
+$color-primary-light: map.get($blue, 50);
 
 $accent-primary-hover: $color-primary-hover;
 $accent-light-extended: $color-primary-light;

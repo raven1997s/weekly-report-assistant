@@ -123,6 +123,12 @@
           </svg>
           {{ isTesting ? '测试中...' : '发送测试消息' }}
         </button>
+        <button class="btn btn-secondary mt-md" @click="testDingTalkReminder" :disabled="isTestingReminder">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z"/>
+          </svg>
+          {{ isTestingReminder ? '测试中...' : '发送测试提醒' }}
+        </button>
       </div>
     </div>
 
@@ -324,6 +330,7 @@ const dialogStore = useDialogStore()
 // 钉钉配置（使用 ref 避免频繁保存，通过 watch 同步 store）
 const dingtalkConfig = ref({ ...dingtalk.value })
 const isTesting = ref(false)
+const isTestingReminder = ref(false)
 
 // 监听 store 的 dingtalk 变化，同步到本地 ref
 watch(dingtalk, (newVal) => {
@@ -393,6 +400,31 @@ const testDingTalk = async () => {
     showToast(`测试失败: ${error.message}`, true)
   } finally {
     isTesting.value = false
+  }
+}
+
+const testDingTalkReminder = async () => {
+  if (!dingtalkConfig.value.webhookUrl) {
+    showToast('请先输入 Webhook URL', true)
+    return
+  }
+
+  isTestingReminder.value = true
+  try {
+    const response = await fetch('/api/dingtalk/test-reminder', {
+      method: 'POST'
+    })
+    const result = await response.json()
+
+    if (result.success) {
+      showToast(result.message || '测试提醒已发送，请检查钉钉群')
+    } else {
+      showToast(result.error || '发送失败，请重试', true)
+    }
+  } catch (error) {
+    showToast(`发送失败: ${error.message}`, true)
+  } finally {
+    isTestingReminder.value = false
   }
 }
 

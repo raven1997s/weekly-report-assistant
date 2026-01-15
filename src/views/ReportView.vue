@@ -36,6 +36,73 @@
     <div class="report-layout">
       <!-- 左侧编辑区 -->
       <div class="report-editor">
+        <!-- 本周工作记录（批量选择区域） -->
+        <div v-if="!isCurrentWeekSaved" class="card editor-section records-section">
+          <div class="section-header">
+            <h3>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
+                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+              </svg>
+              本周工作记录
+            </h3>
+            <span class="record-count">{{ recordsStore.currentWeekRecords.length }} 条</span>
+          </div>
+
+          <!-- 记录列表 -->
+          <div v-if="recordsStore.currentWeekRecords.length > 0" class="records-selection-list">
+            <div
+              v-for="record in recordsStore.currentWeekRecords"
+              :key="record.id"
+              class="record-selection-item"
+              :class="{ selected: selectedRecordIds.has(record.id) }"
+              @click="toggleRecordSelection(record.id)"
+            >
+              <div class="record-checkbox">
+                <svg v-if="selectedRecordIds.has(record.id)" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+                </svg>
+                <svg v-else width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="color: var(--border-color);">
+                  <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <div class="record-selection-content">
+                <div class="record-selection-tags">
+                  <span v-if="record.project" class="mini-tag project">{{ record.project }}</span>
+                  <span v-if="record.workType" class="mini-tag type">{{ record.workType }}</span>
+                </div>
+                <div class="record-selection-text">{{ record.content }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-else class="records-empty">
+            <svg width="40" height="40" viewBox="0 0 20 20" fill="currentColor" style="color: var(--text-muted);">
+              <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            <p>本周暂无工作记录</p>
+            <p class="empty-hint">前往首页添加工作内容</p>
+          </div>
+
+          <!-- 批量操作条 -->
+          <Transition name="slide-up">
+            <div v-if="selectedRecordIds.size > 0" class="batch-actions-bar">
+              <span class="selected-count">已选择 {{ selectedRecordIds.size }} 条</span>
+              <div class="batch-actions-buttons">
+                <button class="btn btn-sm btn-ghost" @click="selectedRecordIds.clear()">
+                  取消选择
+                </button>
+                <button class="btn btn-sm btn-primary" @click="moveSelectedToNextWeek">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 4px;">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 100 10A5 5 0 008 3zm3.25 5.5a.75.75 0 01-.75.75H6.5v1.69a.75.75 0 01-1.28.53l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5a.75.75 0 011.28.53V7.5h4a.75.75 0 01.75.75z" clip-rule="evenodd"/>
+                  </svg>
+                  移到下周计划
+                </button>
+              </div>
+            </div>
+          </Transition>
+        </div>
+
         <!-- 下周计划 -->
         <div class="card editor-section" :class="{ locked: isCurrentWeekSaved }">
           <div class="section-header">
@@ -200,6 +267,9 @@ const recordsStore = useRecordsStore()
 const reportsStore = useReportsStore()
 const dialogStore = useDialogStore()
 const { generateReport } = useGenerator()
+
+// 记录选择状态
+const selectedRecordIds = ref(new Set())
 
 // 周信息
 const weekInfo = ref(null)
@@ -508,6 +578,69 @@ const convertLastWeekPlansToRecords = async () => {
   // 6. 标记已转换
   await markAsConverted(createdRecordIds)
 }
+
+// ============================================
+// 记录选择和移动相关函数
+// ============================================
+
+/**
+ * 切换记录选择状态
+ */
+const toggleRecordSelection = (id) => {
+  if (selectedRecordIds.value.has(id)) {
+    selectedRecordIds.value.delete(id)
+  } else {
+    selectedRecordIds.value.add(id)
+  }
+  // 强制更新响应式
+  selectedRecordIds.value = new Set(selectedRecordIds.value)
+}
+
+/**
+ * 将选中的记录移到下周计划
+ */
+const moveSelectedToNextWeek = async () => {
+  if (selectedRecordIds.value.size === 0) {
+    showValidationAlert('请先选择要移动的记录', true)
+    return
+  }
+
+  const confirmed = await dialogStore.confirm({
+    title: '移到下周计划',
+    message: `确定要将选中的 ${selectedRecordIds.value.size} 条记录移到下周计划吗？`
+  })
+
+  if (!confirmed) return
+
+  try {
+    const ids = Array.from(selectedRecordIds.value)
+    const response = await fetch('/api/records/move-to-next-week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recordIds: ids })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      // 从本地记录列表移除（通过重新初始化 store）
+      await recordsStore.init()
+
+      // 追加到下周计划
+      await reportsStore.appendPlans(result.newPlans)
+
+      // 清空选择
+      selectedRecordIds.value.clear()
+
+      showValidationAlert(result.message || `已将 ${result.movedCount} 条记录移到下周计划`)
+    } else {
+      showValidationAlert(result.error || '操作失败，请重试', true)
+    }
+  } catch (error) {
+    console.error('移到下周计划失败:', error)
+    showValidationAlert('操作失败，请重试', true)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -653,11 +786,23 @@ const convertLastWeekPlansToRecords = async () => {
 
   .section-header {
     margin-bottom: $spacing-4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
     h3 {
       font-size: $font-size-lg;
       font-weight: $font-weight-semibold;
       color: var(--text-primary);
+    }
+
+    .record-count {
+      font-size: $font-size-xs;
+      font-weight: $font-weight-medium;
+      color: var(--text-muted);
+      padding: $spacing-1 $spacing-2;
+      background: var(--bg-secondary);
+      border-radius: $radius-full;
     }
   }
 
@@ -1045,5 +1190,149 @@ button:disabled {
   .page-header {
     gap: $spacing-4;
   }
+}
+
+// ============================================
+// 本周工作记录选择区域样式
+// ============================================
+
+.records-section {
+  margin-bottom: $spacing-6;
+}
+
+.records-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  margin-bottom: $spacing-4;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.record-selection-item {
+  display: flex;
+  gap: $spacing-3;
+  padding: $spacing-3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: var(--border-color-hover);
+    background: var(--bg-secondary);
+  }
+
+  &.selected {
+    border-color: $accent-primary;
+    background: rgba($accent-primary, 0.05);
+  }
+}
+
+.record-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.record-selection-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-selection-tags {
+  display: flex;
+  gap: $spacing-2;
+  margin-bottom: $spacing-2;
+}
+
+.mini-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px $spacing-2;
+  font-size: 11px;
+  font-weight: $font-weight-medium;
+  border-radius: $radius-sm;
+  line-height: 1.2;
+
+  &.project {
+    background: rgba($accent-primary, 0.1);
+    color: $accent-primary;
+  }
+
+  &.type {
+    background: rgba($accent-secondary, 0.1);
+    color: $accent-secondary;
+  }
+}
+
+.record-selection-text {
+  font-size: $font-size-sm;
+  color: var(--text-primary);
+  line-height: $line-height-relaxed;
+  word-break: break-word;
+}
+
+.records-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-8 $spacing-4;
+  color: var(--text-muted);
+  text-align: center;
+
+  p {
+    margin: $spacing-2 0 0 0;
+    font-size: $font-size-base;
+    color: var(--text-secondary);
+  }
+
+  .empty-hint {
+    font-size: $font-size-sm;
+    color: var(--text-muted);
+  }
+}
+
+.batch-actions-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-3 $spacing-4;
+  background: var(--bg-secondary);
+  border: 1px solid $accent-primary;
+  border-radius: $radius-md;
+  margin-top: $spacing-4;
+
+  .selected-count {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: var(--text-primary);
+  }
+}
+
+.batch-actions-buttons {
+  display: flex;
+  gap: $spacing-2;
+}
+
+// 滑入动画
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all $transition-normal;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

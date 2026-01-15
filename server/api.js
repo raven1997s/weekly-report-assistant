@@ -9,7 +9,7 @@ import crypto from 'crypto'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase, queryAll, queryGet, queryRun, createDbConnection } from './db.js'
-import { initTemplates, startScheduledTasks } from './cron.js'
+import { initTemplates, startScheduledTasks, sendReminder, executeTask } from './cron.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -195,6 +195,85 @@ app.delete('/api/records/:id/permanent', async (req, res) => {
     res.json({ success: true, message: '记录已永久删除' })
   } catch (error) {
     console.error('[API] 永久删除记录失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/records/move-to-next-week - 将记录移到下周计划
+app.post('/api/records/move-to-next-week', async (req, res) => {
+  try {
+    const { recordIds } = req.body
+
+    if (!Array.isArray(recordIds) || recordIds.length === 0) {
+      return res.status(400).json({ success: false, error: '请提供要移动的记录ID' })
+    }
+
+    const db = await createDbConnection()
+
+    // 1. 查询记录
+    const records = []
+    for (const id of recordIds) {
+      const record = await queryGet(
+        db,
+        'SELECT * FROM records WHERE id = ? AND deleted = 0',
+        [id]
+      )
+      if (record) {
+        records.push(record)
+      }
+    }
+
+    if (records.length === 0) {
+      await db.close()
+      return res.status(404).json({ success: false, error: '未找到有效记录' })
+    }
+
+    // 2. 获取当前的 currentPlans
+    const plansConfig = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = 'currentPlans'"
+    )
+    const currentPlans = plansConfig ? JSON.parse(plansConfig.value) : []
+
+    // 3. 将记录转为计划并追加
+    const newPlans = records.map(record => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      content: record.content,
+      project: record.project || null,
+      workType: record.workType || null
+    }))
+
+    const updatedPlans = [...currentPlans, ...newPlans]
+
+    // 4. 保存 currentPlans
+    await queryRun(
+      db,
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('currentPlans', ?)",
+      [JSON.stringify(updatedPlans)]
+    )
+
+    // 5. 软删除这些记录
+    const deletedAt = new Date().toISOString()
+    for (const id of recordIds) {
+      await queryRun(
+        db,
+        'UPDATE records SET deleted = 1, deletedAt = ? WHERE id = ?',
+        [deletedAt, id]
+      )
+    }
+
+    await db.close()
+
+    console.log(`[API] 已将 ${records.length} 条记录移到下周计划`)
+
+    res.json({
+      success: true,
+      movedCount: records.length,
+      newPlans: newPlans,
+      message: `已将 ${records.length} 条记录移到下周计划`
+    })
+  } catch (error) {
+    console.error('[API] 移到下周计划失败:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
@@ -557,6 +636,73 @@ app.post('/api/dingtalk/test', async (req, res) => {
     }
   } catch (error) {
     console.error('[API] 钉钉测试失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/dingtalk/test-reminder - 手动发送提醒测试
+app.post('/api/dingtalk/test-reminder', async (req, res) => {
+  try {
+    const db = await createDbConnection()
+
+    // 获取钉钉配置
+    const enabledConfig = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = 'dingtalk_enabled'"
+    )
+    const webhookConfig = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = 'dingtalk_webhookUrl'"
+    )
+    const secretConfig = await queryGet(
+      db,
+      "SELECT value FROM settings WHERE key = 'dingtalk_secret'"
+    )
+
+    await db.close()
+
+    if (!enabledConfig || enabledConfig.value !== 'true') {
+      return res.status(400).json({ success: false, error: '钉钉功能未启用' })
+    }
+
+    if (!webhookConfig || !webhookConfig.value) {
+      return res.status(400).json({ success: false, error: '未配置钉钉 Webhook' })
+    }
+
+    // 调用 cron.js 中的 sendReminder
+    const result = await sendReminder(webhookConfig.value, secretConfig?.value || '')
+
+    if (result.success) {
+      res.json({ success: true, message: '测试提醒已发送，请检查钉钉群' })
+    } else {
+      res.status(500).json({ success: false, error: result.message })
+    }
+  } catch (error) {
+    console.error('[API] 发送测试提醒失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/scheduled-tasks/:id/test - 手动触发定时任务
+app.post('/api/scheduled-tasks/:id/test', async (req, res) => {
+  try {
+    const db = await createDbConnection()
+    const task = await queryGet(
+      db,
+      'SELECT * FROM scheduled_tasks WHERE id = ?',
+      [req.params.id]
+    )
+    await db.close()
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: '任务不存在' })
+    }
+
+    await executeTask(task)
+
+    res.json({ success: true, message: '任务已执行，请查看后端日志' })
+  } catch (error) {
+    console.error('[API] 执行任务失败:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })

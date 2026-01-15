@@ -1,5 +1,17 @@
 <template>
   <div class="record-list">
+    <!-- Toast 提示 -->
+    <Transition name="fade">
+      <div v-if="successMessage" class="toast-message" :class="{ error: isError }">
+        <svg v-if="!isError" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+        </svg>
+        <svg v-else width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+        </svg>
+        <span>{{ successMessage }}</span>
+      </div>
+    </Transition>
     <!-- 空状态 -->
     <div v-if="groupedRecords && Object.keys(groupedRecords).length === 0" class="empty-state">
       <div class="empty-state-icon">
@@ -38,6 +50,7 @@
                   :draggable="true"
                   @deleted="handleDeleted"
                   @updated="handleUpdated"
+                  @moveToNextWeek="handleMoveToNextWeek"
                 />
               </Transition>
             </template>
@@ -49,12 +62,34 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import draggable from 'vuedraggable'
 import RecordCard from './RecordCard.vue'
 import { useRecordsStore } from '../stores/records'
+import { useReportsStore } from '../stores/reports'
+import { useDialogStore } from '../stores/dialog'
 
 const recordsStore = useRecordsStore()
+const reportsStore = useReportsStore()
+const dialogStore = useDialogStore()
+
+// Toast 状态
+const successMessage = ref('')
+const isError = ref(false)
+const toastTimer = ref(null)
+
+// 显示 Toast 提示
+const showToast = (message, isErrorMessage = false) => {
+  successMessage.value = message
+  isError.value = isErrorMessage
+
+  if (toastTimer.value) clearTimeout(toastTimer.value)
+
+  toastTimer.value = setTimeout(() => {
+    successMessage.value = ''
+    isError.value = false
+  }, 3000)
+}
 
 // 按项目分组的记录
 const groupedRecords = computed(() => recordsStore.currentWeekByProject)
@@ -67,6 +102,44 @@ const handleDeleted = (record) => {
 // 处理更新事件
 const handleUpdated = (record) => {
   console.log('Record updated:', record)
+}
+
+// 处理移到下周计划
+const handleMoveToNextWeek = async (record) => {
+  const confirmed = await dialogStore.confirm({
+    title: '移到下周计划',
+    message: `确定要将"${record.content}"移到下周计划吗？`
+  })
+
+  if (!confirmed) return
+
+  try {
+    const response = await fetch('/api/records/move-to-next-week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recordIds: [record.id] })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      // 从本地列表移除
+      const index = recordsStore.records.findIndex(r => r.id === record.id)
+      if (index !== -1) {
+        recordsStore.records.splice(index, 1)
+      }
+
+      // 追加到下周计划
+      await reportsStore.appendPlans(result.newPlans)
+
+      showToast(result.message || '已移到下周计划')
+    } else {
+      showToast(result.error || '操作失败，请重试', true)
+    }
+  } catch (error) {
+    console.error('移到下周计划失败:', error)
+    showToast('操作失败，请重试', true)
+  }
 }
 
 // 拖拽结束
@@ -254,5 +327,40 @@ const onDragEnd = (recordsList) => {
       gap: $spacing-4; // 小屏也增加卡片间距
     }
   }
+}
+
+// Toast 提示
+.toast-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-3 $spacing-4;
+  background: $accent-primary;
+  color: white;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba($accent-primary, 0.3);
+  z-index: $z-tooltip;
+
+  &.error {
+    background: $error;
+    box-shadow: 0 4px 12px rgba($error, 0.3);
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity $transition-fast;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
