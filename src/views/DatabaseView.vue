@@ -25,24 +25,42 @@
       </button>
     </div>
 
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
-      </svg>
-      <select v-model="filterColumn" class="filter-select">
-        <option value="">全部字段</option>
-        <option v-for="col in searchableColumns" :key="col.name" :value="col.name">
-          {{ col.label || col.name }}
-        </option>
-      </select>
-      <input
-        v-model="searchQuery"
-        type="text"
-        class="search-input"
-        :placeholder="filterColumn ? `在 ${filterColumn} 中搜索...` : '搜索数据...'"
-      />
+    <!-- 搜索和筛选栏 -->
+    <div class="search-filter-bar">
+      <div class="search-bar">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+        </svg>
+        <select v-model="filterColumn" class="filter-select">
+          <option value="">全部字段</option>
+          <option v-for="col in searchableColumns" :key="col.name" :value="col.name">
+            {{ col.label || col.name }}
+          </option>
+        </select>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          :placeholder="filterColumn ? `在 ${filterColumn} 中搜索...` : '搜索数据...'"
+        />
+      </div>
+
+      <button class="filter-toggle-btn" @click="showFilterPanel = !showFilterPanel" :class="{ active: showFilterPanel || hasActiveFilters }">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+        </svg>
+        筛选
+        <span v-if="hasActiveFilters && !showFilterPanel" class="filter-badge">{{ activeFilterCount }}</span>
+      </button>
     </div>
+
+    <!-- 筛选面板 -->
+    <FilterPanel
+      v-if="showFilterPanel"
+      :columns="columns"
+      v-model="filters"
+      @reset="handleResetFilters"
+    />
 
     <!-- 数据表格 -->
     <DataTable
@@ -50,7 +68,18 @@
       :rows="rows"
       :loading="loading"
       :pagination="pagination"
+      :sort-column="sortColumn"
+      :sort-order="sortOrder"
       @page-change="handlePageChange"
+      @show-json="handleShowJson"
+      @sort-change="handleSortChange"
+    />
+
+    <!-- JSON 查看器弹窗 -->
+    <JsonViewer
+      v-model="showJsonViewer"
+      :data="jsonData"
+      :title="jsonTitle"
     />
 
     <!-- Toast 提示 -->
@@ -65,6 +94,8 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import DataTable from '../components/DataTable.vue'
+import JsonViewer from '../components/JsonViewer.vue'
+import FilterPanel from '../components/FilterPanel.vue'
 
 // 表的显示名称
 const tableDisplayNames = {
@@ -100,6 +131,51 @@ const searchableColumns = computed(() => {
 const toastMessage = ref('')
 let toastTimer = null
 
+// JSON 查看器状态
+const showJsonViewer = ref(false)
+const jsonData = ref(null)
+const jsonTitle = ref('')
+
+// 筛选状态
+const showFilterPanel = ref(false)
+const filters = ref({})
+
+// 排序状态
+const sortColumn = ref('id')
+const sortOrder = ref('DESC')
+
+// 计算激活的筛选条件数量
+const activeFilterCount = computed(() => {
+  return Object.values(filters.value).filter(v => v !== '' && v !== null && v !== undefined).length
+})
+
+// 是否有激活的筛选条件
+const hasActiveFilters = computed(() => {
+  return activeFilterCount.value > 0
+})
+
+// 处理筛选重置
+const handleResetFilters = () => {
+  filters.value = {}
+  showFilterPanel.value = false
+  pagination.value.page = 1
+  fetchTableData()
+}
+
+// 处理 JSON 显示
+const handleShowJson = (data) => {
+  jsonData.value = data
+  jsonTitle.value = `${tableDisplayNames[currentTable.value]} - JSON 数据`
+  showJsonViewer.value = true
+}
+
+// 处理排序变化
+const handleSortChange = ({ column, order }) => {
+  sortColumn.value = column || 'id'
+  sortOrder.value = order || 'DESC'
+  fetchTableData()
+}
+
 // 获取表列表
 const fetchTables = async () => {
   try {
@@ -123,8 +199,17 @@ const fetchTableData = async () => {
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
       search: searchQuery.value,
-      column: filterColumn.value
+      column: filterColumn.value,
+      sortColumn: sortColumn.value,
+      sortOrder: sortOrder.value
     })
+
+    // 添加筛选参数
+    for (const [key, value] of Object.entries(filters.value)) {
+      if (value && value !== '') {
+        params.append(`filters[${key}]`, value)
+      }
+    }
 
     const response = await fetch(`/api/database/table/${currentTable.value}?${params}`)
     const result = await response.json()
@@ -150,6 +235,10 @@ const switchTable = (tableName) => {
     pagination.value.page = 1
     searchQuery.value = ''
     filterColumn.value = ''
+    filters.value = {}
+    showFilterPanel.value = false
+    sortColumn.value = 'id'
+    sortOrder.value = 'DESC'
     fetchTableData()
   }
 }
@@ -178,6 +267,12 @@ watch(searchQuery, () => {
     fetchTableData()
   }, 500)
 })
+
+// 监听筛选变化，自动刷新
+watch(filters, () => {
+  pagination.value.page = 1
+  fetchTableData()
+}, { deep: true })
 
 // 初始化
 onMounted(() => {
@@ -258,10 +353,17 @@ onMounted(() => {
   }
 }
 
-.search-bar {
+.search-filter-bar {
   display: flex;
   gap: $spacing-3;
   margin-bottom: $spacing-6;
+  align-items: flex-start;
+}
+
+.search-bar {
+  display: flex;
+  gap: $spacing-3;
+  flex: 1;
 
   .search-icon {
     position: absolute;
@@ -312,6 +414,42 @@ onMounted(() => {
   }
 }
 
+.filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-3 $spacing-4;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all $transition-fast;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-color-hover);
+  }
+
+  &.active {
+    background: $accent-light;
+    border-color: $accent-primary;
+    color: $accent-primary;
+  }
+
+  .filter-badge {
+    padding: 2px 6px;
+    background: $accent-primary;
+    color: white;
+    border-radius: $radius-full;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+  }
+}
+
 .toast-message {
   position: fixed;
   top: 20px;
@@ -346,6 +484,19 @@ onMounted(() => {
   .table-selector {
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .search-filter-bar {
+    flex-direction: column;
+
+    .search-bar {
+      width: 100%;
+    }
+
+    .filter-toggle-btn {
+      width: 100%;
+      justify-content: center;
+    }
   }
 }
 </style>

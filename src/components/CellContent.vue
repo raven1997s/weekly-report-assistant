@@ -1,15 +1,11 @@
 <template>
   <div class="cell-content">
     <!-- JSON 字段 -->
-    <div v-if="isJson" class="json-field">
-      <pre v-if="expanded">{{ formattedJson }}</pre>
-      <span v-else class="json-preview">{{ jsonString }}</span>
-      <button class="expand-btn" @click="expanded = !expanded" :title="expanded ? '收起' : '展开'">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-          <path v-if="expanded" fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"/>
-          <path v-else fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-        </svg>
-      </button>
+    <div v-if="isJson" class="json-field" @click="handleJsonClick" title="点击查看完整 JSON">
+      <span class="json-preview">{{ jsonString }}</span>
+      <svg class="json-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+      </svg>
     </div>
 
     <!-- 长文本字段 -->
@@ -42,7 +38,19 @@ const props = defineProps({
   column: String
 })
 
+const emit = defineEmits(['showJson'])
+
 const expanded = ref(false)
+
+// 处理 JSON 字段点击
+const handleJsonClick = () => {
+  try {
+    const parsed = JSON.parse(props.value)
+    emit('showJson', parsed)
+  } catch {
+    // JSON 解析失败，不打开弹窗
+  }
+}
 
 // 判断是否为 JSON 字段
 const isJson = computed(() => {
@@ -139,26 +147,33 @@ const displayValue = computed(() => {
 }
 
 .json-field {
-  position: relative;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  cursor: pointer;
+  padding: $spacing-1;
+  border-radius: $radius-sm;
+  transition: background $transition-fast;
 
-  pre {
-    margin: 0;
-    padding: $spacing-3;
+  &:hover {
     background: var(--bg-secondary);
-    border-radius: $radius-sm;
-    font-size: $font-size-xs;
-    font-family: $font-family-mono;
-    line-height: $line-height-normal;
-    overflow-x: auto;
-    max-height: 300px;
-    overflow-y: auto;
   }
 
   .json-preview {
     color: var(--text-secondary);
     font-family: $font-family-mono;
     font-size: $font-size-xs;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .json-icon {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    width: 14px;
+    height: 14px;
   }
 }
 

@@ -1,7 +1,8 @@
 # database-management Specification
 
 ## Purpose
-TBD - created by archiving change add-database-viewer. Update Purpose after archive.
+
+数据库管理页面提供只读方式查看所有系统表数据，支持 JSON 弹窗查看、高级筛选、列排序等功能，方便用户快速查找和分析数据。
 ## Requirements
 ### Requirement: 表列表查询
 
@@ -82,7 +83,18 @@ TBD - created by archiving change add-database-viewer. Update Purpose after arch
 #### Scenario: JSON 字段显示
 
 - **WHEN** 字段值为 JSON 字符串（如 `records`, `plans`, `reflections`, `value`）
-- **THEN** 系统格式化显示 JSON，支持折叠/展开
+- **THEN** 系统显示 JSON 预览（截断）
+- **AND** 用户点击 JSON 字段打开弹窗查看完整内容
+- **AND** 弹窗支持 JSON 语法高亮、折叠/展开、复制功能
+
+#### Scenario: JSON 弹窗查看
+
+- **WHEN** 用户点击表格中的 JSON 字段
+- **THEN** 系统打开模态弹窗显示完整 JSON 内容
+- **AND** 弹窗标题显示字段名称
+- **AND** JSON 进行语法高亮（字符串绿色、数字蓝色、布尔橙色、null 灰色、键名深色加粗）
+- **AND** 支持折叠/展开嵌套结构
+- **AND** 提供"复制 JSON"按钮
 
 #### Scenario: 长文本字段显示
 
@@ -204,4 +216,98 @@ TBD - created by archiving change add-database-viewer. Update Purpose after arch
 
 - **WHEN** 任何用户访问 `/database` 页面
 - **THEN** 系统允许访问，无需身份验证
+
+### Requirement: 高级筛选面板
+
+系统 SHALL 提供高级筛选面板，支持按字段类型进行多条件组合筛选。
+
+#### Scenario: 打开筛选面板
+
+- **WHEN** 用户点击"筛选"按钮
+- **THEN** 系统展开筛选面板（位于搜索栏下方）
+- **AND** 按钮状态变为激活状态
+
+#### Scenario: 动态生成筛选器
+
+- **WHEN** 筛选面板渲染
+- **THEN** 系统根据表格列的类型动态生成筛选器：
+  - **文本字段**（TEXT、VARCHAR）：输入框，支持模糊匹配
+  - **日期字段**：日期选择器
+  - **布尔字段**（INTEGER 0/1）：下拉选择（全部/是/否）
+
+#### Scenario: 应用筛选
+
+- **WHEN** 用户在筛选器中输入内容
+- **THEN** 系统使用 500ms 防抖
+- **AND** 防抖结束后自动触发筛选
+- **AND** 重置分页到第一页
+- **AND** 表格显示筛选后的数据
+
+#### Scenario: 重置筛选
+
+- **WHEN** 用户点击"重置"按钮
+- **THEN** 系统清空所有筛选条件
+- **AND** 表格显示所有数据
+- **AND** 关闭筛选面板
+
+#### Scenario: 筛选状态指示
+
+- **WHEN** 有激活的筛选条件且筛选面板关闭
+- **THEN** "筛选"按钮显示徽章数字（如"3"）
+- **AND** 徽章背景使用主题色
+
+### Requirement: 列排序功能
+
+系统 SHALL 支持点击表头进行排序，支持升序、降序和取消排序。
+
+#### Scenario: 单列排序
+
+- **WHEN** 用户点击表头
+- **THEN** 系统按该列升序排序
+- **AND** 表头显示升序箭头图标（↑）
+- **AND** 再次点击表头切换为降序排序
+- **AND** 表头显示降序箭头图标（↓）
+- **AND** 第三次点击表头取消排序
+
+#### Scenario: 排序状态持久化
+
+- **WHEN** 用户切换表或翻页
+- **THEN** 系统保持当前排序状态
+- **AND** 表头继续显示排序箭头图标
+
+#### Scenario: 默认排序
+
+- **WHEN** 页面首次加载或重置筛选
+- **THEN** 系统按 `id` 列降序排序（最新数据在前）
+
+### Requirement: 表数据查询（增强）
+
+系统 SHALL 支持筛选和排序参数，返回符合条件的数据。
+
+#### Scenario: 带筛选参数的查询
+
+- **WHEN** 用户请求带有 `filters[column]=value` 参数
+- **THEN** 系统在 WHERE 子句中添加筛选条件
+- **AND** 文本字段使用 LIKE 模糊匹配
+- **AND** 日期字段使用范围筛选
+- **AND** 布尔字段使用精确匹配
+
+#### Scenario: 带排序参数的查询
+
+- **WHEN** 用户请求带有 `sortColumn` 和 `sortOrder` 参数
+- **THEN** 系统在 ORDER BY 子句中添加排序规则
+- **AND** 验证列名在白名单中
+
+#### Scenario: 筛选和排序组合查询
+
+- **WHEN** 用户同时提供筛选和排序参数
+- **THEN** 系统先应用筛选条件
+- **AND** 再对筛选结果进行排序
+
+#### Scenario: SQL 注入防护
+
+- **WHEN** 用户提供筛选或排序参数
+- **THEN** 系统使用参数化查询
+- **AND** 验证列名在白名单中
+- **AND** 转义用户输入的值
 

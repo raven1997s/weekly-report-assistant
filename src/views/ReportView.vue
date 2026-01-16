@@ -301,10 +301,6 @@ const isValidationError = ref(false)
 const validationTimer = ref(null)
 const showSaveConfirm = ref(false)
 
-// 数据绑定
-const currentPlans = computed(() => reportsStore.currentPlans)
-const reflections = ref({ ...reportsStore.currentReflections })
-
 // 检查本周是否已保存
 const isCurrentWeekSaved = computed(() => reportsStore.hasCurrentWeekReport)
 
@@ -316,14 +312,23 @@ const archivedReport = computed(() => {
     return null
 })
 
-// 如果已归档，使用归档数据
+// 如果已归档，使用归档数据；否则使用 store 中的数据
 const displayPlans = computed(() => {
-    return archivedReport.value?.plans || currentPlans.value
+    if (archivedReport.value) {
+        return archivedReport.value.plans || []
+    }
+    return reportsStore.currentPlans
 })
 
 const displayReflections = computed(() => {
-    return archivedReport.value?.reflections || reflections.value
+    if (archivedReport.value) {
+        return archivedReport.value.reflections || { gains: '', losses: '' }
+    }
+    return reportsStore.currentReflections
 })
+
+// 本地 ref 状态（仅用于未归档时的编辑）
+const reflections = ref({ ...reportsStore.currentReflections })
 
 // 实时更新得与失
 const updateReflections = () => {
@@ -376,21 +381,22 @@ const removePlan = (id) => {
 
 // 保存周报
 const saveCurrentReport = () => {
-  // 验证下周计划
-  if (currentPlans.value.length === 0) {
+  // 验证是否已保存
+  if (reportsStore.hasCurrentWeekReport) {
+    showValidationAlert('本周周报已归档，如需修改请前往历史周报页面', true)
+    return
+  }
+
+  // 验证下周计划（使用 displayPlans，归档后会是空数组，但上面已经拦截）
+  if (displayPlans.value.length === 0) {
     showValidationAlert('请至少添加一条下周计划', true)
     return
   }
 
-  // 验证得与失
-  if (!reflections.value.gains && !reflections.value.losses) {
+  // 验证得与失（使用 displayReflections）
+  const currentReflections = displayReflections.value
+  if (!currentReflections.gains && !currentReflections.losses) {
     showValidationAlert('请至少填写一项本周总结（值得肯定的 或 需要改进的）', true)
-    return
-  }
-
-  // 验证是否已保存
-  if (reportsStore.hasCurrentWeekReport) {
-    showValidationAlert('本周周报已归档，如需修改请前往历史周报页面', true)
     return
   }
 

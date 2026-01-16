@@ -1268,21 +1268,26 @@ NODE_ENV=development
 
 ### 数据库管理功能
 - **数据库管理页面**: `src/views/DatabaseView.vue` - 只读查看所有表数据
-- **数据表格组件**: `src/components/DataTable.vue` - 通用数据表格展示
-- **单元格内容组件**: `src/components/CellContent.vue` - JSON/日期/布尔字段格式化
+- **数据表格组件**: `src/components/DataTable.vue` - 通用数据表格展示（支持列排序）
+- **JSON 查看器组件**: `src/components/JsonViewer.vue` - JSON 弹窗查看器（语法高亮、折叠/展开、复制）
+- **JSON 节点组件**: `src/components/JsonNode.vue` - 递归 JSON 渲染组件
+- **筛选面板组件**: `src/components/FilterPanel.vue` - 高级筛选面板（动态生成筛选器）
+- **单元格内容组件**: `src/components/CellContent.vue` - JSON/日期/布尔字段格式化（点击 JSON 打开弹窗）
 - **后端 API**: `server/api.js` - 数据库管理接口
   - `GET /api/database/tables` - 获取所有表信息和结构
-  - `GET /api/database/table/:tableName` - 获取表数据（支持分页和搜索）
+  - `GET /api/database/table/:tableName` - 获取表数据（支持分页、搜索、筛选、排序）
 - **功能特性**:
-  - 表切换（Tab 切换，显示行数徽章）
-  - 数据搜索（模糊匹配文本字段，500ms 防抖）
-  - 分页浏览（默认每页 20 条）
-  - JSON 字段格式化显示（可折叠/展开）
-  - 长文本字段截断显示
-  - 日期字段本地化格式化
-  - 布尔字段中文显示（是/否）
-  - 白名单验证（只允许访问 4 个系统表）
-  - SQL 注入防护（参数化查询）
+  - **表切换**: Tab 切换，显示行数徽章
+  - **数据搜索**: 模糊匹配文本字段，500ms 防抖，可按指定字段搜索
+  - **高级筛选**: 根据字段类型动态生成筛选器（文本框、日期选择器、下拉选择）
+  - **列排序**: 点击表头排序（ASC → DESC → 无），默认 id DESC
+  - **JSON 查看**: 点击 JSON 字段打开弹窗查看完整内容，支持语法高亮和折叠/展开
+  - **分页浏览**: 默认每页 20 条
+  - **长文本截断**: 超长文本字段截断显示
+  - **日期格式化**: 本地化日期格式显示
+  - **布尔字段**: 中文显示（是/否）
+  - **白名单验证**: 只允许访问 4 个系统表（records、reports、settings、scheduled_tasks）
+  - **SQL 注入防护**: 参数化查询，列名白名单验证
 
 ---
 
@@ -1599,17 +1604,18 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-16
-- **版本**: 4.0
+- **版本**: 4.1
 - **主要更新**:
-  - **架构变更**：移除所有前端缓存（localStorage、sessionStorage），确保数据实时性
-  - **数据流优化**：统一为"数据库 → API → UI"的单向数据流
-  - **自动刷新**：添加页面可见性监听和定期轮询（30秒），实现多标签页数据同步
-  - **错误处理**：API 失败时显示明确错误提示，不再静默降级
-  - **批量操作**：删除 `PUT /api/records/batch` 接口，改为使用单个 CRUD 操作
-  - **规范更新**：
-    - 更新规则 #8：数据持久化规范（禁止前端缓存）
-    - 新增规则 #9：数据刷新机制（页面可见性监听 + 定期轮询）
-  - **之前版本（3.1）**：
-    - 新增功能：数据库管理页面 - 只读查看所有表数据
-    - Bug 修复：修复多个 UI 问题并优化系统功能
+  - **数据库管理功能增强**：添加 JSON 弹窗查看器、高级筛选面板、列排序功能
+  - **新增组件**：JsonViewer.vue、JsonNode.vue、FilterPanel.vue
+  - **组件更新**：DataTable.vue 支持排序、CellContent.vue 支持点击查看 JSON
+  - **API 增强**：支持筛选参数（`filters[column]`）和排序参数（`sortColumn`、`sortOrder`）
+  - **用户体验**：JSON 字段可点击打开弹窗查看完整内容，支持语法高亮和折叠/展开
+  - **文档更新**：更新数据库管理功能说明，添加新组件文档
+  - **之前版本（4.0）**：
+    - **架构变更**：移除所有前端缓存（localStorage、sessionStorage），确保数据实时性
+    - **数据流优化**：统一为"数据库 → API → UI"的单向数据流
+    - **自动刷新**：添加页面可见性监听和定期轮询（30秒），实现多标签页数据同步
+    - **错误处理**：API 失败时显示明确错误提示，不再静默降级
+    - **批量操作**：删除 `PUT /api/records/batch` 接口，改为使用单个 CRUD 操作
 

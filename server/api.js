@@ -332,10 +332,89 @@ app.put('/api/current-state', async (req, res) => {
   }
 })
 
-// PUT /api/reports - 保存周报归档
-// ⚠️ 已删除 PUT /api/reports 端点（2026-01-16）
-// 原因：该端点会先删除所有数据再插入（DELETE FROM reports），存在严重数据丢失风险
-// 现在使用单个周报保存接口（通过 saveReport），不再需要批量同步
+// POST /api/reports - 保存单个周报归档
+app.post('/api/reports', async (req, res) => {
+  try {
+    const { id, weekStart, weekLabel, content, markdown, plainText, records, plans, reflections, createdAt, updatedAt } = req.body
+
+    // 验证必填字段
+    if (!weekStart || !weekLabel) {
+      return res.status(400).json({ success: false, error: '缺少必填字段: weekStart, weekLabel' })
+    }
+
+    const db = await createDbConnection()
+
+    // 检查是否已存在本周周报
+    const existing = await queryGet(db, 'SELECT * FROM reports WHERE weekStart = ?', [weekStart])
+
+    const reportId = id || `${weekStart}-${Date.now()}`
+
+    if (existing) {
+      // 更新现有周报
+      await queryRun(
+        db,
+        `UPDATE reports SET
+          weekLabel = ?,
+          content = ?,
+          markdown = ?,
+          plainText = ?,
+          records = ?,
+          plans = ?,
+          reflections = ?,
+          updatedAt = ?
+        WHERE id = ?`,
+        [
+          weekLabel,
+          content || '',
+          markdown || '',
+          plainText || '',
+          JSON.stringify(records || []),
+          JSON.stringify(plans || []),
+          JSON.stringify(reflections || {}),
+          updatedAt || new Date().toISOString(),
+          reportId
+        ]
+      )
+      console.log(`[API] 更新周报归档: ${reportId} (${weekLabel})`)
+    } else {
+      // 插入新周报
+      await queryRun(
+        db,
+        `INSERT INTO reports (id, weekStart, weekLabel, content, markdown, plainText, records, plans, reflections, createdAt, updatedAt, deleted)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          reportId,
+          weekStart,
+          weekLabel,
+          content || '',
+          markdown || '',
+          plainText || '',
+          JSON.stringify(records || []),
+          JSON.stringify(plans || []),
+          JSON.stringify(reflections || {}),
+          createdAt || new Date().toISOString(),
+          updatedAt || new Date().toISOString()
+        ]
+      )
+      console.log(`[API] 创建周报归档: ${reportId} (${weekLabel})`)
+    }
+
+    db.close()
+
+    res.json({
+      success: true,
+      data: {
+        id: reportId,
+        weekStart,
+        weekLabel,
+        message: '周报归档成功'
+      }
+    })
+  } catch (error) {
+    console.error('[API] 保存周报失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
 
 // DELETE /api/reports/:id - 删除周报（软删除）
 app.delete('/api/reports/:id', async (req, res) => {
@@ -952,11 +1031,29 @@ app.get('/api/database/tables', async (req, res) => {
   }
 })
 
-// GET /api/database/table/:tableName - 获取表数据（支持分页和搜索）
+// GET /api/database/table/:tableName - 获取表数据（支持分页、搜索、筛选和排序）
 app.get('/api/database/table/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params
-    const { page = 1, pageSize = 20, search = '', column = '' } = req.query
+    const {
+      page = 1,
+      pageSize = 20,
+      search = '',
+      column = '',
+      sortColumn = 'id',
+      sortOrder = 'DESC'
+    } = req.query
+
+    // 解析筛选参数（格式：filters[columnName]=value）
+    const filters = {}
+    for (const [key, value] of Object.entries(req.query)) {
+      if (key.startsWith('filters[') && key.endsWith(']')) {
+        const columnName = key.slice(8, -1) // 去掉 'filters[' 和 ']'
+        if (value && value !== '') {
+          filters[columnName] = value
+        }
+      }
+    }
 
     // 安全检查：白名单验证表名
     const validTables = ['records', 'reports', 'settings', 'scheduled_tasks']
@@ -981,8 +1078,36 @@ app.get('/api/database/table/:tableName', async (req, res) => {
     let sql = `SELECT * FROM ${tableName}`
     let countSql = `SELECT COUNT(*) as total FROM ${tableName}`
     let params = []
+    const conditions = []
 
-    // 添加搜索条件
+    // 添加筛选条件
+    for (const [columnName, value] of Object.entries(filters)) {
+      const allowedColumns = TABLE_COLUMNS[tableName]
+      if (!allowedColumns || !allowedColumns.includes(columnName)) {
+        continue // 跳过不在白名单中的列
+      }
+
+      // 判断字段类型
+      const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
+      const columnInfo = tableInfo.find(col => col.name === columnName)
+      const columnType = columnInfo?.type || ''
+
+      if (columnType.includes('TEXT') || columnType.includes('CHAR') || columnType.includes('VARCHAR')) {
+        // 文本字段：模糊匹配
+        conditions.push(`${columnName} LIKE ?`)
+        params.push(`%${value}%`)
+      } else if (columnType === 'INTEGER') {
+        // 整数字段：精确匹配（用于布尔字段 0/1）
+        conditions.push(`${columnName} = ?`)
+        params.push(value)
+      } else {
+        // 其他字段：精确匹配
+        conditions.push(`${columnName} = ?`)
+        params.push(value)
+      }
+    }
+
+    // 添加搜索条件（与筛选条件是 AND 关系）
     if (search && search.trim()) {
       if (column) {
         // 按指定列搜索
@@ -991,27 +1116,43 @@ app.get('/api/database/table/:tableName', async (req, res) => {
           db.close()
           return res.status(400).json({ success: false, error: '无效的列名' })
         }
-        sql += ` WHERE ${column} LIKE ?`
-        countSql += ` WHERE ${column} LIKE ?`
+        const searchCondition = `${column} LIKE ?`
+        if (conditions.length > 0) {
+          // 筛选和搜索是 AND 关系：先应用筛选，再在结果中搜索
+          conditions.push(searchCondition)
+        } else {
+          conditions.push(searchCondition)
+        }
         params.push(`%${search}%`)
       } else {
-        // 全部字段搜索（原有逻辑）
+        // 全部字段搜索（搜索任意文本字段）
         const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
         const textColumns = tableInfo
           .filter(col => col.type && (col.type.includes('TEXT') || col.type.includes('CHAR') || col.type.includes('VARCHAR')))
           .map(col => col.name)
 
         if (textColumns.length > 0) {
-          const searchConditions = textColumns.map(col => `${col} LIKE ?`).join(' OR ')
-          sql += ` WHERE ${searchConditions}`
-          countSql += ` WHERE ${searchConditions}`
-          params = textColumns.map(() => `%${search}%`)
+          const searchConditions = textColumns.map(col => `${col} LIKE ?`)
+          // 将所有搜索条件用括号括起来，用 OR 连接
+          const searchGroup = `(${searchConditions.join(' OR ')})`
+          conditions.push(searchGroup)
+          // 为每个文本列添加搜索参数
+          textColumns.forEach(() => params.push(`%${search}%`))
         }
       }
     }
 
-    // 添加排序和分页
-    sql += ` ORDER BY rowid DESC LIMIT ? OFFSET ?`
+    // 构建 WHERE 子句
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(' AND ')}`
+      countSql += ` WHERE ${conditions.join(' AND ')}`
+    }
+
+    // 添加排序（验证列名）
+    const allowedColumns = TABLE_COLUMNS[tableName]
+    const validSortColumn = allowedColumns?.includes(sortColumn) ? sortColumn : 'id'
+    const validSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC'
+    sql += ` ORDER BY ${validSortColumn} ${validSortOrder} LIMIT ? OFFSET ?`
 
     // 执行查询
     const [data, totalResult] = await Promise.all([

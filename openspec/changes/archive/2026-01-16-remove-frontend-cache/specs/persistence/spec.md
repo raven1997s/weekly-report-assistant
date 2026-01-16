@@ -119,25 +119,34 @@
 - **AND** 使用 `Promise.all()` 并行发送请求
 - **AND** 如果某条记录失败，记录错误日志并继续删除其他记录
 
-## REMOVED Requirements
+## REMOVED Sections
 
-### Requirement: ~~数据库无数据时从 localStorage 迁移~~ (已移除)
+### Scenario: ~~数据库无数据时从 localStorage 迁移~~ (已移除)
 
-**原需求**: 系统尝试从 localStorage 读取旧数据，自动迁移到数据库。
+**原场景**: 页面初始化时如果数据库返回空数据，系统尝试从 localStorage 读取旧数据并自动迁移。
 
 **移除原因**:
 - 迁移逻辑应在应用启动时一次性执行，不需要在每次 `init()` 时检查
 - 简化降级逻辑，明确数据来源（仅数据库）
 - 迁移逻辑移至"MODIFIED Requirements - 移除 localStorage 降级机制"中的"一次性迁移场景"
 
-### Requirement: ~~API 失败时降级到 localStorage~~ (已移除)
+### Scenario: ~~API 失败时降级到 localStorage（读取）~~ (已移除)
 
-**原需求**: 系统降级到 localStorage 读取数据，在控制台输出降级警告日志。
+**原场景**: 页面初始化时如果 `GET /api/reports` 请求失败，系统降级到 localStorage 读取数据。
 
 **移除原因**:
 - 与"禁止前端缓存"原则冲突
 - 降级导致数据不一致，用户不知道数据来源
 - 新需求要求 API 失败时直接向用户报错
+
+### Scenario: ~~API 失败时降级到 localStorage（保存）~~ (已移除)
+
+**原场景**: 当 `PUT /api/current-state` 请求失败时，系统降级到 `saveToStorage()` 保存到 localStorage。
+
+**移除原因**:
+- 与"禁止前端缓存"原则冲突
+- 降级导致数据不一致
+- 新需求要求 API 失败时向用户显示错误提示
 
 ## ADDED Requirements
 

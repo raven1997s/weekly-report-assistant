@@ -21,15 +21,29 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th v-for="column in columns" :key="column" class="table-header">
-              {{ columnDisplayNames[column] || column }}
+            <th
+              v-for="column in columns"
+              :key="column"
+              class="table-header"
+              :class="{ sortable: true, sorted: sortColumn === column }"
+              @click="handleSort(column)"
+            >
+              <span>{{ columnDisplayNames[column] || column }}</span>
+              <span v-if="sortColumn === column" class="sort-icon">
+                <svg v-if="sortOrder === 'asc'" width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L10 7.414V17a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"/>
+                </svg>
+                <svg v-else width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L10 12.586V3a1 1 0 012 0v9.586l3.293-3.293a1 1 0 011.414 0z"/>
+                </svg>
+              </span>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, index) in rows" :key="row.id || index" class="table-row">
             <td v-for="column in columns" :key="column" class="table-cell">
-              <CellContent :value="row[column]" :column="column" />
+              <CellContent :value="row[column]" :column="column" @show-json="$emit('showJson', $event)" />
             </td>
           </tr>
         </tbody>
@@ -60,14 +74,38 @@
 <script setup>
 import CellContent from './CellContent.vue'
 
-defineProps({
+const props = defineProps({
   columns: Array,
   rows: Array,
   loading: Boolean,
-  pagination: Object
+  pagination: Object,
+  sortColumn: {
+    type: String,
+    default: 'id'
+  },
+  sortOrder: {
+    type: String,
+    default: 'DESC',
+    validator: (value) => ['ASC', 'DESC', ''].includes(value)
+  }
 })
 
-defineEmits(['pageChange'])
+const emit = defineEmits(['pageChange', 'showJson', 'sortChange'])
+
+// 处理排序
+const handleSort = (column) => {
+  if (props.sortColumn === column) {
+    // 切换排序方向：ASC -> DESC -> 无
+    if (props.sortOrder === 'ASC') {
+      emit('sortChange', { column, order: 'DESC' })
+    } else if (props.sortOrder === 'DESC') {
+      emit('sortChange', { column: null, order: null })
+    }
+  } else {
+    // 新列，默认升序
+    emit('sortChange', { column, order: 'ASC' })
+  }
+}
 
 // 列显示名称映射
 const columnDisplayNames = {
@@ -162,6 +200,26 @@ const columnDisplayNames = {
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
     z-index: 10;
+    user-select: none;
+
+    &.sortable {
+      cursor: pointer;
+      transition: background $transition-fast;
+
+      &:hover {
+        background: var(--bg-card);
+      }
+    }
+
+    &.sorted {
+      color: $accent-primary;
+    }
+
+    .sort-icon {
+      display: inline-block;
+      margin-left: $spacing-2;
+      color: $accent-primary;
+    }
   }
 
   .table-row {
