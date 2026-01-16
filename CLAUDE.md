@@ -1219,6 +1219,24 @@ NODE_ENV=development
 - **回收站页面**: `src/views/RecycleBinView.vue`
 - **数据库迁移**: `server/migrations/add_soft_delete.cjs`
 
+### 数据库管理功能
+- **数据库管理页面**: `src/views/DatabaseView.vue` - 只读查看所有表数据
+- **数据表格组件**: `src/components/DataTable.vue` - 通用数据表格展示
+- **单元格内容组件**: `src/components/CellContent.vue` - JSON/日期/布尔字段格式化
+- **后端 API**: `server/api.js` - 数据库管理接口
+  - `GET /api/database/tables` - 获取所有表信息和结构
+  - `GET /api/database/table/:tableName` - 获取表数据（支持分页和搜索）
+- **功能特性**:
+  - 表切换（Tab 切换，显示行数徽章）
+  - 数据搜索（模糊匹配文本字段，500ms 防抖）
+  - 分页浏览（默认每页 20 条）
+  - JSON 字段格式化显示（可折叠/展开）
+  - 长文本字段截断显示
+  - 日期字段本地化格式化
+  - 布尔字段中文显示（是/否）
+  - 白名单验证（只允许访问 4 个系统表）
+  - SQL 注入防护（参数化查询）
+
 ---
 
 ## 已知问题和解决方案
@@ -1534,16 +1552,17 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-16
-- **版本**: 3.0
+- **版本**: 3.1
 - **主要更新**:
-  - **重大改进**：下周计划和本周总结现已持久化到数据库
-  - 新增 API：`PUT /api/current-state` - 保存当前编辑状态
-  - 数据迁移：localStorage → database 自动迁移
-  - 降级处理：API 失败时自动降级到 localStorage
-  - Bug 修复：历史周报删除后正确进入回收站
-  - Bug 修复：回收站数据正确加载和显示
-  - Bug 修复：禁止修改系统定时任务（计划转换任务）
-  - Bug 修复：周报恢复行为明确（本周/非本周）
-  - Bug 修复：删除危险的 PUT /api/reports 批量删除接口
-  - 移除调试信息：清理 ReportPreview 和 HistoryView 的调试代码
+  - **新增功能**：数据库管理页面 - 只读查看所有表数据
+  - 新增 API：`GET /api/database/tables` - 获取所有表信息和结构
+  - 新增 API：`GET /api/database/table/:tableName` - 获取表数据（支持分页和搜索）
+  - 新增组件：`DatabaseView.vue`、`DataTable.vue`、`CellContent.vue`
+  - 安全特性：白名单验证表名，防止 SQL 注入
+  - 功能特性：表切换、搜索、分页、JSON 格式化显示、响应式设计
+  - 之前版本（3.0）：
+    - 下周计划和本周总结现已持久化到数据库
+    - 新增 API：`PUT /api/current-state` - 保存当前编辑状态
+    - Bug 修复：历史周报删除后正确进入回收站
+    - Bug 修复：禁止修改系统定时任务（计划转换任务）
 

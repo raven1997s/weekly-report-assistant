@@ -162,7 +162,12 @@ export async function saveToStorage(key, data) {
     await saveRecords(data)
     return data.length
   } else if (isReports) {
-    await saveReports(data)
+    // ⚠️ 注意：PUT /api/reports 接口已被删除（2026-01-16）
+    // 原因：该接口会先删除所有数据再插入（DELETE FROM reports），存在严重数据丢失风险
+    // 现在 reports 数据只通过单个周报保存接口（saveReport）操作
+    // 这里只保存到 localStorage 作为备份，不再调用已删除的 API
+    const localStorageKey = `weekly_report_${key}`
+    localStorage.setItem(localStorageKey, JSON.stringify(data))
     return data.reports?.length || 0
   } else if (isSettings) {
     await saveSettings(data)

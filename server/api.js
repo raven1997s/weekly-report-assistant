@@ -951,6 +951,116 @@ app.delete('/api/scheduled-tasks/:id/permanent', async (req, res) => {
 })
 
 // ============================================
+// 数据库管理 API
+// ============================================
+
+// GET /api/database/tables - 获取所有表信息
+app.get('/api/database/tables', async (req, res) => {
+  try {
+    const db = await createDbConnection()
+
+    // 获取所有表名（排除系统表）
+    const tables = await queryAll(
+      db,
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    )
+
+    // 获取每个表的结构和行数
+    const tableInfo = await Promise.all(
+      tables.map(async ({ name }) => {
+        const columns = await queryAll(db, `PRAGMA table_info(${name})`)
+        const countResult = await queryGet(db, `SELECT COUNT(*) as count FROM ${name}`)
+        return {
+          name,
+          columns: columns.map(col => ({
+            name: col.name,
+            type: col.type,
+            notNull: col.notnull === 1,
+            primaryKey: col.pk === 1
+          })),
+          rowCount: countResult.count
+        }
+      })
+    )
+
+    db.close()
+    console.log(`[API] 获取表信息成功: ${tableInfo.length} 个表`)
+    res.json({ success: true, data: tableInfo })
+  } catch (error) {
+    console.error('[API] 获取表信息失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// GET /api/database/table/:tableName - 获取表数据（支持分页和搜索）
+app.get('/api/database/table/:tableName', async (req, res) => {
+  try {
+    const { tableName } = req.params
+    const { page = 1, pageSize = 20, search = '' } = req.query
+
+    // 安全检查：白名单验证表名
+    const validTables = ['records', 'reports', 'settings', 'scheduled_tasks']
+    if (!validTables.includes(tableName)) {
+      console.warn(`[API] 尝试访问无效表名: ${tableName}`)
+      return res.status(400).json({ success: false, error: '无效的表名' })
+    }
+
+    const db = await createDbConnection()
+    const offset = (page - 1) * pageSize
+    const limit = Math.min(parseInt(pageSize), 100) // 限制最大查询数量
+
+    // 构建查询
+    let sql = `SELECT * FROM ${tableName}`
+    let countSql = `SELECT COUNT(*) as total FROM ${tableName}`
+    let params = []
+
+    // 添加搜索条件（模糊匹配所有文本字段）
+    if (search && search.trim()) {
+      const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
+      const textColumns = tableInfo
+        .filter(col => col.type && (col.type.includes('TEXT') || col.type.includes('CHAR')))
+        .map(col => col.name)
+
+      if (textColumns.length > 0) {
+        const searchConditions = textColumns.map(col => `${col} LIKE ?`).join(' OR ')
+        sql += ` WHERE ${searchConditions}`
+        countSql += ` WHERE ${searchConditions}`
+        params = textColumns.map(() => `%${search}%`)
+      }
+    }
+
+    // 添加排序和分页
+    sql += ` ORDER BY rowid DESC LIMIT ? OFFSET ?`
+
+    // 执行查询
+    const [data, totalResult] = await Promise.all([
+      queryAll(db, sql, [...params, limit, offset]),
+      queryGet(db, countSql, params)
+    ])
+
+    db.close()
+
+    res.json({
+      success: true,
+      data: {
+        tableName,
+        columns: data.length > 0 ? Object.keys(data[0]) : [],
+        rows: data,
+        pagination: {
+          page: parseInt(page),
+          pageSize: limit,
+          total: totalResult.total,
+          totalPages: Math.ceil(totalResult.total / limit)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('[API] 获取表数据失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// ============================================
 // SPA 路由 fallback
 // ============================================
 

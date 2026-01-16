@@ -8,6 +8,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const HomeView = () => import('../views/HomeView.vue')
 const ReportView = () => import('../views/ReportView.vue')
 const HistoryView = () => import('../views/HistoryView.vue')
+const DatabaseView = () => import('../views/DatabaseView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 const RecycleBinView = () => import('../views/RecycleBinView.vue')
 
@@ -35,6 +36,14 @@ const routes = [
         component: HistoryView,
         meta: {
             title: '历史周报'
+        }
+    },
+    {
+        path: '/database',
+        name: 'database',
+        component: DatabaseView,
+        meta: {
+            title: '数据库管理'
         }
     },
     {
