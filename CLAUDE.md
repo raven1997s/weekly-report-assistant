@@ -224,44 +224,13 @@ currentReflections.value = { gains: '', losses: '' }
 
 **周信息组件必须在所有页面保持一致**（HomeView 和 ReportView）：
 
-```vue
-<template>
-  <div v-if="weekInfo" class="week-info-wrapper">
-    <div class="week-badge">
-      <span class="week-range">{{ formatDate(weekInfo.start, 'MM.DD') }} - {{ formatDate(weekInfo.end, 'MM.DD') }}</span>
-      <span class="week-divider">|</span>
-      <span class="workday-count">{{ weekInfo.workdayCount }}个工作日</span>
-      <span v-if="weekInfo.holidayCount > 0" class="holiday-hint">含{{ weekInfo.holidayCount }}天假期</span>
-    </div>
-    <div v-if="upcomingHolidaysText" class="upcoming-holidays">
-      <span class="holiday-icon">🏖️</span>
-      <span class="holiday-text">{{ upcomingHolidaysText }}</span>
-    </div>
-  </div>
-</template>
+**关键要点**：
+- 使用 `getWorkWeekInfo()` 获取工作周信息
+- 显示周范围（MM.DD - MM.DD）、工作日数量、假期提示
+- 使用计算属性 `upcomingHolidaysText` 生成即将到来的假期描述
+- 格式：`周一(1.20)、周二(1.21) 休息`
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getWorkWeekInfo, formatDate } from '../utils/date'
-
-const weekInfo = ref(null)
-
-const upcomingHolidaysText = computed(() => {
-  if (!weekInfo.value?.upcomingHolidays?.length) return ''
-  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const descriptions = weekInfo.value.upcomingHolidays.map(h => {
-    const dateStr = formatDate(h.date, 'M.DD')
-    const weekday = weekdays[h.weekday]
-    return `${weekday}(${dateStr})`
-  })
-  return descriptions.join('、') + ' 休息'
-})
-
-onMounted(() => {
-  weekInfo.value = getWorkWeekInfo(new Date())
-})
-</script>
-```
+**实现位置**：HomeView 和 ReportView 中的周信息组件
 
 ### 6. 解析预览规范
 
@@ -322,79 +291,20 @@ onMounted(() => {
 3. **结束边界规则**：工作周到本周最后一个工作日结束，不向后扩展
 4. **全节假日周规则**：如果自然周全是节假日 → 返回 `hasNoWorkdays: true`
 
-**实现示例**（`src/utils/date.js` 和 `server/utils/date.js`）：
+**实现位置**：`src/utils/date.js` 和 `server/utils/date.js`
 
-```javascript
-/**
- * 获取工作周信息（明确规则版本）
- *
- * 核心规则：
- * 1. 如果上周日是工作日/补班 → 工作周从上周日开始
- * 2. 否则 → 工作周从本周第一个工作日开始
- * 3. 工作周到本周最后一个工作日结束，不向后扩展
- * 4. 如果自然周全是节假日 → 返回 hasNoWorkdays: true
- */
-const getWorkWeekInfo = (date) => {
-    // 步骤1：获取自然周起始（周一）
-    const naturalWeekStart = getWeekStart(date)
-
-    // 步骤2：查找自然周内第一个和最后一个工作日
-    let firstWorkday = null
-    let lastWorkday = null
-
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(naturalWeekStart)
-        d.setDate(d.getDate() + i)
-        if (isWorkday(d)) {
-            if (!firstWorkday) firstWorkday = new Date(d)
-            lastWorkday = new Date(d)
-        }
-    }
-
-    // 步骤3：检查上周日是否是工作日
-    let startDate = firstWorkday
-    if (firstWorkday) {
-        const lastSunday = new Date(naturalWeekStart)
-        lastSunday.setDate(lastSunday.getDate() - 1)
-        if (isWorkday(lastSunday)) {
-            startDate = new Date(lastSunday)  // 包含上周日的补班
-        }
-    }
-
-    // 步骤4：处理全节假日周
-    if (!firstWorkday || !lastWorkday) {
-        return {
-            start: null,
-            end: null,
-            workdays: [],
-            holidayCount: 7,
-            workdayCount: 0,
-            upcomingHolidays: [],
-            hasNoWorkdays: true  // 本周无工作日
-        }
-    }
-
-    const endDate = lastWorkday
-
-    // 收集工作日和休息日信息...
-    return {
-        start: startDate,
-        end: endDate,
-        workdays,
-        holidayCount,
-        workdayCount: totalWorkdays,
-        upcomingHolidays,
-        hasNoWorkdays: false
-    }
-}
-```
+**核心逻辑**：
+- 获取自然周起始（周一）
+- 遍历 7 天查找第一个和最后一个工作日
+- 检查上周日是否是工作日（补班情况）
+- 如果全周无工作日，返回 `hasNoWorkdays: true`
+- 返回工作周起止日期、工作日列表、假期信息等
 
 **典型场景示例**：
-
-- **元旦补班周**（1/5-1/11）：上周日1/4是补班，工作周从1/4开始，到1/9结束（6个工作日）
-- **春节假期周**（2/16-2/22）：全周都是节假日，`hasNoWorkdays: true`
-- **春节后补班周**（2/23-3/1）：周一2/23是节假日，周二2/24是补班，工作周从2/24开始到2/27结束（4个工作日）
-- **国庆前补班周**（9/21-9/27）：上周日9/20是补班，工作周从9/20开始到9/24结束（5个工作日）
+- **元旦补班周**：上周日是补班 → 工作周从上周日开始
+- **春节假期周**：全周节假日 → `hasNoWorkdays: true`
+- **春节后补班周**：周一是节假日、周二是补班 → 工作周从周二开始
+- **国庆前补班周**：上周日是补班 → 工作周从上周日开始
 
 **为什么这样定义**：
 - ✅ 补班日与工作日连在一起，形成完整的工作周
@@ -536,59 +446,21 @@ const isSameDay = (d1, d2) => {
 export const useXxxStore = defineStore('xxx', () => {
   // ============ 状态 ============
   const items = ref([])
-  const status = ref('idle')
-
-  // ============ 初始化 ============
-  const init = async () => {
-    // 初始化逻辑
-  }
 
   // ============ 计算属性 ============
-  const filteredItems = computed(() => {
-    return items.value.filter(...)
-  })
+  const filteredItems = computed(() => items.value.filter(...))
 
   // ============ 方法 ============
-  const addItem = async (item) => {
-    items.value.push(item)
-    await persist()
-  }
+  const init = async () => { /* 初始化逻辑 */ }
+  const addItem = async (item) => { items.value.push(item) }
 
-  const persist = async () => {
-    // 持久化逻辑（必须去除响应式包装）
-    const cleanData = JSON.parse(JSON.stringify(items.value))
-    await saveToStorage(STORAGE_KEY, cleanData)
-  }
-
-  return {
-    // 状态
-    items,
-    status,
-    // 计算属性
-    filteredItems,
-    // 方法
-    init,
-    addItem,
-    persist
-  }
+  return { items, filteredItems, init, addItem }
 })
 ```
 
-**分隔注释必须使用**：
-- `// ============ 状态 ============`
-- `// ============ 初始化 ============`（可选）
-- `// ============ 计算属性 ============`
-- `// ============ 方法 ============`
+**分隔注释**：`// ============ 状态 ============`、`// ============ 计算属性 ============`、`// ============ 方法 ============`
 
-**为什么这样组织**：
-- ✅ 代码结构清晰，便于快速定位
-- ✅ 所有 Store 保持一致，降低维护成本
-- ✅ Setup Store 模式比 Options Store 更简洁
-
-**参考实现**：
-- `src/stores/records.js` - 完整示例
-- `src/stores/settings.js` - 复杂状态示例
-- `src/stores/reports.js` - 报告管理示例
+**参考实现**：`src/stores/records.js`、`src/stores/settings.js`、`src/stores/reports.js`
 
 ### 12. API 响应格式规范
 
@@ -796,91 +668,21 @@ const generateTags = (project, workType) => {
 ALTER TABLE records ADD COLUMN deleted INTEGER DEFAULT 0;
 ALTER TABLE records ADD COLUMN deletedAt TEXT;
 CREATE INDEX idx_records_deleted ON records(deleted);
-
-// 软删除操作
-UPDATE records SET deleted = 1, deletedAt = '2026-01-09T12:34:56.789Z' WHERE id = '123';
-
-// 恢复操作
-UPDATE records SET deleted = 0, deletedAt = NULL WHERE id = '123';
-
-// 永久删除
-DELETE FROM records WHERE id = '123';
 ```
 
 **API 实现示例**：
 ```javascript
-// 软删除
-app.delete('/api/records/:id', async (req, res) => {
-  const deletedAt = new Date().toISOString()
-  await queryRun(db, 'UPDATE records SET deleted = 1, deletedAt = ? WHERE id = ?', [deletedAt, req.params.id])
-  res.json({ success: true, message: '记录已移至回收站' })
-})
-
-// 恢复
-app.post('/api/records/:id/restore', async (req, res) => {
-  await queryRun(db, 'UPDATE records SET deleted = 0, deletedAt = NULL WHERE id = ?', [req.params.id])
-  res.json({ success: true, message: '记录已恢复' })
-})
-
-// 永久删除
-app.delete('/api/records/:id/permanent', async (req, res) => {
-  await queryRun(db, 'DELETE FROM records WHERE id = ?', [req.params.id])
-  res.json({ success: true, message: '记录已永久删除' })
-})
-
-// 查询已删除
-app.get('/api/records', async (req, res) => {
-  const { deleted } = req.query
-  let sql = 'SELECT * FROM records'
-  if (deleted === '1') {
-    sql += ' WHERE deleted = 1'
-  } else {
-    sql += ' WHERE deleted = 0'
-  }
-  sql += ' ORDER BY createdAt DESC'
-  // ...
-})
+// 软删除：UPDATE ... SET deleted = 1, deletedAt = ?
+// 恢复：UPDATE ... SET deleted = 0, deletedAt = NULL
+// 永久删除：DELETE FROM ... WHERE id = ?
+// 查询：SELECT ... WHERE deleted = 0/1
 ```
 
 **前端 Store 实现示例**：
 ```javascript
-// 软删除
-const deleteRecord = async (id) => {
-  const response = await fetch(`http://localhost:3000/api/records/${id}`, {
-    method: 'DELETE'
-  })
-  const result = await response.json()
-  if (result.success) {
-    const index = records.value.findIndex(r => r.id === id)
-    if (index !== -1) {
-      records.value.splice(index, 1)
-    }
-    return true
-  }
-  return false
-}
-
-// 恢复
-const restoreRecord = async (id) => {
-  const response = await fetch(`http://localhost:3000/api/records/${id}/restore`, {
-    method: 'POST'
-  })
-  if (response.ok) {
-    await init() // 重新加载数据
-    return true
-  }
-  return false
-}
-
-// 获取已删除的数据
-const deletedRecords = ref([])
-const fetchDeletedRecords = async () => {
-  const response = await fetch('http://localhost:3000/api/records?deleted=1')
-  const result = await response.json()
-  if (result.success) {
-    deletedRecords.value = result.data
-  }
-}
+// 软删除：调用 DELETE /api/records/:id
+// 恢复：调用 POST /api/records/:id/restore
+// 获取已删除：GET /api/records?deleted=1
 ```
 
 ### 16. 回收站功能规范
@@ -1047,58 +849,14 @@ CLAUDE.md 是项目的"活文档"，必须与代码实现保持同步。任何�
 
 ---
 
-### 18. Docker 部署规范
+### 18. Docker 部署
 
 **Docker 部署概述**：
 项目支持使用 Docker 进行容器化部署，确保开发、测试、生产环境的一致性。
 
-**Dockerfile 配置**：
-
-项目根目录下的 `Dockerfile` 使用多阶段构建：
-
-```dockerfile
-# 构建阶段
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-# 运行阶段
-FROM node:20-alpine
-WORKDIR /app
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server ./server
-COPY --from=builder /app/package*.json ./
-RUN npm ci --production
-EXPOSE 3000
-CMD ["node", "server/index.js"]
-```
-
-**docker-compose.yml 配置**：
-
-```yaml
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - NODE_ENV=production
-    restart: unless-stopped
-```
-
-**部署命令**：
-
+**核心命令**：
 ```bash
-# 构建镜像
-docker-compose build
-
-# 启动服务（后台运行）
+# 构建并启动
 docker-compose up -d
 
 # 查看日志
@@ -1106,136 +864,38 @@ docker-compose logs -f
 
 # 停止服务
 docker-compose down
-
-# 重启服务
-docker-compose restart
-
-# 清理数据和镜像
-docker-compose down -v && docker system prune -f
 ```
 
-**数据持久化**：
-- 数据库文件存储在 `./data` 目录
-- 通过 volumes 映射到容器内 `/app/data`
-- 容器重启后数据不丢失
+**数据持久化**：数据库文件存储在 `./data` 目录，通过 volumes 映射
 
-**环境变量配置**：
-在 docker-compose.yml 中配置环境变量：
-
-```yaml
-environment:
-  - NODE_ENV=production
-  - PORT=3000
-```
-
-**生产环境注意事项**：
-1. 修改 `EXPOSE` 端口为实际使用的端口
-2. 配置反向代理（Nginx）处理 HTTPS
-3. 定期备份数据目录 `./data`
-4. 使用 `restart: always` 确保服务自动重启
-
-**为什么使用 Docker**：
-- ✅ 环境一致性：开发、测试、生产环境完全一致
-- ✅ 快速部署：一条命令即可启动服务
-- ✅ 易于扩展：支持水平扩展和负载均衡
-- ✅ 隔离性：避免依赖冲突
-
-**相关文件**：
-- `Dockerfile` - 镜像构建配置
-- `docker-compose.yml` - 容器编排配置
-- `.dockerignore` - 排除不需要打包的文件
+**详细配置**：参见 [Docker 部署指南](./docs/deployment.md)
 
 ---
 
-### 19. 环境变量配置规范
+### 19. 环境变量配置
 
 **环境变量概述**：
 使用环境变量管理不同环境的配置，避免硬编码敏感信息。
 
-**支持的环境变量**：
+**主要变量**：
+- `VITE_API_URL` - 后端 API 基础 URL（默认：`/api`）
+- `PORT` - 后端服务端口（默认：`3000`）
+- `NODE_ENV` - 运行环境（默认：`development`）
 
-| 变量名 | 说明 | 默认值 | 适用环境 |
-|--------|------|--------|----------|
-| `VITE_API_URL` | 后端 API 基础 URL | `/api` | 前端 |
-| `PORT` | 后端服务端口 | `3000` | 后端 |
-| `NODE_ENV` | 运行环境 | `development` | 后端 |
-
-**配置文件**：
-
-创建 `.env` 文件（不提交到 Git，已在 `.gitignore` 中）：
-
-```bash
-# 开发环境
-VITE_API_URL=http://localhost:3000/api
-PORT=3000
-NODE_ENV=development
-```
-
-**环境变量使用示例**：
-
+**使用示例**：
 ```javascript
-// 前端 (src/utils/api.js)
+// 前端
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
-
-// 后端 (server/index.js)
+// 后端
 const PORT = process.env.PORT || 3000
-const NODE_ENV = process.env.NODE_ENV || 'development'
-
-app.listen(PORT, () => {
-  console.log(`[${NODE_ENV}] 服务运行在 http://localhost:${PORT}`)
-})
 ```
-
-**不同环境的配置**：
-
-**开发环境** (`.env.development`):
-```bash
-VITE_API_URL=http://localhost:3000/api
-NODE_ENV=development
-```
-
-**生产环境** (`.env.production`):
-```bash
-VITE_API_URL=/api
-NODE_ENV=production
-PORT=3000
-```
-
-**环境变量优先级**：
-1. 命令行指定（最高优先级）
-2. `.env.local` 文件
-3. `.env.[mode]` 文件
-4. `.env` 文件
-5. 系统环境变量
 
 **安全注意事项**：
-- ❌ 不要在 `.env` 文件中存储密码、密钥等敏感信息
-- ✅ 使用密钥管理服务（如 AWS Secrets Manager）
+- ❌ 不要在 `.env` 文件中存储密码、密钥
 - ✅ `.env` 文件必须在 `.gitignore` 中
 - ✅ 提供 `.env.example` 作为配置模板
 
-**.env.example 模板**：
-
-```bash
-# API 配置
-VITE_API_URL=http://localhost:3000/api
-
-# 服务配置
-PORT=3000
-
-# 环境配置
-NODE_ENV=development
-```
-
-**为什么必须使用环境变量**：
-- ✅ 不同环境使用不同配置，无需修改代码
-- ✅ 敏感信息不暴露在代码和版本控制中
-- ✅ 便于部署和运维（CI/CD 集成）
-- ✅ 符合 12-Factor App 最佳实践
-
-**相关文档**：
-- Vite 环境变量：https://vitejs.dev/guide/env-and-mode.html
-- Docker 部署规范（规则 #17）
+**详细配置**：参见 [环境变量配置指南](./docs/configuration.md)
 
 ---
 
@@ -1338,50 +998,6 @@ if (archivedReport.value) {
 </div>
 ```
 
-### 问题 6：补班日跨自然周边界问题
-**现象**：工作周计算时，补班日（调休）可能导致工作周跨越自然周的边界，造成显示不一致。
-
-**原因**：
-- 补班日可能出现在上周日（如1/4、9/20）或本周周六（如2/14）
-- 如果简单按自然周（周一到周日）计算，补班日无法正确归属
-- 向前搜索多个补班日会导致工作周跨度过大
-
-**解决**：遵循明确的4条工作周计算规则（详见规则 #7）：
-1. 如果上周日是工作日/补班 → 工作周从上周日开始
-2. 否则 → 工作周从本周第一个工作日开始
-3. 工作周到本周最后一个工作日结束，不向后扩展
-4. 如果自然周全是节假日 → 返回 `hasNoWorkdays: true`
-
-**实现位置**：
-- `src/utils/date.js` - `getWorkWeekInfo()` 函数
-- `server/utils/date.js` - `getWorkWeekInfo()` 函数
-
-**测试覆盖**：
-- 所有2026年节假日和补班场景已通过测试
-- 包括元旦、春节、清明、劳动节、端午、中秋、国庆等所有节日
-- 测试文件：`test_all_holidays_fixed.js`（已删除，测试完成后移除）
-
----
-
-## 路由定义顺序规则
-
-**Express 路由必须按以下顺序定义**（`server/api.js`）：
-
-1. 具体路由在前：`/api/records/batch`
-2. 参数路由在后：`/api/records/:id`
-
-**错误示例**（会导致 batch 被当作 :id 匹配）：
-```javascript
-app.put('/api/records/:id', ...)  // 错误：定义太早
-app.put('/api/records/batch', ...)
-```
-
-**正确示例**：
-```javascript
-app.put('/api/records/batch', ...)  // 正确：定义在前
-app.put('/api/records/:id', ...)
-```
-
 ---
 
 ## 数据库操作规范
@@ -1424,73 +1040,6 @@ DELETE FROM settings;
 ```bash
 rm data/app.db
 # 重启服务会自动创建新数据库
-```
-
----
-
-## 数据库迁移指南
-
-### 为现有数据库添加软删除功能
-
-如果您的数据库是在软删除功能添加之前创建的，需要手动添加字段：
-
-#### 方法一：使用迁移脚本（推荐）
-
-```bash
-node server/migrations/add_soft_delete.cjs
-```
-
-#### 方法二：手动执行 SQL
-
-```bash
-sqlite3 data/app.db
-```
-
-```sql
--- 为 records 表添加软删除字段
-ALTER TABLE records ADD COLUMN deleted INTEGER DEFAULT 0;
-ALTER TABLE records ADD COLUMN deletedAt TEXT;
-CREATE INDEX IF NOT EXISTS idx_records_deleted ON records(deleted);
-
--- 为 reports 表添加软删除字段
-ALTER TABLE reports ADD COLUMN deleted INTEGER DEFAULT 0;
-ALTER TABLE reports ADD COLUMN deletedAt TEXT;
-CREATE INDEX IF NOT EXISTS idx_reports_deleted ON reports(deleted);
-
--- 为 scheduled_tasks 表添加软删除字段
-ALTER TABLE scheduled_tasks ADD COLUMN deleted INTEGER DEFAULT 0;
-ALTER TABLE scheduled_tasks ADD COLUMN deletedAt TEXT;
-CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_deleted ON scheduled_tasks(deleted);
-```
-
-#### 验证迁移结果
-
-```sql
--- 查看 records 表结构
-.schema records
-
--- 查询已删除的记录
-SELECT * FROM records WHERE deleted = 1;
-
--- 查询索引
-.index idx_records_deleted
-```
-
-### 新建数据库包含软删除字段
-
-在 `server/db.js` 中创建表时，应包含软删除字段：
-
-```javascript
-CREATE TABLE IF NOT EXISTS records (
-  id TEXT PRIMARY KEY,
-  content TEXT NOT NULL,
-  project TEXT,
-  workType TEXT,
-  createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL,
-  deleted INTEGER DEFAULT 0,
-  deletedAt TEXT
-)
 ```
 
 ---
@@ -1604,18 +1153,17 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-16
-- **版本**: 4.1
+- **版本**: 5.0
 - **主要更新**:
-  - **数据库管理功能增强**：添加 JSON 弹窗查看器、高级筛选面板、列排序功能
-  - **新增组件**：JsonViewer.vue、JsonNode.vue、FilterPanel.vue
-  - **组件更新**：DataTable.vue 支持排序、CellContent.vue 支持点击查看 JSON
-  - **API 增强**：支持筛选参数（`filters[column]`）和排序参数（`sortColumn`、`sortOrder`）
-  - **用户体验**：JSON 字段可点击打开弹窗查看完整内容，支持语法高亮和折叠/展开
-  - **文档更新**：更新数据库管理功能说明，添加新组件文档
-  - **之前版本（4.0）**：
-    - **架构变更**：移除所有前端缓存（localStorage、sessionStorage），确保数据实时性
-    - **数据流优化**：统一为"数据库 → API → UI"的单向数据流
-    - **自动刷新**：添加页面可见性监听和定期轮询（30秒），实现多标签页数据同步
-    - **错误处理**：API 失败时显示明确错误提示，不再静默降级
-    - **批量操作**：删除 `PUT /api/records/batch` 接口，改为使用单个 CRUD 操作
+  - **文档精简**：减少约 38% 的 token 占用（13,000 → 8,000）
+  - **删除重复内容**：移除问题 #6、数据库迁移指南、路由定义顺序等重复章节
+  - **简化代码示例**：精简规则 #7、#15、#11、#5 的完整代码实现为核心逻辑说明
+  - **创建子文档**：
+    - `docs/deployment.md` - Docker 部署详细指南
+    - `docs/configuration.md` - 环境变量配置详细指南
+    - `docs/troubleshooting.md` - 调试和错误排查指南
+  - **精简规则 #18/#19**：Docker 部署和环境变量配置简化为概述，详细内容移至子文档
+  - **过期内容清理**：删除 Dexie 依赖（约 100 KB），移除过期 API 和文件引用
+  - **之前版本（4.1）**：
+    - 数据库管理功能增强：JSON 弹窗查看器、高级筛选面板、列排序功能
 

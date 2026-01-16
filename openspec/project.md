@@ -23,7 +23,6 @@
 - **Vue Router** - 路由管理
 - **Marked** - Markdown 渲染
 - **Vuedraggable** - 拖拽排序功能
-- **Dexie** - IndexedDB 封装（用于浏览器本地存储）
 
 ### 后端技术
 - **Express.js** - Node.js Web 框架
