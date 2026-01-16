@@ -293,29 +293,20 @@ app.get('/api/reports', async (req, res) => {
   }
 })
 
-// PUT /api/current-state - 保存当前编辑状态（下周计划和本周总结）
+// PUT /api/current-state - 保存当前编辑状态（本周总结）
+// 注意：下周计划已迁移到独立的 /api/plans 接口管理
 app.put('/api/current-state', async (req, res) => {
   try {
-    const { currentPlans, currentReflections } = req.body
+    const { currentReflections } = req.body
 
     // 验证数据
-    if (!Array.isArray(currentPlans)) {
-      return res.status(400).json({ success: false, error: 'currentPlans 必须是数组' })
-    }
     if (!currentReflections || typeof currentReflections !== 'object') {
       return res.status(400).json({ success: false, error: 'currentReflections 必须是对象' })
     }
 
     const db = await createDbConnection()
 
-    // 保存 currentPlans
-    await queryRun(
-      db,
-      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-      ['currentPlans', JSON.stringify(currentPlans)]
-    )
-
-    // 保存 currentReflections
+    // 只保存 currentReflections（currentPlans 通过 /api/plans 独立管理）
     await queryRun(
       db,
       'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
@@ -324,7 +315,7 @@ app.put('/api/current-state', async (req, res) => {
 
     db.close()
 
-    console.log(`[API] 保存当前编辑状态: ${currentPlans.length} 条计划, ${currentReflections.gains || currentReflections.losses ? '有总结' : '无总结'}`)
+    console.log(`[API] 保存当前编辑状态: ${currentReflections.gains || currentReflections.losses ? '有总结' : '无总结'}`)
     res.json({ success: true, message: '当前编辑状态已保存' })
   } catch (error) {
     console.error('[API] 保存当前编辑状态失败:', error)
@@ -484,6 +475,325 @@ app.delete('/api/reports/:id/permanent', async (req, res) => {
     res.json({ success: true, message: '周报已永久删除' })
   } catch (error) {
     console.error('[API] 永久删除周报失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// ============================================
+// 下周计划 API
+// ============================================
+
+/**
+ * 获取当前周的周一日期（ISO 8601 格式）
+ * @returns {string}
+ */
+const getCurrentWeekStart = () => {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1)
+  const weekStart = new Date(now.setDate(diff))
+  weekStart.setHours(0, 0, 0, 0)
+  return weekStart.toISOString()
+}
+
+// GET /api/plans - 获取计划列表
+app.get('/api/plans', async (req, res) => {
+  try {
+    const db = await createDbConnection()
+    const { weekStart, deleted, status } = req.query
+
+    // 默认获取当前周的计划
+    const targetWeekStart = weekStart || getCurrentWeekStart()
+
+    let sql = 'SELECT * FROM plans WHERE 1=1'
+    const params = []
+
+    // 按周筛选
+    if (weekStart) {
+      sql += ' AND weekStart = ?'
+      params.push(targetWeekStart)
+    }
+
+    // 按删除状态筛选
+    if (deleted === '1') {
+      sql += ' AND deleted = 1'
+    } else {
+      sql += ' AND deleted = 0'
+    }
+
+    // 按状态筛选
+    if (status) {
+      sql += ' AND status = ?'
+      params.push(status)
+    }
+
+    sql += ' ORDER BY createdAt ASC'
+
+    const plans = await queryAll(db, sql, params)
+    db.close()
+
+    res.json({ success: true, data: plans })
+  } catch (error) {
+    console.error('[API] 获取计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/plans - 添加新计划
+app.post('/api/plans', async (req, res) => {
+  try {
+    const { id, content, project, workType, weekStart } = req.body
+
+    if (!content) {
+      return res.status(400).json({ success: false, error: '计划内容不能为空' })
+    }
+
+    const planId = id || Date.now().toString() + Math.random().toString(36).slice(2, 9)
+    const now = new Date().toISOString()
+    const targetWeekStart = weekStart || getCurrentWeekStart()
+
+    const db = await createDbConnection()
+    await queryRun(db, `
+      INSERT INTO plans (id, content, project, workType, weekStart, status, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+    `, [planId, content, project || null, workType || null, targetWeekStart, now, now])
+    db.close()
+
+    const plan = {
+      id: planId,
+      content,
+      project: project || null,
+      workType: workType || null,
+      weekStart: targetWeekStart,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now
+    }
+
+    console.log(`[API] 添加计划: ${planId}`)
+    res.json({ success: true, data: plan })
+  } catch (error) {
+    console.error('[API] 添加计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// PUT /api/plans/:id - 更新计划
+app.put('/api/plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { content, project, workType, status } = req.body
+    const now = new Date().toISOString()
+
+    const db = await createDbConnection()
+
+    // 构建更新语句
+    const updates = []
+    const params = []
+
+    if (content !== undefined) {
+      updates.push('content = ?')
+      params.push(content)
+    }
+    if (project !== undefined) {
+      updates.push('project = ?')
+      params.push(project || null)
+    }
+    if (workType !== undefined) {
+      updates.push('workType = ?')
+      params.push(workType || null)
+    }
+    if (status !== undefined) {
+      updates.push('status = ?')
+      params.push(status)
+    }
+    updates.push('updatedAt = ?')
+    params.push(now)
+    params.push(id)
+
+    await queryRun(db, `UPDATE plans SET ${updates.join(', ')} WHERE id = ?`, params)
+    db.close()
+
+    console.log(`[API] 更新计划: ${id}`)
+    res.json({ success: true, data: { id, ...req.body, updatedAt: now } })
+  } catch (error) {
+    console.error('[API] 更新计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// DELETE /api/plans/:id - 软删除计划
+app.delete('/api/plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const deletedAt = new Date().toISOString()
+
+    const db = await createDbConnection()
+    await queryRun(db, 'UPDATE plans SET deleted = 1, deletedAt = ? WHERE id = ?', [deletedAt, id])
+    db.close()
+
+    console.log(`[API] 软删除计划: ${id}`)
+    res.json({ success: true, message: '计划已移至回收站' })
+  } catch (error) {
+    console.error('[API] 删除计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/plans/:id/restore - 恢复计划
+app.post('/api/plans/:id/restore', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const db = await createDbConnection()
+    await queryRun(db, 'UPDATE plans SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
+    db.close()
+
+    console.log(`[API] 恢复计划: ${id}`)
+    res.json({ success: true, message: '计划已恢复' })
+  } catch (error) {
+    console.error('[API] 恢复计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// DELETE /api/plans/:id/permanent - 永久删除计划
+app.delete('/api/plans/:id/permanent', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const db = await createDbConnection()
+    await queryRun(db, 'DELETE FROM plans WHERE id = ?', [id])
+    db.close()
+
+    console.log(`[API] 永久删除计划: ${id}`)
+    res.json({ success: true, message: '计划已永久删除' })
+  } catch (error) {
+    console.error('[API] 永久删除计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/plans/:id/convert - 将计划转换为工作记录
+app.post('/api/plans/:id/convert', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const db = await createDbConnection()
+
+    // 获取计划
+    const plan = await queryGet(db, 'SELECT * FROM plans WHERE id = ? AND deleted = 0', [id])
+    if (!plan) {
+      db.close()
+      return res.status(404).json({ success: false, error: '计划不存在' })
+    }
+
+    if (plan.status === 'converted') {
+      db.close()
+      return res.status(400).json({ success: false, error: '该计划已转换' })
+    }
+
+    // 创建工作记录
+    const recordId = Date.now().toString() + Math.random().toString(36).slice(2, 9)
+    const now = new Date().toISOString()
+
+    await queryRun(db, `
+      INSERT INTO records (id, content, project, workType, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [recordId, plan.content, plan.project, plan.workType, now, now])
+
+    // 更新计划状态
+    await queryRun(db, `
+      UPDATE plans SET status = 'converted', convertedRecordId = ?, updatedAt = ? WHERE id = ?
+    `, [recordId, now, id])
+
+    db.close()
+
+    console.log(`[API] 计划 ${id} 已转换为工作记录 ${recordId}`)
+    res.json({
+      success: true,
+      data: {
+        planId: id,
+        recordId,
+        record: {
+          id: recordId,
+          content: plan.content,
+          project: plan.project,
+          workType: plan.workType,
+          createdAt: now,
+          updatedAt: now
+        }
+      }
+    })
+  } catch (error) {
+    console.error('[API] 转换计划失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// POST /api/plans/batch-convert - 批量转换计划为工作记录
+app.post('/api/plans/batch-convert', async (req, res) => {
+  try {
+    const { planIds, weekStart } = req.body
+
+    const db = await createDbConnection()
+    const now = new Date().toISOString()
+    const convertedRecords = []
+
+    // 获取要转换的计划（支持按 ID 列表或按周获取）
+    let plans = []
+    if (planIds && Array.isArray(planIds) && planIds.length > 0) {
+      for (const id of planIds) {
+        const plan = await queryGet(db, 'SELECT * FROM plans WHERE id = ? AND deleted = 0 AND status = ?', [id, 'pending'])
+        if (plan) plans.push(plan)
+      }
+    } else if (weekStart) {
+      plans = await queryAll(db, 'SELECT * FROM plans WHERE weekStart = ? AND deleted = 0 AND status = ?', [weekStart, 'pending'])
+    } else {
+      // 默认转换当前周的所有待处理计划
+      const currentWeekStart = getCurrentWeekStart()
+      plans = await queryAll(db, 'SELECT * FROM plans WHERE weekStart = ? AND deleted = 0 AND status = ?', [currentWeekStart, 'pending'])
+    }
+
+    if (plans.length === 0) {
+      db.close()
+      return res.json({ success: true, convertedCount: 0, records: [] })
+    }
+
+    // 转换每个计划
+    for (const plan of plans) {
+      const recordId = Date.now().toString() + Math.random().toString(36).slice(2, 9)
+
+      // 创建工作记录
+      await queryRun(db, `
+        INSERT INTO records (id, content, project, workType, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [recordId, plan.content, plan.project, plan.workType, now, now])
+
+      // 更新计划状态
+      await queryRun(db, `
+        UPDATE plans SET status = 'converted', convertedRecordId = ?, updatedAt = ? WHERE id = ?
+      `, [recordId, now, plan.id])
+
+      convertedRecords.push({
+        planId: plan.id,
+        recordId,
+        content: plan.content,
+        project: plan.project,
+        workType: plan.workType
+      })
+    }
+
+    db.close()
+
+    console.log(`[API] 批量转换 ${convertedRecords.length} 条计划为工作记录`)
+    res.json({
+      success: true,
+      convertedCount: convertedRecords.length,
+      records: convertedRecords
+    })
+  } catch (error) {
+    console.error('[API] 批量转换计划失败:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
@@ -1056,7 +1366,7 @@ app.get('/api/database/table/:tableName', async (req, res) => {
     }
 
     // 安全检查：白名单验证表名
-    const validTables = ['records', 'reports', 'settings', 'scheduled_tasks']
+    const validTables = ['records', 'reports', 'settings', 'scheduled_tasks', 'plans']
     if (!validTables.includes(tableName)) {
       console.warn(`[API] 尝试访问无效表名: ${tableName}`)
       return res.status(400).json({ success: false, error: '无效的表名' })
@@ -1067,7 +1377,8 @@ app.get('/api/database/table/:tableName', async (req, res) => {
       records: ['id', 'content', 'project', 'workType', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
       reports: ['id', 'weekLabel', 'weekStart', 'weekEnd', 'markdown', 'plainText', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
       settings: ['id', 'key', 'value', 'createdAt', 'updatedAt'],
-      scheduled_tasks: ['id', 'name', 'type', 'hour', 'minute', 'dayOfWeek', 'enabled', 'isSystemTask', 'createdAt', 'updatedAt']
+      scheduled_tasks: ['id', 'name', 'type', 'hour', 'minute', 'dayOfWeek', 'enabled', 'isSystemTask', 'createdAt', 'updatedAt'],
+      plans: ['id', 'content', 'project', 'workType', 'weekStart', 'status', 'convertedRecordId', 'createdAt', 'updatedAt', 'deleted', 'deletedAt']
     }
 
     const db = await createDbConnection()

@@ -278,17 +278,17 @@ export async function importAllData(jsonData) {
 }
 
 /**
- * 保存当前编辑状态（下周计划和本周总结）
- * @param {Array} currentPlans - 下周计划数组
+ * 保存当前编辑状态（本周总结）
+ * 注意：下周计划已迁移到独立的 /api/plans 接口管理
  * @param {Object} currentReflections - 本周总结对象 { gains, losses }
  * @returns {Promise<{success: boolean, message?: string, error?: string}>}
  */
-export async function saveCurrentState(currentPlans, currentReflections) {
+export async function saveCurrentState(currentReflections) {
   try {
     const response = await fetch(`${API_BASE}/current-state`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentPlans, currentReflections })
+      body: JSON.stringify({ currentReflections })
     })
 
     const result = await response.json()

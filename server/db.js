@@ -140,6 +140,38 @@ export async function initDatabase() {
         }
       })
 
+      // 下周计划表（独立存储,支持状态流转）
+      db.run(`
+        CREATE TABLE IF NOT EXISTS plans (
+          id TEXT PRIMARY KEY,
+          content TEXT NOT NULL,
+          project TEXT,
+          workType TEXT,
+          weekStart TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          convertedRecordId TEXT,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          deleted INTEGER DEFAULT 0,
+          deletedAt TEXT
+        )
+      `, (err) => {
+        if (err) console.error('[DB] 创建 plans 表失败:', err)
+        else {
+          console.log('[DB] plans 表已就绪')
+          // 为 plans 表创建索引
+          db.run(`CREATE INDEX IF NOT EXISTS idx_plans_deleted ON plans(deleted)`, (err) => {
+            if (err) console.error('[DB] 创建 plans deleted 索引失败:', err)
+          })
+          db.run(`CREATE INDEX IF NOT EXISTS idx_plans_weekStart ON plans(weekStart)`, (err) => {
+            if (err) console.error('[DB] 创建 plans weekStart 索引失败:', err)
+          })
+          db.run(`CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status)`, (err) => {
+            if (err) console.error('[DB] 创建 plans status 索引失败:', err)
+          })
+        }
+      })
+
       // 应用设置表（键值对）
       db.run(`
         CREATE TABLE IF NOT EXISTS settings (
@@ -278,4 +310,70 @@ export function queryRun(db, sql, params = []) {
   })
 }
 
+/**
+ * 将 settings.currentPlans 迁移到独立的 plans 表
+ * 只在 plans 表为空且 settings 中存在 currentPlans 时执行
+ * @param {sqlite3.Database} db
+ * @returns {Promise<void>}
+ */
+export async function migratePlansFromSettings(db) {
+  try {
+    // 检查 plans 表是否为空
+    const plansCount = await queryGet(db, 'SELECT COUNT(*) as count FROM plans')
+    if (plansCount && plansCount.count > 0) {
+      console.log('[Migrate] plans 表已有数据,跳过迁移')
+      return
+    }
+
+    // 检查 settings 中是否有 currentPlans
+    const plansData = await queryGet(db, "SELECT value FROM settings WHERE key = 'currentPlans'")
+    if (!plansData || !plansData.value) {
+      console.log('[Migrate] settings 中无 currentPlans 数据,跳过迁移')
+      return
+    }
+
+    // 解析 currentPlans 数据
+    let currentPlans = []
+    try {
+      currentPlans = JSON.parse(plansData.value)
+    } catch (e) {
+      console.error('[Migrate] currentPlans 数据解析失败:', e)
+      return
+    }
+
+    if (!Array.isArray(currentPlans) || currentPlans.length === 0) {
+      console.log('[Migrate] currentPlans 为空数组,跳过迁移')
+      return
+    }
+
+    // 获取当前周的周一日期
+    const now = new Date()
+    const day = now.getDay()
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1)
+    const weekStart = new Date(now.setDate(diff))
+    weekStart.setHours(0, 0, 0, 0)
+    const weekStartStr = weekStart.toISOString()
+
+    console.log(`[Migrate] 开始迁移 ${currentPlans.length} 条计划到 plans 表...`)
+
+    // 插入到 plans 表
+    for (const plan of currentPlans) {
+      const id = plan.id || Date.now().toString() + Math.random().toString(36).slice(2, 9)
+      const now = new Date().toISOString()
+      await queryRun(db, `
+        INSERT INTO plans (id, content, project, workType, weekStart, status, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+      `, [id, plan.content, plan.project || null, plan.workType || null, weekStartStr, now, now])
+    }
+
+    console.log(`[Migrate] ✅ 成功迁移 ${currentPlans.length} 条计划`)
+
+    // 可选：清理 settings 中的旧数据（暂时保留作为备份）
+    // await queryRun(db, "DELETE FROM settings WHERE key = 'currentPlans'")
+  } catch (error) {
+    console.error('[Migrate] 迁移失败:', error)
+  }
+}
+
 export { DB_PATH }
+

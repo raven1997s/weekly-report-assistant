@@ -5,19 +5,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getWeekStart, formatDate } from '../utils/date'
-import { saveCurrentState } from '../utils/api'
 import { useToastStore } from './toast'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
-const STORAGE_KEY = 'weekly_reports'
-
 export const useReportsStore = defineStore('reports', () => {
     // ============ 状态 ============
     const reports = ref([])
     const deletedReports = ref([])     // 已删除的周报（用于回收站）
-    const currentPlans = ref([])       // 下周计划
+    const currentPlans = ref([])       // 下周计划（从独立的 plans 表加载）
     const currentReflections = ref({   // 得与失
         gains: '',
         losses: ''
@@ -26,20 +23,27 @@ export const useReportsStore = defineStore('reports', () => {
     // ============ 初始化 ============
     const init = async () => {
         const toast = useToastStore()
-        // 从数据库加载历史周报和当前编辑状态
         try {
-            const response = await fetch(`${API_BASE}/reports`)
-            const result = await response.json()
+            // 1. 从数据库加载历史周报和本周总结
+            const reportsResponse = await fetch(`${API_BASE}/reports`)
+            const reportsResult = await reportsResponse.json()
 
-            if (result.success) {
-                reports.value = result.data.reports || []
+            if (reportsResult.success) {
+                reports.value = reportsResult.data.reports || []
+                currentReflections.value = reportsResult.data.currentReflections || { gains: '', losses: '' }
                 console.log(`[Reports] 从数据库加载了 ${reports.value.length} 条周报`)
-
-                // 从数据库加载当前编辑状态
-                currentPlans.value = result.data.currentPlans || []
-                currentReflections.value = result.data.currentReflections || { gains: '', losses: '' }
-                console.log('[Reports] ✅ 从数据库加载了当前编辑状态')
             }
+
+            // 2. 从独立的 plans 表加载下周计划
+            const plansResponse = await fetch(`${API_BASE}/plans`)
+            const plansResult = await plansResponse.json()
+
+            if (plansResult.success) {
+                currentPlans.value = plansResult.data || []
+                console.log(`[Reports] 从 plans 表加载了 ${currentPlans.value.length} 条计划`)
+            }
+
+            console.log('[Reports] ✅ 数据初始化完成')
         } catch (error) {
             console.error('[Reports] 从数据库加载失败:', error)
             toast.error(`加载数据失败: ${error.message}`)
@@ -62,25 +66,37 @@ export const useReportsStore = defineStore('reports', () => {
         return reports.value.some(r => r.weekStart === weekStart)
     })
 
+    // 待处理的计划（未转换）
+    const pendingPlans = computed(() => {
+        return currentPlans.value.filter(p => p.status === 'pending')
+    })
+
     // ============ 方法 ============
 
-    // 持久化保存
-    const persist = async () => {
+    // 保存本周总结到数据库（不再保存计划，计划通过独立 API 管理）
+    const persistReflections = async () => {
         const toast = useToastStore()
-        // 创建纯净的副本，去除 Vue 响应式包装
-        const cleanPlans = JSON.parse(JSON.stringify(currentPlans.value))
         const cleanReflections = JSON.parse(JSON.stringify(currentReflections.value))
 
-        // 保存到数据库
-        const result = await saveCurrentState(cleanPlans, cleanReflections)
+        try {
+            const response = await fetch(`${API_BASE}/current-state`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentReflections: cleanReflections })
+            })
+            const result = await response.json()
 
-        if (result.success) {
-            console.log(`[Reports] ✅ 持久化成功: ${cleanPlans.length} 条计划`)
-        } else {
-            // API 失败，显示错误提示
-            console.error('[Reports] ❌ API 保存失败:', result.error)
-            toast.error(`保存数据失败: ${result.error || '未知错误'}`)
-            throw new Error(result.error || '保存数据失败')
+            if (result.success) {
+                console.log('[Reports] ✅ 本周总结保存成功')
+            } else {
+                console.error('[Reports] ❌ 保存本周总结失败:', result.error)
+                toast.error(`保存失败: ${result.error || '未知错误'}`)
+                throw new Error(result.error || '保存失败')
+            }
+        } catch (error) {
+            console.error('[Reports] ❌ 保存本周总结失败:', error)
+            toast.error(`保存失败: ${error.message}`)
+            throw error
         }
     }
 
@@ -113,11 +129,10 @@ export const useReportsStore = defineStore('reports', () => {
             reports.value.unshift(report)
         }
 
-        // 清空当前编辑状态，确保显示归档数据
-        currentPlans.value = []
+        // 清空当前的本周总结（计划数据保留在 plans 表中，不受影响）
         currentReflections.value = { gains: '', losses: '' }
+        await persistReflections()
 
-        await persist()
         return report
     }
 
@@ -140,7 +155,6 @@ export const useReportsStore = defineStore('reports', () => {
                 if (index !== -1) {
                     reports.value.splice(index, 1)
                 }
-                await persist()
                 return true
             }
             return false
@@ -157,7 +171,6 @@ export const useReportsStore = defineStore('reports', () => {
             const result = await response.json()
 
             if (result.success) {
-                // API 返回 { success: true, data: { reports: [...], currentPlans: [], currentReflections: {} } }
                 deletedReports.value = result.data.reports || []
                 return deletedReports.value
             }
@@ -177,7 +190,6 @@ export const useReportsStore = defineStore('reports', () => {
             const result = await response.json()
 
             if (result.success) {
-                // 获取恢复的周报数据（后端应该在响应中返回）
                 const restoredReport = result.data?.report
 
                 if (restoredReport) {
@@ -185,17 +197,12 @@ export const useReportsStore = defineStore('reports', () => {
                     const isCurrentWeek = restoredReport.weekStart === currentWeekStart
 
                     if (isCurrentWeek) {
-                        // 恢复的是本周周报：恢复到编辑状态
-                        currentPlans.value = restoredReport.plans || []
+                        // 恢复的是本周周报：恢复本周总结
                         currentReflections.value = restoredReport.reflections || { gains: '', losses: '' }
-                        console.log('[Reports] 恢复本周周报到编辑状态')
-                    } else {
-                        // 恢复的是非本周周报：只添加到历史列表
-                        console.log('[Reports] 恢复历史周报，不影响当前编辑状态')
+                        console.log('[Reports] 恢复本周周报的总结')
                     }
                 }
 
-                // 重新加载数据
                 await init()
                 return true
             }
@@ -215,7 +222,6 @@ export const useReportsStore = defineStore('reports', () => {
             const result = await response.json()
 
             if (result.success) {
-                // 从已删除列表中移除
                 const index = deletedReports.value.findIndex(r => r.id === id)
                 if (index !== -1) {
                     deletedReports.value.splice(index, 1)
@@ -229,53 +235,210 @@ export const useReportsStore = defineStore('reports', () => {
         }
     }
 
-    // 更新下周计划
-    const updatePlans = async (plans) => {
-        currentPlans.value = plans
-        await persist()
-    }
+    // ============ 计划管理方法（调用独立的 /api/plans 接口）============
 
     // 添加计划项
     const addPlan = async (plan) => {
-        currentPlans.value.push({
-            id: Date.now().toString(),
-            content: plan.content,
-            project: plan.project || null,
-            workType: plan.workType || null
-        })
-        await persist()
+        const toast = useToastStore()
+        try {
+            const response = await fetch(`${API_BASE}/plans`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: plan.content,
+                    project: plan.project || null,
+                    workType: plan.workType || null
+                })
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                currentPlans.value.push(result.data)
+                console.log(`[Reports] 添加计划成功: ${result.data.id}`)
+                return result.data
+            } else {
+                toast.error(`添加计划失败: ${result.error}`)
+                throw new Error(result.error)
+            }
+        } catch (error) {
+            console.error('[Reports] 添加计划失败:', error)
+            toast.error(`添加计划失败: ${error.message}`)
+            throw error
+        }
     }
 
-    // 删除计划项
+    // 删除计划项（软删除）
     const removePlan = async (id) => {
-        const index = currentPlans.value.findIndex(p => p.id === id)
-        if (index !== -1) {
-            currentPlans.value.splice(index, 1)
-            await persist()
+        const toast = useToastStore()
+        try {
+            const response = await fetch(`${API_BASE}/plans/${id}`, {
+                method: 'DELETE'
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                const index = currentPlans.value.findIndex(p => p.id === id)
+                if (index !== -1) {
+                    currentPlans.value.splice(index, 1)
+                }
+                console.log(`[Reports] 删除计划成功: ${id}`)
+                return true
+            } else {
+                toast.error(`删除计划失败: ${result.error}`)
+                return false
+            }
+        } catch (error) {
+            console.error('[Reports] 删除计划失败:', error)
+            toast.error(`删除计划失败: ${error.message}`)
+            return false
         }
+    }
+
+    // 更新计划项
+    const updatePlan = async (id, updates) => {
+        const toast = useToastStore()
+        try {
+            const response = await fetch(`${API_BASE}/plans/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                const index = currentPlans.value.findIndex(p => p.id === id)
+                if (index !== -1) {
+                    currentPlans.value[index] = { ...currentPlans.value[index], ...updates }
+                }
+                console.log(`[Reports] 更新计划成功: ${id}`)
+                return true
+            } else {
+                toast.error(`更新计划失败: ${result.error}`)
+                return false
+            }
+        } catch (error) {
+            console.error('[Reports] 更新计划失败:', error)
+            toast.error(`更新计划失败: ${error.message}`)
+            return false
+        }
+    }
+
+    // 批量更新计划（用于拖拽排序等场景）
+    const updatePlans = async (plans) => {
+        // 对于拖拽排序场景，只更新内存状态
+        // 真正的持久化通过单个 updatePlan 调用完成
+        currentPlans.value = plans
     }
 
     // 追加计划项（用于"移到下周计划"功能）
     const appendPlans = async (plans) => {
         if (!Array.isArray(plans) || plans.length === 0) return
 
-        plans.forEach(plan => {
-            currentPlans.value.push({
-                id: plan.id,
-                content: plan.content,
-                project: plan.project || null,
-                workType: plan.workType || null
-            })
-        })
+        const toast = useToastStore()
+        const addedPlans = []
 
-        await persist()
+        for (const plan of plans) {
+            try {
+                const response = await fetch(`${API_BASE}/plans`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: plan.content,
+                        project: plan.project || null,
+                        workType: plan.workType || null
+                    })
+                })
+                const result = await response.json()
+
+                if (result.success) {
+                    addedPlans.push(result.data)
+                    currentPlans.value.push(result.data)
+                }
+            } catch (error) {
+                console.error('[Reports] 追加计划失败:', error)
+            }
+        }
+
+        if (addedPlans.length > 0) {
+            console.log(`[Reports] 追加了 ${addedPlans.length} 条计划`)
+        } else {
+            toast.error('追加计划失败')
+        }
+
+        return addedPlans
     }
+
+    // 将计划转换为工作记录
+    const convertPlan = async (id) => {
+        const toast = useToastStore()
+        try {
+            const response = await fetch(`${API_BASE}/plans/${id}/convert`, {
+                method: 'POST'
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                // 更新本地计划状态
+                const index = currentPlans.value.findIndex(p => p.id === id)
+                if (index !== -1) {
+                    currentPlans.value[index].status = 'converted'
+                    currentPlans.value[index].convertedRecordId = result.data.recordId
+                }
+                console.log(`[Reports] 计划 ${id} 已转换为工作记录 ${result.data.recordId}`)
+                return result.data
+            } else {
+                toast.error(`转换计划失败: ${result.error}`)
+                return null
+            }
+        } catch (error) {
+            console.error('[Reports] 转换计划失败:', error)
+            toast.error(`转换计划失败: ${error.message}`)
+            return null
+        }
+    }
+
+    // 批量转换计划为工作记录
+    const batchConvertPlans = async (planIds) => {
+        const toast = useToastStore()
+        try {
+            const response = await fetch(`${API_BASE}/plans/batch-convert`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ planIds })
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                // 更新本地状态
+                for (const record of result.records) {
+                    const index = currentPlans.value.findIndex(p => p.id === record.planId)
+                    if (index !== -1) {
+                        currentPlans.value[index].status = 'converted'
+                        currentPlans.value[index].convertedRecordId = record.recordId
+                    }
+                }
+                console.log(`[Reports] 批量转换了 ${result.convertedCount} 条计划`)
+                return result
+            } else {
+                toast.error(`批量转换失败: ${result.error}`)
+                return null
+            }
+        } catch (error) {
+            console.error('[Reports] 批量转换计划失败:', error)
+            toast.error(`批量转换失败: ${error.message}`)
+            return null
+        }
+    }
+
+    // ============ 本周总结管理 ============
 
     // 更新得与失
     const updateReflections = async (reflections) => {
         currentReflections.value = { ...currentReflections.value, ...reflections }
-        await persist()
+        await persistReflections()
     }
+
+    // ============ 周报查询方法 ============
 
     // 搜索周报
     const searchReports = (keyword) => {
@@ -294,13 +457,9 @@ export const useReportsStore = defineStore('reports', () => {
 
     // 批量删除周报
     const batchDelete = async (ids) => {
-        ids.forEach(id => {
-            const index = reports.value.findIndex(r => r.id === id)
-            if (index !== -1) {
-                reports.value.splice(index, 1)
-            }
-        })
-        await persist()
+        for (const id of ids) {
+            await deleteReport(id)
+        }
     }
 
     // 按日期删除周报
@@ -321,8 +480,9 @@ export const useReportsStore = defineStore('reports', () => {
 
     // 清空所有周报
     const clearAll = async () => {
-        reports.value = []
-        await persist()
+        for (const report of [...reports.value]) {
+            await deleteReport(report.id)
+        }
     }
 
     // 获取本周已归档的周报
@@ -346,6 +506,7 @@ export const useReportsStore = defineStore('reports', () => {
         // 计算属性
         sortedReports,
         hasCurrentWeekReport,
+        pendingPlans,
         // 方法
         init,
         saveReport,
@@ -354,11 +515,17 @@ export const useReportsStore = defineStore('reports', () => {
         fetchDeletedReports,
         restoreReport,
         permanentDeleteReport,
-        updatePlans,
+        // 计划管理
         addPlan,
         removePlan,
+        updatePlan,
+        updatePlans,
         appendPlans,
+        convertPlan,
+        batchConvertPlans,
+        // 本周总结
         updateReflections,
+        // 周报查询
         searchReports,
         getAllReports,
         batchDelete,

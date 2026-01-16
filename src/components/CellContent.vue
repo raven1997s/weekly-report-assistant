@@ -55,8 +55,35 @@ const handleJsonClick = () => {
 // 判断是否为 JSON 字段
 const isJson = computed(() => {
   if (typeof props.value !== 'string') return false
-  const jsonFields = ['records', 'plans', 'reflections', 'value']
-  return jsonFields.includes(props.column)
+
+  // 扩展 JSON 字段列表
+  const jsonFields = ['records', 'plans', 'reflections', 'value', 'keywords', 'content']
+  if (jsonFields.includes(props.column)) {
+    // 检查是否以 { 或 [ 开头，确认是 JSON 格式
+    const trimmed = props.value.trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        JSON.parse(props.value)
+        return true
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+
+  // 对于其他字段，尝试自动检测 JSON 格式
+  const trimmed = props.value.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(props.value)
+      return typeof parsed === 'object' && parsed !== null
+    } catch {
+      return false
+    }
+  }
+
+  return false
 })
 
 // 判断是否为长文本

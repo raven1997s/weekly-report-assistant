@@ -102,7 +102,8 @@ const tableDisplayNames = {
   records: '工作记录',
   reports: '周报归档',
   settings: '应用设置',
-  scheduled_tasks: '定时任务'
+  scheduled_tasks: '定时任务',
+  plans: '下周计划'
 }
 
 const tables = ref([])

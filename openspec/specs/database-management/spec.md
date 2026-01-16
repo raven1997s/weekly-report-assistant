@@ -46,7 +46,7 @@
 
 ### Requirement: 白名单验证
 
-系统 SHALL 使用白名单验证表名，只允许访问 4 个核心系统表。
+系统 SHALL 使用白名单验证表名，只允许访问 5 个核心系统表。
 
 #### Scenario: 允许访问系统表
 
@@ -55,6 +55,7 @@
   - `reports`（周报归档）
   - `settings`（应用设置）
   - `scheduled_tasks`（定时任务）
+  - `plans`（下周计划）
 - **THEN** 系统允许查询
 
 #### Scenario: 拒绝访问其他表

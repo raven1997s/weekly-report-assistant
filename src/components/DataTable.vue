@@ -135,7 +135,10 @@ const columnDisplayNames = {
   enabled: '启用',
   created_at: '创建时间',
   updated_at: '更新时间',
-  isSystemTask: '系统任务'
+  isSystemTask: '系统任务',
+  // plans 表新增字段
+  status: '状态',
+  convertedRecordId: '转换记录ID'
 }
 </script>
 
