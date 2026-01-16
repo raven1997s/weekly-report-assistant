@@ -268,3 +268,32 @@ export async function importAllData(jsonData) {
     return false
   }
 }
+
+/**
+ * 保存当前编辑状态（下周计划和本周总结）
+ * @param {Array} currentPlans - 下周计划数组
+ * @param {Object} currentReflections - 本周总结对象 { gains, losses }
+ * @returns {Promise<{success: boolean, message?: string, error?: string}>}
+ */
+export async function saveCurrentState(currentPlans, currentReflections) {
+  try {
+    const response = await fetch(`${API_BASE}/current-state`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPlans, currentReflections })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      console.log('[API] ✅ 当前编辑状态已保存到数据库')
+      return { success: true, message: result.message }
+    } else {
+      console.error('[API] ❌ 保存当前编辑状态失败:', result.error)
+      return { success: false, error: result.error }
+    }
+  } catch (error) {
+    console.error('[API] ❌ 保存当前编辑状态网络错误:', error)
+    return { success: false, error: error.message }
+  }
+}

@@ -333,6 +333,45 @@ app.get('/api/reports', async (req, res) => {
   }
 })
 
+// PUT /api/current-state - 保存当前编辑状态（下周计划和本周总结）
+app.put('/api/current-state', async (req, res) => {
+  try {
+    const { currentPlans, currentReflections } = req.body
+
+    // 验证数据
+    if (!Array.isArray(currentPlans)) {
+      return res.status(400).json({ success: false, error: 'currentPlans 必须是数组' })
+    }
+    if (!currentReflections || typeof currentReflections !== 'object') {
+      return res.status(400).json({ success: false, error: 'currentReflections 必须是对象' })
+    }
+
+    const db = await createDbConnection()
+
+    // 保存 currentPlans
+    await queryRun(
+      db,
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+      ['currentPlans', JSON.stringify(currentPlans)]
+    )
+
+    // 保存 currentReflections
+    await queryRun(
+      db,
+      'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+      ['currentReflections', JSON.stringify(currentReflections)]
+    )
+
+    db.close()
+
+    console.log(`[API] 保存当前编辑状态: ${currentPlans.length} 条计划, ${currentReflections.gains || currentReflections.losses ? '有总结' : '无总结'}`)
+    res.json({ success: true, message: '当前编辑状态已保存' })
+  } catch (error) {
+    console.error('[API] 保存当前编辑状态失败:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // PUT /api/reports - 保存周报归档
 // ⚠️ 已删除 PUT /api/reports 端点（2026-01-16）
 // 原因：该端点会先删除所有数据再插入（DELETE FROM reports），存在严重数据丢失风险

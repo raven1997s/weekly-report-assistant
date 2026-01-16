@@ -426,6 +426,25 @@ await saveToStorage(key, cleanData)
 - `src/stores/settings.js` - line 98-106
 - `src/stores/reports.js` - persist 方法
 
+**当前编辑状态持久化（重要）**：
+下周计划（currentPlans）和本周总结（currentReflections）必须保存到数据库的 `settings` 表，而不是仅依赖 localStorage。
+
+**实现方式**：
+1. 后端提供 `PUT /api/current-state` API 接收当前状态
+2. 前端 `reports.js` 的 `persist()` 方法调用 API 保存到数据库
+3. API 失败时降级到 localStorage（保证数据不丢失）
+4. 页面初始化时优先从数据库加载，数据库无数据时自动迁移 localStorage
+
+**为什么必须持久化到数据库**：
+- ✅ 跨设备同步：不同浏览器/设备共享数据
+- ✅ 数据安全：不依赖浏览器缓存，清除缓存不会丢失
+- ✅ 数据一致性：所有周报相关数据统一从数据库加载
+- ✅ 可靠性：数据库事务保证数据完整性
+
+**相关 API**：
+- `PUT /api/current-state` - 保存当前编辑状态
+- `GET /api/reports` - 读取周报和当前编辑状态
+
 ### 9. 日期格式规范
 
 **统一使用 ISO 8601 字符串格式**：
@@ -1507,6 +1526,7 @@ curl http://localhost:3000/api/reports
 - [ ] 数据库表结构包含软删除字段（deleted、deletedAt）
 - [ ] 日期计算逻辑前后端一致（`src/utils/date.js` 和 `server/utils/date.js`）
 - [ ] 工作周计算遵循4条核心规则（补班日归属、不向后扩展、全节假日周处理）
+- [ ] **当前编辑状态已保存到数据库（plans/reflections 使用 `saveCurrentState` API）**
 - [ ] **检查是否需要更新 CLAUDE.md 文档**
 
 ---
@@ -1514,8 +1534,12 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-16
-- **版本**: 2.9
+- **版本**: 3.0
 - **主要更新**:
+  - **重大改进**：下周计划和本周总结现已持久化到数据库
+  - 新增 API：`PUT /api/current-state` - 保存当前编辑状态
+  - 数据迁移：localStorage → database 自动迁移
+  - 降级处理：API 失败时自动降级到 localStorage
   - Bug 修复：历史周报删除后正确进入回收站
   - Bug 修复：回收站数据正确加载和显示
   - Bug 修复：禁止修改系统定时任务（计划转换任务）

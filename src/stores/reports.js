@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getWeekStart, formatDate } from '../utils/date'
-import { saveToStorage, loadFromStorage } from '../utils/api'
+import { saveToStorage, loadFromStorage, saveCurrentState } from '../utils/api'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -24,7 +24,7 @@ export const useReportsStore = defineStore('reports', () => {
 
     // ============ 初始化 ============
     const init = async () => {
-        // 从数据库加载历史周报
+        // 从数据库加载历史周报和当前编辑状态
         try {
             const response = await fetch(`${API_BASE}/reports`)
             const result = await response.json()
@@ -32,21 +32,43 @@ export const useReportsStore = defineStore('reports', () => {
             if (result.success) {
                 reports.value = result.data.reports || []
                 console.log(`[Reports] 从数据库加载了 ${reports.value.length} 条周报`)
+
+                // 优先从数据库加载当前编辑状态
+                const hasPlansFromDb = result.data.currentPlans && result.data.currentPlans.length > 0
+                const hasReflectionsFromDb = result.data.currentReflections &&
+                    (result.data.currentReflections.gains || result.data.currentReflections.losses)
+
+                if (hasPlansFromDb || hasReflectionsFromDb) {
+                    // 数据库有数据，直接使用
+                    currentPlans.value = result.data.currentPlans || []
+                    currentReflections.value = result.data.currentReflections || { gains: '', losses: '' }
+                    console.log('[Reports] ✅ 从数据库加载了当前编辑状态')
+                } else {
+                    // 数据库无数据，尝试从 localStorage 迁移
+                    const saved = await loadFromStorage(STORAGE_KEY)
+                    if (saved && (saved.currentPlans?.length > 0 || saved.currentReflections?.gains || saved.currentReflections?.losses)) {
+                        console.log('[Reports] 🔄 数据库无数据，从 localStorage 迁移编辑状态')
+                        currentPlans.value = saved.currentPlans || []
+                        currentReflections.value = saved.currentReflections || { gains: '', losses: '' }
+                        // 迁移后自动保存到数据库（通过 persist）
+                        await persist()
+                        // 清除 localStorage 中的旧数据
+                        saved.currentPlans = []
+                        saved.currentReflections = { gains: '', losses: '' }
+                        await saveToStorage(STORAGE_KEY, saved)
+                        console.log('[Reports] ✅ 迁移完成，已清除 localStorage 旧数据')
+                    }
+                }
             }
         } catch (error) {
-            console.error('[Reports] 从数据库加载周报失败:', error)
-            // 降级：从 localStorage 加载
+            console.error('[Reports] 从数据库加载失败，降级到 localStorage:', error)
+            // 降级：从 localStorage 加载所有数据
             const saved = await loadFromStorage(STORAGE_KEY)
             if (saved) {
                 reports.value = saved.reports || []
+                currentPlans.value = saved.currentPlans || []
+                currentReflections.value = saved.currentReflections || { gains: '', losses: '' }
             }
-        }
-
-        // 从 localStorage 加载当前编辑状态（计划、总结）
-        const saved = await loadFromStorage(STORAGE_KEY)
-        if (saved) {
-            currentPlans.value = saved.currentPlans || []
-            currentReflections.value = saved.currentReflections || { gains: '', losses: '' }
         }
     }
 
@@ -70,22 +92,31 @@ export const useReportsStore = defineStore('reports', () => {
     // 持久化保存
     const persist = async () => {
         // 创建纯净的副本，去除 Vue 响应式包装
-        // 否则 JSON.stringify 会包含循环引用导致错误
-        const cleanData = {
-            reports: JSON.parse(JSON.stringify(reports.value)),
-            currentPlans: JSON.parse(JSON.stringify(currentPlans.value)),
-            currentReflections: JSON.parse(JSON.stringify(currentReflections.value))
-        }
+        const cleanPlans = JSON.parse(JSON.stringify(currentPlans.value))
+        const cleanReflections = JSON.parse(JSON.stringify(currentReflections.value))
 
-        // 添加日志便于调试
-        const reportCount = cleanData.reports?.length || 0
-        const planCount = cleanData.currentPlans?.length || 0
+        // 尝试保存到数据库
+        const result = await saveCurrentState(cleanPlans, cleanReflections)
 
-        await saveToStorage(STORAGE_KEY, cleanData)
-
-        // 只在有数据时输出成功日志
-        if (reportCount > 0 || planCount > 0) {
-            console.log(`[Reports] ✅ 持久化成功: ${reportCount} 条周报, ${planCount} 条计划`)
+        if (result.success) {
+            // 保存成功，仍需保存 reports 到 localStorage（作为备份）
+            const cleanData = {
+                reports: JSON.parse(JSON.stringify(reports.value)),
+                currentPlans: cleanPlans,
+                currentReflections: cleanReflections
+            }
+            await saveToStorage(STORAGE_KEY, cleanData)
+            console.log(`[Reports] ✅ 持久化成功: ${cleanPlans.length} 条计划`)
+        } else {
+            // API 失败，降级到 localStorage
+            console.warn('[Reports] ⚠️ API 保存失败，降级到 localStorage')
+            const cleanData = {
+                reports: JSON.parse(JSON.stringify(reports.value)),
+                currentPlans: cleanPlans,
+                currentReflections: cleanReflections
+            }
+            await saveToStorage(STORAGE_KEY, cleanData)
+            console.log(`[Reports] ✅ 降级成功: 已保存到 localStorage`)
         }
     }
 
