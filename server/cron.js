@@ -16,7 +16,8 @@ const SCHEDULE_TEMPLATES = [
     minute: 0,
     dayOfWeek: '*', // 每天运行，运行时校验是否为最后一个工作日
     type: 'report', // 周报推送
-    enabled: false
+    enabled: false,
+    isSystemTask: false
   },
   {
     id: 'workday_930am',
@@ -25,7 +26,8 @@ const SCHEDULE_TEMPLATES = [
     minute: 30,
     dayOfWeek: '*', // 每天运行，运行时校验是否为工作日
     type: 'reminder', // 填写提醒
-    enabled: false
+    enabled: false,
+    isSystemTask: false
   },
   {
     id: 'workday_530pm',
@@ -34,7 +36,8 @@ const SCHEDULE_TEMPLATES = [
     minute: 30,
     dayOfWeek: '*', // 每天运行，运行时校验是否为工作日
     type: 'reminder', // 填写提醒
-    enabled: false
+    enabled: false,
+    isSystemTask: false
   },
   {
     id: 'new_workweek_plan_convert',
@@ -43,7 +46,8 @@ const SCHEDULE_TEMPLATES = [
     minute: 0,
     dayOfWeek: '*', // 每天运行，运行时校验
     type: 'convert', // 计划转换
-    enabled: false
+    enabled: false,
+    isSystemTask: true // 系统核心任务，禁止修改
   }
 ]
 
@@ -65,14 +69,15 @@ async function initTemplates() {
     )
 
     if (!existing) {
-      // 插入预设模板
+      // 插入预设模板（包含 isSystemTask 字段）
       await db.run(
-        `INSERT INTO scheduled_tasks (id, name, hour, minute, day_of_week, type, enabled, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO scheduled_tasks (id, name, hour, minute, day_of_week, type, enabled, isSystemTask, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [template.id, template.name, template.hour, template.minute, template.dayOfWeek,
-         template.type || 'report', template.enabled ? 1 : 0, new Date().toISOString(), new Date().toISOString()]
+         template.type || 'report', template.enabled ? 1 : 0, template.isSystemTask ? 1 : 0,
+         new Date().toISOString(), new Date().toISOString()]
       )
-      console.log(`[Cron] 初始化模板: ${template.name} (${template.type})`)
+      console.log(`[Cron] 初始化模板: ${template.name} (${template.type})${template.isSystemTask ? ' [系统任务]' : ''}`)
     }
   }
 

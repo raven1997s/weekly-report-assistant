@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec 指令
+
+本指令用于在此项目中工作的 AI 助手。
+
+当请求包含以下内容时，请始终打开 `@/openspec/AGENTS.md`：
+- 提及规划或提案（包含 proposal、spec、change、plan 等词汇）
+- 引入新功能、破坏性变更、架构调整或重大的性能/安全工作
+- 请求不明确，需要权威规范才能开始编码
+
+使用 `@/openspec/AGENTS.md` 了解：
+- 如何创建和应用变更提案
+- 规范格式和约定
+- 项目结构和指南
+
+保留此管理块，以便 'openspec update' 可以刷新指令。
+
+<!-- OPENSPEC:END -->
+
 # CLAUDE.md
 
 > 智能周报助手 - Claude Code 开发指南
@@ -1494,10 +1513,13 @@ curl http://localhost:3000/api/reports
 
 ## 最后更新
 
-- **日期**: 2026-01-12
-- **版本**: 2.8
+- **日期**: 2026-01-16
+- **版本**: 2.9
 - **主要更新**:
-  - 新增功能：智能转换上周计划为本周工作记录
-  - 新增 API：GET /api/convert/status、POST /api/convert/mark
-  - 更新 README.md：添加计划转换功能说明
-  - 更新代码位置索引：添加计划转换相关 API
+  - Bug 修复：历史周报删除后正确进入回收站
+  - Bug 修复：回收站数据正确加载和显示
+  - Bug 修复：禁止修改系统定时任务（计划转换任务）
+  - Bug 修复：周报恢复行为明确（本周/非本周）
+  - Bug 修复：删除危险的 PUT /api/reports 批量删除接口
+  - 移除调试信息：清理 ReportPreview 和 HistoryView 的调试代码
+

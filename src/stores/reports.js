@@ -24,9 +24,27 @@ export const useReportsStore = defineStore('reports', () => {
 
     // ============ 初始化 ============
     const init = async () => {
+        // 从数据库加载历史周报
+        try {
+            const response = await fetch(`${API_BASE}/reports`)
+            const result = await response.json()
+
+            if (result.success) {
+                reports.value = result.data.reports || []
+                console.log(`[Reports] 从数据库加载了 ${reports.value.length} 条周报`)
+            }
+        } catch (error) {
+            console.error('[Reports] 从数据库加载周报失败:', error)
+            // 降级：从 localStorage 加载
+            const saved = await loadFromStorage(STORAGE_KEY)
+            if (saved) {
+                reports.value = saved.reports || []
+            }
+        }
+
+        // 从 localStorage 加载当前编辑状态（计划、总结）
         const saved = await loadFromStorage(STORAGE_KEY)
         if (saved) {
-            reports.value = saved.reports || []
             currentPlans.value = saved.currentPlans || []
             currentReflections.value = saved.currentReflections || { gains: '', losses: '' }
         }
@@ -164,6 +182,24 @@ export const useReportsStore = defineStore('reports', () => {
             const result = await response.json()
 
             if (result.success) {
+                // 获取恢复的周报数据（后端应该在响应中返回）
+                const restoredReport = result.data?.report
+
+                if (restoredReport) {
+                    const currentWeekStart = getWeekStart(new Date()).toISOString()
+                    const isCurrentWeek = restoredReport.weekStart === currentWeekStart
+
+                    if (isCurrentWeek) {
+                        // 恢复的是本周周报：恢复到编辑状态
+                        currentPlans.value = restoredReport.plans || []
+                        currentReflections.value = restoredReport.reflections || { gains: '', losses: '' }
+                        console.log('[Reports] 恢复本周周报到编辑状态')
+                    } else {
+                        // 恢复的是非本周周报：只添加到历史列表
+                        console.log('[Reports] 恢复历史周报，不影响当前编辑状态')
+                    }
+                }
+
                 // 重新加载数据
                 await init()
                 return true
@@ -300,6 +336,12 @@ export const useReportsStore = defineStore('reports', () => {
         return reports.value.find(r => r.weekStart === weekStart)
     }
 
+    // 检查周报是否属于本周
+    const isCurrentWeekReport = (weekStart) => {
+        const currentWeekStart = getWeekStart(new Date()).toISOString()
+        return weekStart === currentWeekStart
+    }
+
     return {
         // 状态
         reports,
@@ -327,6 +369,7 @@ export const useReportsStore = defineStore('reports', () => {
         batchDelete,
         deleteOlderThan,
         clearAll,
-        getCurrentWeekArchivedReport
+        getCurrentWeekArchivedReport,
+        isCurrentWeekReport
     }
 })

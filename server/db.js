@@ -109,7 +109,8 @@ export async function initDatabase() {
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL,
           deleted INTEGER DEFAULT 0,
-          deletedAt TEXT
+          deletedAt TEXT,
+          isSystemTask INTEGER DEFAULT 0
         )
       `, (err) => {
         if (err) console.error('[DB] 创建 scheduled_tasks 表失败:', err)
@@ -123,6 +124,17 @@ export async function initDatabase() {
           db.run(`ALTER TABLE scheduled_tasks ADD COLUMN type TEXT DEFAULT 'report'`, (err) => {
             if (err && !err.message.includes('duplicate column name')) {
               console.error('[DB] 添加 type 字段失败:', err)
+            }
+          })
+          // 检查并添加 isSystemTask 字段（兼容旧数据库）
+          db.run(`ALTER TABLE scheduled_tasks ADD COLUMN isSystemTask INTEGER DEFAULT 0`, (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+              console.error('[DB] 添加 isSystemTask 字段失败:', err)
+            } else {
+              // 更新 new_workweek_plan_convert 为系统任务
+              db.run(`UPDATE scheduled_tasks SET isSystemTask = 1 WHERE id = 'new_workweek_plan_convert'`, (err) => {
+                if (err) console.error('[DB] 更新系统任务标识失败:', err)
+              })
             }
           })
         }

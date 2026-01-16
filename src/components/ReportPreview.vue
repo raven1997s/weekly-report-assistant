@@ -31,7 +31,9 @@
       </div>
     </div>
 
-    <div class="preview-content markdown-body" v-html="renderedHtml"></div>
+    <div class="preview-content markdown-body">
+      <div v-html="renderedHtml"></div>
+    </div>
 
     <!-- 成功提示 -->
     <Transition name="fade">
@@ -126,7 +128,7 @@ const showPreviewModal = ref(false)
 
 // 渲染 Markdown 为 HTML
 const renderedHtml = computed(() => {
-  if (!props.report.markdown) return '<p>暂无内容</p>'
+  if (!props.report?.markdown) return '<p>暂无内容</p>'
   return marked(props.report.markdown)
 })
 

@@ -334,71 +334,9 @@ app.get('/api/reports', async (req, res) => {
 })
 
 // PUT /api/reports - 保存周报归档
-app.put('/api/reports', async (req, res) => {
-  try {
-    const { reports, currentPlans, currentReflections } = req.body
-
-    const db = await createDbConnection()
-
-    // 保存周报列表
-    if (Array.isArray(reports)) {
-      await queryRun(db, 'DELETE FROM reports', [])
-
-      const insertPromises = reports.map(report => {
-        return new Promise((resolve, reject) => {
-          // 序列化复杂数据为 JSON 字符串
-          const recordsJson = JSON.stringify(report.records || [])
-          const plansJson = JSON.stringify(report.plans || [])
-          const reflectionsJson = JSON.stringify(report.reflections || {})
-
-          db.run(
-            `INSERT INTO reports (id, weekStart, weekEnd, weekLabel, markdown, plainText,
-               content, records, plans, reflections, createdAt, updatedAt)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              report.id,
-              report.weekStart,
-              report.weekEnd || report.weekStart,
-              report.weekLabel || '',
-              report.markdown || '',
-              report.plainText || report.markdown || '',
-              report.content || report.markdown || '',
-              recordsJson,
-              plansJson,
-              reflectionsJson,
-              report.createdAt,
-              report.updatedAt || report.createdAt
-            ],
-            function (err) {
-              if (err) reject(err)
-              else resolve(this.lastID)
-            }
-          )
-        })
-      })
-
-      await Promise.all(insertPromises)
-    }
-
-    // 保存下周计划
-    if (Array.isArray(currentPlans)) {
-      await queryRun(db, "INSERT OR REPLACE INTO settings (key, value) VALUES ('currentPlans', ?)", [JSON.stringify(currentPlans)])
-    }
-
-    // 保存本周总结
-    if (currentReflections && typeof currentReflections === 'object') {
-      await queryRun(db, "INSERT OR REPLACE INTO settings (key, value) VALUES ('currentReflections', ?)", [JSON.stringify(currentReflections)])
-    }
-
-    db.close()
-
-    console.log('[API] 周报数据已保存')
-    res.json({ success: true })
-  } catch (error) {
-    console.error('[API] 保存周报失败:', error)
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
+// ⚠️ 已删除 PUT /api/reports 端点（2026-01-16）
+// 原因：该端点会先删除所有数据再插入（DELETE FROM reports），存在严重数据丢失风险
+// 现在使用单个周报保存接口（通过 saveReport），不再需要批量同步
 
 // DELETE /api/reports/:id - 删除周报（软删除）
 app.delete('/api/reports/:id', async (req, res) => {
@@ -424,11 +362,31 @@ app.post('/api/reports/:id/restore', async (req, res) => {
     const { id } = req.params
 
     const db = await createDbConnection()
+
+    // 先获取周报数据
+    const report = await queryGet(db, 'SELECT * FROM reports WHERE id = ?', [id])
+
+    if (!report) {
+      await db.close()
+      return res.status(404).json({ success: false, error: '周报不存在' })
+    }
+
+    // 恢复周报
     await queryRun(db, 'UPDATE reports SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
-    db.close()
+    await db.close()
 
     console.log(`[API] 恢复周报: ${id}`)
-    res.json({ success: true, message: '周报已恢复' })
+    res.json({
+      success: true,
+      message: '周报已恢复',
+      data: {
+        report: {
+          weekStart: report.weekStart,
+          plans: report.plans ? JSON.parse(report.plans) : [],
+          reflections: report.reflections ? JSON.parse(report.reflections) : {}
+        }
+      }
+    })
   } catch (error) {
     console.error('[API] 恢复周报失败:', error)
     res.status(500).json({ success: false, error: error.message })
@@ -792,13 +750,14 @@ app.get('/api/scheduled-tasks', async (req, res) => {
 
     const tasks = await queryAll(db, sql)
 
-    // 转换 enabled 字段
+    // 转换 enabled 和 isSystemTask 字段
     const result = tasks.map(task => ({
       ...task,
-      enabled: task.enabled === 1
+      enabled: task.enabled === 1,
+      isSystemTask: task.isSystemTask === 1
     }))
 
-    db.close()
+    await db.close()
     res.json({ success: true, data: result })
   } catch (error) {
     console.error('[API] 获取定时任务失败:', error)
@@ -847,15 +806,25 @@ app.put('/api/scheduled-tasks/:id', async (req, res) => {
 
     const db = await createDbConnection()
 
+    // 检查是否为系统任务
+    const task = await queryGet(db, 'SELECT isSystemTask FROM scheduled_tasks WHERE id = ?', [id])
+
+    if (task && task.isSystemTask === 1) {
+      await db.close()
+      return res.status(403).json({ success: false, error: '系统任务无法修改' })
+    }
+
     // 如果只更新 enabled，则只更新该字段
     if (enabled !== undefined && name === undefined) {
-      await db.run(
+      await queryRun(
+        db,
         'UPDATE scheduled_tasks SET enabled = ?, updated_at = ? WHERE id = ?',
         [enabled ? 1 : 0, new Date().toISOString(), id]
       )
     } else {
       // 更新所有字段
-      await db.run(
+      await queryRun(
+        db,
         `UPDATE scheduled_tasks
          SET name = ?, hour = ?, minute = ?, day_of_week = ?, type = ?, enabled = ?, updated_at = ?
          WHERE id = ?`,
@@ -863,7 +832,7 @@ app.put('/api/scheduled-tasks/:id', async (req, res) => {
       )
     }
 
-    db.close()
+    await db.close()
 
     // 重启定时任务
     await startScheduledTasks()
@@ -882,8 +851,17 @@ app.delete('/api/scheduled-tasks/:id', async (req, res) => {
     const deletedAt = new Date().toISOString()
 
     const db = await createDbConnection()
-    await db.run('UPDATE scheduled_tasks SET deleted = 1, deletedAt = ?, enabled = 0 WHERE id = ?', [deletedAt, id])
-    db.close()
+
+    // 检查是否为系统任务
+    const task = await queryGet(db, 'SELECT isSystemTask FROM scheduled_tasks WHERE id = ?', [id])
+
+    if (task && task.isSystemTask === 1) {
+      await db.close()
+      return res.status(403).json({ success: false, error: '系统任务无法删除' })
+    }
+
+    await queryRun(db, 'UPDATE scheduled_tasks SET deleted = 1, deletedAt = ?, enabled = 0 WHERE id = ?', [deletedAt, id])
+    await db.close()
 
     // 重启定时任务
     await startScheduledTasks()

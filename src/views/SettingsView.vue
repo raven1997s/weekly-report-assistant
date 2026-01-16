@@ -154,13 +154,16 @@
       </div>
 
       <div class="scheduled-tasks">
-        <div v-for="task in scheduledTasks" :key="task.id" class="task-item">
-          <div class="task-info" @click="editTask(task)">
+        <div v-for="task in scheduledTasks" :key="task.id" class="task-item" :class="{ 'system-task': task.isSystemTask }">
+          <div class="task-info" @click="!task.isSystemTask && editTask(task)" :class="{ 'no-pointer': task.isSystemTask }">
             <div class="task-type-badge" :class="task.type">
-              {{ task.type === 'report' ? '周报' : '提醒' }}
+              {{ task.type === 'report' ? '周报' : task.type === 'reminder' ? '提醒' : '转换' }}
             </div>
             <div class="task-content">
-              <div class="task-title">{{ task.name }}</div>
+              <div class="task-title">
+                {{ task.name }}
+                <span v-if="task.isSystemTask" class="system-badge">系统任务</span>
+              </div>
               <div class="task-detail">{{ getTaskSchedule(task) }}</div>
             </div>
           </div>
@@ -170,11 +173,16 @@
                 type="checkbox"
                 :checked="task.enabled"
                 @change="toggleTask(task.id, $event.target.checked)"
-                :disabled="!dingtalkConfig.webhookUrl"
+                :disabled="!dingtalkConfig.webhookUrl || task.isSystemTask"
               />
               <span class="toggle-slider"></span>
             </label>
-            <button class="btn-icon delete" @click="deleteTask(task.id)" :disabled="!dingtalkConfig.webhookUrl" title="删除任务">
+            <button
+              class="btn-icon delete"
+              @click="deleteTask(task.id)"
+              :disabled="!dingtalkConfig.webhookUrl || task.isSystemTask"
+              :title="task.isSystemTask ? '系统任务无法删除' : '删除任务'"
+            >
               <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M8.25 7.638a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v-1.5zm3.75 0a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-1.5z" clip-rule="evenodd"/>
                 <path d="M5.5 4h9a.5.5 0 01.5.5v1h-10v-1a.5.5 0 01.5-.5zm-2 2h13v8.5a2.5 2.5 0 01-2.5 2.5h-6a2.5 2.5 0 01-2.5-2.5v-8.5zM7 7a1 1 0 012 0v6a1 1 0 11-2 0v-6zm4 0a1 1 0 012 0v6a1 1 0 11-2 0v-6z"/>
@@ -430,6 +438,14 @@ const testDingTalkReminder = async () => {
 
 // 定时推送管理
 const toggleTask = async (id, enabled) => {
+  const task = scheduledTasks.value.find(t => t.id === id)
+  if (task?.isSystemTask) {
+    showToast('系统任务无法修改', true)
+    // 重新加载数据以恢复开关状态
+    await settingsStore.fetchScheduledTasks()
+    return
+  }
+
   const success = await settingsStore.updateScheduledTask(id, enabled)
   if (success) {
     showToast(enabled ? '定时任务已启用' : '定时任务已禁用')
@@ -446,6 +462,8 @@ const getTaskSchedule = (task) => {
     return `工作日（考虑节假日）每天 ${time}`
   } else if (task.type === 'report') {
     return `工作周最后一天 ${time}`
+  } else if (task.type === 'convert') {
+    return `新工作周开始时 ${time} 自动转换`
   } else {
     // 兜底：按 day_of_week 显示（兼容旧数据）
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
@@ -463,6 +481,11 @@ const getTaskSchedule = (task) => {
 }
 
 const editTask = (task) => {
+  if (task.isSystemTask) {
+    showToast('系统任务无法编辑', true)
+    return
+  }
+
   editingTask.value = task
   taskForm.value = {
     id: task.id,
@@ -508,6 +531,12 @@ const saveTask = async () => {
 }
 
 const deleteTask = async (id) => {
+  const task = scheduledTasks.value.find(t => t.id === id)
+  if (task?.isSystemTask) {
+    showToast('系统任务无法删除', true)
+    return
+  }
+
   const confirmed = await dialogStore.confirm({
     message: '确定要删除这个定时任务吗？'
   })
@@ -868,6 +897,11 @@ const handleReset = async () => {
   border-radius: $radius-md;
   transition: all $transition-fast;
 
+  &.system-task {
+    background: rgba($accent-primary, 0.03);
+    border-color: rgba($accent-primary, 0.2);
+  }
+
   .task-info {
     flex: 1;
     display: flex;
@@ -879,7 +913,11 @@ const handleReset = async () => {
     border-radius: $radius-md;
     transition: all $transition-fast;
 
-    &:hover {
+    &.no-pointer {
+      cursor: default;
+    }
+
+    &:hover:not(.no-pointer) {
       background: var(--bg-secondary);
     }
 
@@ -899,6 +937,11 @@ const handleReset = async () => {
         background: rgba($warning, 0.1);
         color: $warning;
       }
+
+      &.convert {
+        background: rgba($info, 0.1);
+        color: $info;
+      }
     }
 
     .task-content {
@@ -909,6 +952,9 @@ const handleReset = async () => {
         font-weight: $font-weight-medium;
         color: var(--text-primary);
         margin-bottom: $spacing-1;
+        display: flex;
+        align-items: center;
+        gap: $spacing-2;
       }
 
       .task-detail {
@@ -923,6 +969,15 @@ const handleReset = async () => {
     align-items: center;
     gap: $spacing-2;
   }
+}
+
+.system-badge {
+  padding: $spacing-1 $spacing-2;
+  background: rgba($accent-primary, 0.15);
+  color: $accent-primary;
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
 }
 
 .empty-tasks {

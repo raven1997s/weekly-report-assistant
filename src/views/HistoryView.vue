@@ -286,48 +286,56 @@ const closeModal = () => {
 }
 
 // 删除周报
-const deleteReport = (id) => {
+const deleteReport = async (id) => {
   showConfirm(
     '删除周报确认',
     '确定要删除这份周报吗？',
-    '此操作不可恢复',
-    () => {
-      reportsStore.deleteReport(id)
-      if (selectedReport.value?.id === id) {
-        closeModal()
+    '删除后可在回收站恢复',
+    async () => {
+      const success = await reportsStore.deleteReport(id)
+      if (success) {
+        if (selectedReport.value?.id === id) {
+          closeModal()
+        }
+        showToast('已删除周报')
+      } else {
+        showToast('删除失败，请重试')
       }
-      showToast('已删除周报')
     }
   )
 }
 
 // 批量删除
-const batchDeleteOlderThan = (days) => {
-  const count = reports.value.filter(r => {
+const batchDeleteOlderThan = async (days) => {
+  const toDelete = reports.value.filter(r => {
     const reportDate = new Date(r.createdAt)
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - days)
     return reportDate < cutoffDate
-  }).length
+  })
 
-  if (count === 0) {
+  if (toDelete.length === 0) {
     showToast('没有找到符合条件的数据')
     return
   }
 
   showConfirm(
     '批量删除确认',
-    `确定要删除 ${count} 份${days >= 90 ? Math.round(days / 30) + '个月' : days + '天'}前的周报吗？`,
-    '此操作不可恢复',
-    () => {
-      reportsStore.deleteOlderThan(days)
+    `确定要删除 ${toDelete.length} 份${days >= 90 ? Math.round(days / 30) + '个月' : days + '天'}前的周报吗？`,
+    '删除后可在回收站恢复',
+    async () => {
+      let successCount = 0
+      for (const report of toDelete) {
+        const success = await reportsStore.deleteReport(report.id)
+        if (success) successCount++
+      }
       showBatchDelete.value = false
-      showToast(`已删除 ${count} 份周报`)
+      showToast(`已删除 ${successCount} 份周报`)
     }
   )
 }
 
-const batchDeleteAll = () => {
+const batchDeleteAll = async () => {
   if (reports.value.length === 0) {
     showToast('没有周报可以删除')
     return
@@ -336,12 +344,16 @@ const batchDeleteAll = () => {
   showConfirm(
     '删除所有周报确认',
     `确定要删除全部 ${reports.value.length} 份周报吗？`,
-    '此操作不可恢复！',
-    () => {
-      reportsStore.clearAll()
+    '删除后可在回收站恢复',
+    async () => {
+      let successCount = 0
+      for (const report of reports.value) {
+        const success = await reportsStore.deleteReport(report.id)
+        if (success) successCount++
+      }
       showBatchDelete.value = false
       closeModal()
-      showToast('已删除所有周报')
+      showToast(`已删除 ${successCount} 份周报`)
     }
   )
 }

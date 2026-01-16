@@ -176,20 +176,36 @@ const fetchDeletedData = async () => {
     reportsStore.fetchDeletedReports().then(data => {
       deletedReports.value = data
     }),
-    recordsStore.fetchDeletedRecords()
+    recordsStore.fetchDeletedRecords().then(data => {
+      // deletedRecords 已通过 storeToRefs 绑定，自动响应
+    })
   ])
 }
 
 // 恢复周报
 const handleRestoreReport = async (id) => {
+  // 查找要恢复的周报
+  const report = deletedReports.value.find(r => r.id === id)
+  if (!report) return
+
+  // 判断是否是本周周报
+  const isCurrentWeek = reportsStore.isCurrentWeekReport(report.weekStart)
+
+  let message = '确定要恢复这份周报吗？'
+  if (isCurrentWeek) {
+    message = '确定要恢复这份周报吗？\n\n这是本周的周报，恢复后可以继续编辑'
+  } else {
+    message = '确定要恢复这份周报吗？\n\n这是历史周报，恢复后只会在历史列表中显示'
+  }
+
   const confirmed = await dialogStore.confirm({
-    message: '确定要恢复这份周报吗？'
+    message: message.replace('\n\n', '<br><br>')
   })
   if (!confirmed) return
 
   const success = await reportsStore.restoreReport(id)
   if (success) {
-    showToast('周报已恢复')
+    showToast(isCurrentWeek ? '周报已恢复，可以继续编辑' : '周报已恢复，已在历史列表中显示')
     await fetchDeletedData()
   } else {
     showToast('恢复失败，请重试', true)
