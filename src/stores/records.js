@@ -286,15 +286,40 @@ export const useRecordsStore = defineStore('records', () => {
         })
     }
 
-    // 清空所有记录（仅清空本地列表，不删除数据库）
-    const clearAll = () => {
-        records.value = []
+    // 清空所有记录（调用 API 逐个删除）
+    const clearAll = async () => {
+        const toast = useToastStore()
+        try {
+            // 逐个调用 API 删除
+            for (const record of [...records.value]) {
+                await deleteRecord(record.id)
+            }
+            console.log('[Records] ✅ 已清空所有记录')
+        } catch (error) {
+            console.error('[Records] ❌ 清空记录失败:', error)
+            toast.error(`清空记录失败: ${error.message}`)
+        }
     }
 
-    // 导入记录（仅添加到本地列表，不保存到数据库）
-    const importRecords = (data) => {
-        if (Array.isArray(data)) {
-            records.value = [...records.value, ...data]
+    // 导入记录（逐个调用 API 添加到数据库）
+    const importRecords = async (data) => {
+        const toast = useToastStore()
+        if (!Array.isArray(data) || data.length === 0) return
+
+        let successCount = 0
+        for (const record of data) {
+            try {
+                const result = await addRecord(record)
+                if (result.success) {
+                    successCount++
+                }
+            } catch (error) {
+                console.error('[Records] 导入记录失败:', error)
+            }
+        }
+        console.log(`[Records] ✅ 导入了 ${successCount}/${data.length} 条记录`)
+        if (successCount < data.length) {
+            toast.warning(`导入完成,成功 ${successCount} 条,失败 ${data.length - successCount} 条`)
         }
     }
 

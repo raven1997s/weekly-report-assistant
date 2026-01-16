@@ -8,7 +8,8 @@
       <!-- 简洁的周信息提示 -->
       <div v-if="weekInfo" class="week-info-wrapper">
         <div class="week-badge">
-          <span class="week-range">{{ formatDate(weekInfo.start, 'MM.DD') }} - {{ formatDate(weekInfo.end, 'MM.DD') }}</span>
+          <span class="week-range">{{ formatDate(weekInfo.start, 'MM.DD') }} - {{ formatDate(weekInfo.end, 'MM.DD')
+            }}</span>
           <span class="week-divider">|</span>
           <span class="workday-count">{{ weekInfo.workdayCount }}个工作日</span>
           <span v-if="weekInfo.holidayCount > 0" class="holiday-hint">含{{ weekInfo.holidayCount }}天假期</span>
@@ -16,7 +17,9 @@
         <!-- 假期详情 -->
         <div v-if="upcomingHolidaysText" class="upcoming-holidays">
           <svg class="holiday-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd"
+              d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+              clip-rule="evenodd" />
           </svg>
           <span class="holiday-text">{{ upcomingHolidaysText }}</span>
         </div>
@@ -27,7 +30,9 @@
     <Transition name="fade">
       <div v-if="isCurrentWeekSaved" class="locked-notice">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+            clip-rule="evenodd" />
         </svg>
         <span>本周周报已归档，如需修改请前往历史周报页面</span>
       </div>
@@ -40,8 +45,11 @@
         <div v-if="!isCurrentWeekSaved" class="card editor-section records-section">
           <div class="section-header">
             <h3>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
-                <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
+                <path fill-rule="evenodd"
+                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                  clip-rule="evenodd" />
               </svg>
               本周工作记录
             </h3>
@@ -50,19 +58,20 @@
 
           <!-- 记录列表 -->
           <div v-if="recordsStore.currentWeekRecords.length > 0" class="records-selection-list">
-            <div
-              v-for="record in recordsStore.currentWeekRecords"
-              :key="record.id"
-              class="record-selection-item"
-              :class="{ selected: selectedRecordIds.has(record.id) }"
-              @click="toggleRecordSelection(record.id)"
-            >
+            <div v-for="record in recordsStore.currentWeekRecords" :key="record.id" class="record-selection-item"
+              :class="{ selected: selectedRecordIds.has(record.id) }" @click="toggleRecordSelection(record.id)">
               <div class="record-checkbox">
-                <svg v-if="selectedRecordIds.has(record.id)" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+                <svg v-if="selectedRecordIds.has(record.id)" width="18" height="18" viewBox="0 0 20 20"
+                  fill="currentColor">
+                  <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                    clip-rule="evenodd" />
                 </svg>
-                <svg v-else width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="color: var(--border-color);">
-                  <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z" clip-rule="evenodd"/>
+                <svg v-else width="18" height="18" viewBox="0 0 20 20" fill="currentColor"
+                  style="color: var(--border-color);">
+                  <path fill-rule="evenodd"
+                    d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0h8v12H6V4z"
+                    clip-rule="evenodd" />
                 </svg>
               </div>
               <div class="record-selection-content">
@@ -78,7 +87,8 @@
           <!-- 空状态 -->
           <div v-else class="records-empty">
             <svg width="40" height="40" viewBox="0 0 20 20" fill="currentColor" style="color: var(--text-muted);">
-              <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              <path
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <p>本周暂无工作记录</p>
             <p class="empty-hint">前往首页添加工作内容</p>
@@ -94,7 +104,9 @@
                 </button>
                 <button class="btn btn-sm btn-primary" @click="moveSelectedToNextWeek">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 4px;">
-                    <path fill-rule="evenodd" d="M8 3a5 5 0 100 10A5 5 0 008 3zm3.25 5.5a.75.75 0 01-.75.75H6.5v1.69a.75.75 0 01-1.28.53l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5a.75.75 0 011.28.53V7.5h4a.75.75 0 01.75.75z" clip-rule="evenodd"/>
+                    <path fill-rule="evenodd"
+                      d="M8 3a5 5 0 100 10A5 5 0 008 3zm3.25 5.5a.75.75 0 01-.75.75H6.5v1.69a.75.75 0 01-1.28.53l-2.5-2.5a.75.75 0 010-1.06l2.5-2.5a.75.75 0 011.28.53V7.5h4a.75.75 0 01.75.75z"
+                      clip-rule="evenodd" />
                   </svg>
                   移到下周计划
                 </button>
@@ -107,22 +119,22 @@
         <div class="card editor-section" :class="{ locked: isCurrentWeekSaved }">
           <div class="section-header">
             <h3>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
-                <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd" />
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
+                <path fill-rule="evenodd"
+                  d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z"
+                  clip-rule="evenodd" />
               </svg>
               下周计划
             </h3>
           </div>
           <div class="plan-list">
-            <div
-              v-for="plan in displayPlans"
-              :key="plan.id"
-              class="plan-item"
-            >
+            <div v-for="plan in displayPlans" :key="plan.id" class="plan-item">
               <span class="plan-text">{{ plan.content }}</span>
               <button class="delete-btn" @click="removePlan(plan.id)">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>
+                  <path
+                    d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
                 </svg>
               </button>
             </div>
@@ -134,9 +146,13 @@
         <div class="card editor-section" :class="{ locked: isCurrentWeekSaved }">
           <div class="section-header">
             <h3>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
-                <path d="M10 2a6 6 0 00-6 6c0 2.5 1.5 4.5 3.5 5.5V15a1 1 0 001 1h3a1 1 0 001-1v-1.5c2-1 3.5-3 3.5-5.5a6 6 0 00-6-6zM8 16.5a.5.5 0 01.5-.5h3a.5.5 0 010 1h-3a.5.5 0 01-.5-.5z" />
-                <path fill-rule="evenodd" d="M5.5 13a.5.5 0 01.5-.5h8a.5.5 0 010 1H6a.5.5 0 01-.5-.5zM5.5 15a.5.5 0 01.5-.5h8a.5.5 0 010 1H6a.5.5 0 01-.5-.5z" clip-rule="evenodd" />
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                style="vertical-align: middle; margin-right: 8px; color: var(--text-primary);">
+                <path
+                  d="M10 2a6 6 0 00-6 6c0 2.5 1.5 4.5 3.5 5.5V15a1 1 0 001 1h3a1 1 0 001-1v-1.5c2-1 3.5-3 3.5-5.5a6 6 0 00-6-6zM8 16.5a.5.5 0 01.5-.5h3a.5.5 0 010 1h-3a.5.5 0 01-.5-.5z" />
+                <path fill-rule="evenodd"
+                  d="M5.5 13a.5.5 0 01.5-.5h8a.5.5 0 010 1H6a.5.5 0 01-.5-.5zM5.5 15a.5.5 0 01.5-.5h8a.5.5 0 010 1H6a.5.5 0 01-.5-.5z"
+                  clip-rule="evenodd" />
               </svg>
               本周总结
             </h3>
@@ -144,46 +160,40 @@
           <div class="reflection-inputs">
             <div class="input-group">
               <label>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px; color: #3b82f6;">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"
+                  style="vertical-align: middle; margin-right: 6px; color: #3b82f6;">
+                  <path fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                    clip-rule="evenodd" />
                 </svg>
                 值得肯定的
               </label>
-              <textarea
-                v-model="reflections.gains"
-                placeholder="本周做得好的地方，收获了什么..."
-                rows="3"
-                :disabled="isCurrentWeekSaved"
-                @input="updateReflections"
-              ></textarea>
+              <textarea v-model="reflections.gains" placeholder="本周做得好的地方，收获了什么..." rows="3"
+                :disabled="isCurrentWeekSaved" @input="updateReflections"></textarea>
             </div>
             <div class="input-group">
               <label>
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px; color: #f59e0b;">
-                  <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"
+                  style="vertical-align: middle; margin-right: 6px; color: #f59e0b;">
+                  <path fill-rule="evenodd"
+                    d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+                    clip-rule="evenodd" />
                 </svg>
                 需要改进的
               </label>
-              <textarea
-                v-model="reflections.losses"
-                placeholder="本周遇到的问题，有哪些教训..."
-                rows="3"
-                :disabled="isCurrentWeekSaved"
-                @input="updateReflections"
-              ></textarea>
+              <textarea v-model="reflections.losses" placeholder="本周遇到的问题，有哪些教训..." rows="3"
+                :disabled="isCurrentWeekSaved" @input="updateReflections"></textarea>
             </div>
           </div>
         </div>
 
         <!-- 保存按钮 -->
-        <button
-          class="btn btn-primary full-width mt-md"
-          :disabled="isCurrentWeekSaved"
-          @click="saveCurrentReport"
-        >
+        <button class="btn btn-primary full-width mt-md" :disabled="isCurrentWeekSaved" @click="saveCurrentReport">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 6px;">
-            <path d="M10 3.5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5H6a.5.5 0 000 1h4v5.5a.5.5 0 01-1 0v-5H5a.5.5 0 01-.5-.5v-9A2.5 2.5 0 017 2h6a2.5 2.5 0 012.5 2.5V9a.5.5 0 01-1 0v-4.5A1.5 1.5 0 0013 3H7a1.5 1.5 0 00-1.5 1.5v9z"/>
-            <path d="M4 15a1 1 0 001 1h8a1 1 0 001-1v-4a1 1 0 00-1-1H5a1 1 0 00-1 1v4zm1-3.5a.5.5 0 01.5-.5h6a.5.5 0 010 1h-6a.5.5 0 01-.5-.5z"/>
+            <path
+              d="M10 3.5a.5.5 0 01.5.5v5a.5.5 0 01-.5.5H6a.5.5 0 000 1h4v5.5a.5.5 0 01-1 0v-5H5a.5.5 0 01-.5-.5v-9A2.5 2.5 0 017 2h6a2.5 2.5 0 012.5 2.5V9a.5.5 0 01-1 0v-4.5A1.5 1.5 0 0013 3H7a1.5 1.5 0 00-1.5 1.5v9z" />
+            <path
+              d="M4 15a1 1 0 001 1h8a1 1 0 001-1v-4a1 1 0 00-1-1H5a1 1 0 00-1 1v4zm1-3.5a.5.5 0 01.5-.5h6a.5.5 0 010 1h-6a.5.5 0 01-.5-.5z" />
           </svg>
           {{ isCurrentWeekSaved ? '已归档' : '保存并归档周报' }}
         </button>
@@ -199,10 +209,14 @@
     <Transition name="slide-down">
       <div v-if="validationMessage" class="validation-toast" :class="{ error: isValidationError }">
         <svg v-if="!isValidationError" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+            clip-rule="evenodd" />
         </svg>
         <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+            clip-rule="evenodd" />
         </svg>
         <span>{{ validationMessage }}</span>
       </div>
@@ -214,8 +228,11 @@
         <div class="modal-content confirm-modal" @click.stop>
           <div class="modal-header">
             <h3>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
+                style="vertical-align: middle; margin-right: 8px;">
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                  clip-rule="evenodd" />
               </svg>
               保存周报确认
             </h3>
@@ -224,7 +241,9 @@
           <div class="modal-body">
             <div class="confirm-content">
               <svg class="confirm-icon" width="48" height="48" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                  clip-rule="evenodd" />
               </svg>
               <p class="confirm-message">确定要保存并归档本周周报吗？</p>
               <p class="confirm-hint">保存后本周周报将被锁定，如需修改请前往历史周报页面</p>
@@ -239,14 +258,9 @@
     </Transition>
 
     <!-- 自定义确认弹窗 -->
-    <ConfirmDialog
-      v-model:show="dialogStore.confirmShow"
-      :title="dialogStore.confirmTitle || '确认'"
-      :message="dialogStore.confirmMessage"
-      :details="dialogStore.confirmDetails"
-      @confirm="dialogStore.confirmHandle(true)"
-      @cancel="dialogStore.confirmHandle(false)"
-    />
+    <ConfirmDialog v-model:show="dialogStore.confirmShow" :title="dialogStore.confirmTitle || '确认'"
+      :message="dialogStore.confirmMessage" :details="dialogStore.confirmDetails"
+      @confirm="dialogStore.confirmHandle(true)" @cancel="dialogStore.confirmHandle(false)" />
   </div>
 </template>
 
@@ -306,25 +320,25 @@ const isCurrentWeekSaved = computed(() => reportsStore.hasCurrentWeekReport)
 
 // 获取本周已归档的数据
 const archivedReport = computed(() => {
-    if (reportsStore.hasCurrentWeekReport) {
-        return reportsStore.getCurrentWeekArchivedReport()
-    }
-    return null
+  if (reportsStore.hasCurrentWeekReport) {
+    return reportsStore.getCurrentWeekArchivedReport()
+  }
+  return null
 })
 
 // 如果已归档，使用归档数据；否则使用 store 中的数据
 const displayPlans = computed(() => {
-    if (archivedReport.value) {
-        return archivedReport.value.plans || []
-    }
-    return reportsStore.currentPlans
+  if (archivedReport.value) {
+    return archivedReport.value.plans || []
+  }
+  return reportsStore.currentPlans
 })
 
 const displayReflections = computed(() => {
-    if (archivedReport.value) {
-        return archivedReport.value.reflections || { gains: '', losses: '' }
-    }
-    return reportsStore.currentReflections
+  if (archivedReport.value) {
+    return archivedReport.value.reflections || { gains: '', losses: '' }
+  }
+  return reportsStore.currentReflections
 })
 
 // 本地 ref 状态（仅用于未归档时的编辑）
@@ -405,10 +419,15 @@ const saveCurrentReport = () => {
 }
 
 // 确认保存
-const confirmSaveReport = () => {
-  reportsStore.saveReport(previewReport.value)
-  showSaveConfirm.value = false
-  router.push('/history')
+const confirmSaveReport = async () => {
+  try {
+    await reportsStore.saveReport(previewReport.value)
+    showSaveConfirm.value = false
+    router.push('/history')
+  } catch (error) {
+    // 保存失败,错误已由 store 显示 toast
+    showSaveConfirm.value = false
+  }
 }
 
 // 初始化
@@ -892,7 +911,7 @@ const moveSelectedToNextWeek = async () => {
       }
     }
 
-    input:checked + .checkmark {
+    input:checked+.checkmark {
       border-color: $accent-primary;
       background: $accent-light;
 

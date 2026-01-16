@@ -100,8 +100,9 @@ export const useReportsStore = defineStore('reports', () => {
         }
     }
 
-    // 保存周报
+    // 保存周报（调用后端 API 保存到数据库）
     const saveReport = async (reportData) => {
+        const toast = useToastStore()
         const weekStart = getWeekStart(new Date()).toISOString()
 
         // 检查是否已存在本周周报
@@ -123,17 +124,39 @@ export const useReportsStore = defineStore('reports', () => {
             updatedAt: new Date().toISOString()
         }
 
-        if (existingIndex !== -1) {
-            reports.value[existingIndex] = report
-        } else {
-            reports.value.unshift(report)
+        try {
+            // 调用后端 API 保存周报到数据库
+            const response = await fetch(`${API_BASE}/reports`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(report)
+            })
+            const result = await response.json()
+
+            if (!result.success) {
+                toast.error(`保存周报失败: ${result.error}`)
+                throw new Error(result.error)
+            }
+
+            console.log('[Reports] ✅ 周报已保存到数据库:', result.data.id)
+
+            // 更新本地状态
+            if (existingIndex !== -1) {
+                reports.value[existingIndex] = report
+            } else {
+                reports.value.unshift(report)
+            }
+
+            // 清空当前的本周总结（计划数据保留在 plans 表中，不受影响）
+            currentReflections.value = { gains: '', losses: '' }
+            await persistReflections()
+
+            return report
+        } catch (error) {
+            console.error('[Reports] ❌ 保存周报失败:', error)
+            toast.error(`保存周报失败: ${error.message}`)
+            throw error
         }
-
-        // 清空当前的本周总结（计划数据保留在 plans 表中，不受影响）
-        currentReflections.value = { gains: '', losses: '' }
-        await persistReflections()
-
-        return report
     }
 
     // 获取指定周报
@@ -323,11 +346,27 @@ export const useReportsStore = defineStore('reports', () => {
         }
     }
 
-    // 批量更新计划（用于拖拽排序等场景）
+    // 批量更新计划（逐个调用 API 更新）
     const updatePlans = async (plans) => {
-        // 对于拖拽排序场景，只更新内存状态
-        // 真正的持久化通过单个 updatePlan 调用完成
+        // 先更新内存状态
         currentPlans.value = plans
+
+        // 逐个调用 API 更新
+        for (const plan of plans) {
+            try {
+                await fetch(`${API_BASE}/plans/${plan.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: plan.content,
+                        project: plan.project,
+                        workType: plan.workType
+                    })
+                })
+            } catch (error) {
+                console.error('[Reports] 更新计划失败:', error)
+            }
+        }
     }
 
     // 追加计划项（用于"移到下周计划"功能）
