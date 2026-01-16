@@ -5,6 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { saveToStorage, loadFromStorage } from '../utils/api'
+import { useToastStore } from './toast'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -54,35 +55,47 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // ============ 初始化 ============
     const init = async () => {
-        const saved = await loadFromStorage(STORAGE_KEY)
-        if (saved) {
-            // 解析 projects 和 workTypes（后端存储为 JSON 字符串）
-            projects.value = typeof saved.projects === 'string'
-                ? JSON.parse(saved.projects)
-                : (saved.projects || DEFAULT_SETTINGS.projects)
+        const toast = useToastStore()
+        try {
+            const saved = await loadFromStorage(STORAGE_KEY)
+            if (saved) {
+                // 解析 projects 和 workTypes（后端存储为 JSON 字符串）
+                projects.value = typeof saved.projects === 'string'
+                    ? JSON.parse(saved.projects)
+                    : (saved.projects || DEFAULT_SETTINGS.projects)
 
-            workTypes.value = typeof saved.workTypes === 'string'
-                ? JSON.parse(saved.workTypes)
-                : (saved.workTypes || DEFAULT_SETTINGS.workTypes)
+                workTypes.value = typeof saved.workTypes === 'string'
+                    ? JSON.parse(saved.workTypes)
+                    : (saved.workTypes || DEFAULT_SETTINGS.workTypes)
 
-            theme.value = saved.theme || DEFAULT_SETTINGS.theme
+                theme.value = saved.theme || DEFAULT_SETTINGS.theme
 
-            // 合并钉钉配置（后端存储为分开的键）
-            dingtalk.value = {
-                webhookUrl: saved.dingtalk_webhookUrl || '',
-                secret: saved.dingtalk_secret || '',
-                enabled: saved.dingtalk_enabled === 'true' || saved.dingtalk_enabled === true
+                // 合并钉钉配置（后端存储为分开的键）
+                dingtalk.value = {
+                    webhookUrl: saved.dingtalk_webhookUrl || '',
+                    secret: saved.dingtalk_secret || '',
+                    enabled: saved.dingtalk_enabled === 'true' || saved.dingtalk_enabled === true
+                }
+            } else {
+                // 使用默认设置
+                projects.value = DEFAULT_SETTINGS.projects
+                workTypes.value = DEFAULT_SETTINGS.workTypes
+                theme.value = DEFAULT_SETTINGS.theme
+                dingtalk.value = DEFAULT_SETTINGS.dingtalk
             }
-        } else {
+
+            // 应用主题
+            applyTheme(theme.value)
+        } catch (error) {
+            console.error('[Settings] ❌ 初始化失败:', error)
+            toast.error(`加载设置失败: ${error.message}`)
             // 使用默认设置
             projects.value = DEFAULT_SETTINGS.projects
             workTypes.value = DEFAULT_SETTINGS.workTypes
             theme.value = DEFAULT_SETTINGS.theme
             dingtalk.value = DEFAULT_SETTINGS.dingtalk
+            applyTheme(theme.value)
         }
-
-        // 应用主题
-        applyTheme(theme.value)
     }
 
     // ============ 计算属性 ============
@@ -97,19 +110,26 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // 持久化保存
     const persist = async () => {
-        // 创建纯净的副本，去除 Vue 响应式包装
-        const cleanData = {
-            projects: JSON.stringify(projects.value),
-            workTypes: JSON.stringify(workTypes.value),
-            theme: theme.value,
-            // 钉钉配置转换为后端期望的分开键格式
-            dingtalk_webhookUrl: dingtalk.value.webhookUrl || '',
-            dingtalk_secret: dingtalk.value.secret || '',
-            dingtalk_enabled: String(dingtalk.value.enabled || false)
-        }
+        const toast = useToastStore()
+        try {
+            // 创建纯净的副本，去除 Vue 响应式包装
+            const cleanData = {
+                projects: JSON.stringify(projects.value),
+                workTypes: JSON.stringify(workTypes.value),
+                theme: theme.value,
+                // 钉钉配置转换为后端期望的分开键格式
+                dingtalk_webhookUrl: dingtalk.value.webhookUrl || '',
+                dingtalk_secret: dingtalk.value.secret || '',
+                dingtalk_enabled: String(dingtalk.value.enabled || false)
+            }
 
-        await saveToStorage(STORAGE_KEY, cleanData)
-        console.log(`[Settings] ✅ 持久化成功: ${projects.value.length} 个项目, ${workTypes.value.length} 个工作类型`)
+            await saveToStorage(STORAGE_KEY, cleanData)
+            console.log(`[Settings] ✅ 持久化成功: ${projects.value.length} 个项目, ${workTypes.value.length} 个工作类型`)
+        } catch (error) {
+            console.error('[Settings] ❌ 持久化失败:', error)
+            toast.error(`保存设置失败: ${error.message}`)
+            throw error
+        }
     }
 
     // 应用主题

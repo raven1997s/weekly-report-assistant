@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRecordsStore } from './stores/records'
 import { useReportsStore } from './stores/reports'
@@ -96,6 +96,75 @@ const settingsStore = useSettingsStore()
 
 const isSidebarOpen = ref(false)
 const showHelp = ref(false)
+
+// ============ 数据刷新机制 ============
+
+// 轮询定时器
+let pollingTimer = null
+// 防抖定时器
+let debounceTimer = null
+
+// 默认轮询间隔（30秒）
+const DEFAULT_POLLING_INTERVAL = 30000
+
+// 刷新所有 Store
+const refreshAllStores = async () => {
+  console.log('[App] 🔄 刷新所有数据...')
+  try {
+    await Promise.all([
+      settingsStore.init(),
+      recordsStore.init(),
+      reportsStore.init()
+    ])
+    console.log('[App] ✅ 数据刷新完成')
+  } catch (error) {
+    console.error('[App] ❌ 数据刷新失败:', error)
+  }
+}
+
+// 启动定期轮询
+const startPolling = () => {
+  // 立即执行一次刷新（仅在页面可见时）
+  if (document.visibilityState === 'visible') {
+    refreshAllStores()
+  }
+
+  // 启动定时器
+  pollingTimer = setInterval(() => {
+    // 仅在页面可见时轮询
+    if (document.visibilityState === 'visible') {
+      refreshAllStores()
+    }
+  }, DEFAULT_POLLING_INTERVAL)
+
+  console.log(`[App] ⏰ 启动定期轮询，间隔: ${DEFAULT_POLLING_INTERVAL}ms`)
+}
+
+// 停止定期轮询
+const stopPolling = () => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+    console.log('[App] ⏹️ 停止定期轮询')
+  }
+}
+
+// 页面可见性变化处理
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    console.log('[App] 👁️ 页面变为可见，触发刷新')
+
+    // 清除防抖定时器
+    if (debounceTimer) {
+      clearTimeout(debounceTimer)
+    }
+
+    // 防抖：500ms 后执行刷新
+    debounceTimer = setTimeout(() => {
+      refreshAllStores()
+    }, 500)
+  }
+}
 
 // 初始化快捷键
 const { registerShortcut } = useKeyboard()
@@ -114,6 +183,13 @@ onMounted(async () => {
   await reportsStore.init()
 
   console.log('[App] ✅ 数据加载完成')
+
+  // 添加页面可见性监听
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  console.log('[App] 👁️ 已添加页面可见性监听')
+
+  // 启动定期轮询
+  startPolling()
 
   // 注册全局快捷键
   registerShortcut('Ctrl+N', () => {
@@ -145,6 +221,21 @@ onMounted(async () => {
   registerShortcut('Ctrl+/', () => {
     showHelp.value = !showHelp.value
   }, '快捷键帮助')
+})
+
+onUnmounted(() => {
+  // 移除页面可见性监听
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+
+  // 停止定期轮询
+  stopPolling()
+
+  // 清除防抖定时器
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+
+  console.log('[App] 🧹 清理完成')
 })
 </script>
 

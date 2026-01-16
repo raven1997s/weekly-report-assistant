@@ -5,7 +5,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getWeekStart, getWeekEnd, formatDate, getWorkWeekInfo } from '../utils/date'
-import { saveToStorage, loadFromStorage } from '../utils/api'
+import { loadFromStorage } from '../utils/api'
+import { useToastStore } from './toast'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -19,6 +20,7 @@ export const useRecordsStore = defineStore('records', () => {
 
     // ============ 初始化 ============
     const init = async () => {
+        const toast = useToastStore()
         try {
             const saved = await loadFromStorage(STORAGE_KEY)
             console.log('[Records] 从数据库加载到数据:', saved?.length || 0, '条')
@@ -27,6 +29,7 @@ export const useRecordsStore = defineStore('records', () => {
             }
         } catch (error) {
             console.error('[Records] ❌ 初始化失败:', error)
+            toast.error(`加载数据失败: ${error.message}`)
         }
     }
 
@@ -94,20 +97,6 @@ export const useRecordsStore = defineStore('records', () => {
 
     // ============ 方法 ============
 
-    // 持久化保存
-    const persist = async () => {
-        try {
-            // 创建纯净的副本，去除 Vue 响应式包装
-            // 否则 JSON.stringify 会包含循环引用导致错误
-            const cleanData = JSON.parse(JSON.stringify(records.value))
-            await saveToStorage(STORAGE_KEY, cleanData)
-            console.log('[Records] ✅ 持久化成功，当前记录数:', records.value.length)
-        } catch (error) {
-            console.error('[Records] ❌ 持久化失败:', error)
-            throw error
-        }
-    }
-
     // 添加记录
     const addRecord = async (record) => {
         console.log('[Records] 收到添加请求:', record)
@@ -141,29 +130,65 @@ export const useRecordsStore = defineStore('records', () => {
 
         console.log('[Records] 创建新记录:', newRecord)
 
-        records.value.unshift(newRecord)
-        await persist()
+        // 直接调用 API 添加记录
+        try {
+            const response = await fetch(`${API_BASE}/records`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newRecord)
+            })
+            const result = await response.json()
 
-        console.log('[Records] 持久化完成，返回成功')
-        return {
-            success: true,
-            data: newRecord
+            if (result.success) {
+                // 添加到本地列表
+                records.value.unshift(newRecord)
+                console.log('[Records] ✅ 记录已添加到数据库')
+                return {
+                    success: true,
+                    data: newRecord
+                }
+            } else {
+                throw new Error(result.error || '添加记录失败')
+            }
+        } catch (error) {
+            console.error('[Records] ❌ 添加记录失败:', error)
+            return {
+                success: false,
+                error: error.message
+            }
         }
     }
 
     // 更新记录
     const updateRecord = async (id, data) => {
-        const index = records.value.findIndex(r => r.id === id)
-        if (index !== -1) {
-            records.value[index] = {
-                ...records.value[index],
-                ...data,
-                updatedAt: new Date().toISOString()
+        try {
+            const response = await fetch(`${API_BASE}/records/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...data,
+                    updatedAt: new Date().toISOString()
+                })
+            })
+            const result = await response.json()
+
+            if (result.success) {
+                // 更新本地列表
+                const index = records.value.findIndex(r => r.id === id)
+                if (index !== -1) {
+                    records.value[index] = {
+                        ...records.value[index],
+                        ...data,
+                        updatedAt: new Date().toISOString()
+                    }
+                }
+                return records.value[index]
             }
-            await persist()
-            return records.value[index]
+            return null
+        } catch (error) {
+            console.error('[Records] ❌ 更新记录失败:', error)
+            return null
         }
-        return null
     }
 
     // 删除记录（软删除，调用后端 API）
@@ -261,34 +286,31 @@ export const useRecordsStore = defineStore('records', () => {
         })
     }
 
-    // 清空所有记录
-    const clearAll = async () => {
+    // 清空所有记录（仅清空本地列表，不删除数据库）
+    const clearAll = () => {
         records.value = []
-        await persist()
     }
 
-    // 导入记录
-    const importRecords = async (data) => {
+    // 导入记录（仅添加到本地列表，不保存到数据库）
+    const importRecords = (data) => {
         if (Array.isArray(data)) {
             records.value = [...records.value, ...data]
-            await persist()
         }
     }
 
-    // 移动记录位置（用于拖拽排序）
-    const moveRecord = async (fromId, toId) => {
+    // 移动记录位置（用于拖拽排序，仅本地操作）
+    const moveRecord = (fromId, toId) => {
         const fromIndex = records.value.findIndex(r => r.id === fromId)
         const toIndex = records.value.findIndex(r => r.id === toId)
 
         if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
             const [movedItem] = records.value.splice(fromIndex, 1)
             records.value.splice(toIndex, 0, movedItem)
-            await persist()
         }
     }
 
-    // 更新记录顺序（批量）
-    const reorderRecords = async (recordIds) => {
+    // 更新记录顺序（批量，仅本地操作）
+    const reorderRecords = (recordIds) => {
         const newRecords = []
         recordIds.forEach(id => {
             const record = records.value.find(r => r.id === id)
@@ -301,7 +323,6 @@ export const useRecordsStore = defineStore('records', () => {
             }
         })
         records.value = newRecords
-        await persist()
     }
 
     return {

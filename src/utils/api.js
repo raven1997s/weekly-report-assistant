@@ -84,15 +84,16 @@ export async function deleteRecord(id) {
 }
 
 /**
- * 批量保存工作记录（替换全部）
+ * 批量保存工作记录（使用单个 CRUD 操作）
+ * 注意：此函数已弃用，批量替换接口（PUT /api/records/batch）已删除
+ * 建议使用单个记录操作：addRecord, updateRecord, deleteRecord
  * @param {Array} records - 记录数组
  * @returns {Promise<Object>}
+ * @deprecated 使用 addRecord/addRecord/updateRecord/deleteRecord 代替
  */
 export async function saveRecords(records) {
-  return await request('/records/batch', {
-    method: 'PUT',
-    body: JSON.stringify({ records })
-  })
+  // 批量替换接口已删除，此函数不再使用
+  throw new Error('saveRecords 已弃用，请使用单个记录操作（addRecord/updateRecord/deleteRecord）')
 }
 
 // ============================================
@@ -149,9 +150,11 @@ export async function saveSettings(settings) {
 
 /**
  * 保存数据（兼容旧接口）
+ * 注意：此函数仅用于 settings，records 和 reports 使用专用接口
  * @param {string} key - 存储键
  * @param {any} data - 数据
  * @returns {Promise<number>}
+ * @throws {Error} 当 API 调用失败时抛出错误
  */
 export async function saveToStorage(key, data) {
   const isRecords = key === 'records' || key === 'weekly_report_records'
@@ -159,16 +162,11 @@ export async function saveToStorage(key, data) {
   const isSettings = key === 'settings' || key === 'weekly_report_settings'
 
   if (isRecords) {
-    await saveRecords(data)
-    return data.length
+    // records 使用单个 CRUD 操作，不支持批量保存
+    throw new Error('saveToStorage 不支持保存 records 数据，请使用 addRecord/updateRecord')
   } else if (isReports) {
-    // ⚠️ 注意：PUT /api/reports 接口已被删除（2026-01-16）
-    // 原因：该接口会先删除所有数据再插入（DELETE FROM reports），存在严重数据丢失风险
-    // 现在 reports 数据只通过单个周报保存接口（saveReport）操作
-    // 这里只保存到 localStorage 作为备份，不再调用已删除的 API
-    const localStorageKey = `weekly_report_${key}`
-    localStorage.setItem(localStorageKey, JSON.stringify(data))
-    return data.reports?.length || 0
+    // PUT /api/reports 接口已删除，使用 saveCurrentState 保存编辑状态
+    throw new Error('saveToStorage 不支持保存 reports 数据，请使用专用接口')
   } else if (isSettings) {
     await saveSettings(data)
     return Object.keys(data).length
@@ -196,21 +194,14 @@ export async function loadFromStorage(key) {
 
 /**
  * 删除数据（兼容旧接口）
+ * 注意：此函数已弃用，批量操作不再支持
  * @param {string} key - 存储键
  * @returns {Promise<void>}
+ * @deprecated 不再支持批量删除，请逐条使用 deleteRecord/deleteReport
  */
 export async function removeFromStorage(key) {
-  const isRecords = key === 'records' || key === 'weekly_report_records'
-  const isReports = key === 'reports' || key === 'weekly_reports'
-  const isSettings = key === 'settings' || key === 'weekly_report_settings'
-
-  if (isRecords) {
-    await saveRecords([])
-  } else if (isReports) {
-    await saveReports({ reports: [], currentPlans: [], currentReflections: { gains: '', losses: '' } })
-  } else if (isSettings) {
-    await saveSettings({})
-  }
+  // 批量删除不再支持
+  throw new Error('removeFromStorage 已弃用，请使用单个删除操作')
 }
 
 // ============================================
@@ -246,6 +237,7 @@ export async function exportAllData() {
 
 /**
  * 导入所有数据
+ * 注意：records 批量导入已弃用，需要逐条导入
  * @param {string} jsonData - JSON 字符串
  * @returns {Promise<boolean>}
  */
@@ -260,12 +252,23 @@ export async function importAllData(jsonData) {
 
     const { records, reports, settings } = imported.data
 
-    // 批量导入数据
-    await Promise.all([
-      saveRecords(records || []),
-      saveReports(reports || { reports: [], currentPlans: [], currentReflections: { gains: '', losses: '' } }),
-      saveSettings(settings || {})
-    ])
+    // 逐条导入 records
+    if (records && Array.isArray(records)) {
+      for (const record of records) {
+        await addRecord(record)
+      }
+    }
+
+    // 导入 reports（如果有）
+    if (reports) {
+      // reports 数据结构复杂，暂时跳过
+      console.warn('[API] reports 导入暂不支持')
+    }
+
+    // 导入 settings
+    if (settings) {
+      await saveSettings(settings || {})
+    }
 
     return true
   } catch (error) {

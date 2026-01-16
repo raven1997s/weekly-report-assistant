@@ -404,48 +404,95 @@ const getWorkWeekInfo = (date) => {
 
 ### 8. 数据持久化规范
 
-**去除 Vue 响应式包装**：
-在保存数据到 localStorage 或数据库前，必须创建纯净副本：
+**核心原则**：
+所有数据的增删改查行为全部都必须通过接口获取，禁止使用任何前端缓存（localStorage、sessionStorage）。要确保数据的实时性。
 
-```javascript
-// ❌ 错误：直接保存会包含 Vue 的响应式包装对象
-await saveToStorage(key, records.value)
-
-// ✅ 正确：创建纯净副本后再保存
-const cleanData = JSON.parse(JSON.stringify(records.value))
-await saveToStorage(key, cleanData)
+**数据流架构**：
+```
+数据库 → API → Pinia Store → UI
 ```
 
-**为什么必须这样做**：
-- Vue 3 的 Proxy 对象包含循环引用，直接序列化会报错
-- 去除包装后的数据更轻量，避免存储无用信息
-- 确保数据在跨环境传递时的一致性
+**禁止使用前端缓存**：
+- ❌ 禁止使用 localStorage 存储数据
+- ❌ 禁止使用 sessionStorage 存储数据
+- ✅ 所有数据读取通过 API
+- ✅ 所有数据写入通过 API
+- ✅ Pinia Store 仅作为内存缓存（不持久化）
+
+**API 失败处理**：
+- API 失败时向用户显示明确的错误提示
+- 不降级到 localStorage
+- 提供重试机制
 
 **实现位置**：
-- `src/stores/records.js` - line 82
-- `src/stores/settings.js` - line 98-106
-- `src/stores/reports.js` - persist 方法
-
-**当前编辑状态持久化（重要）**：
-下周计划（currentPlans）和本周总结（currentReflections）必须保存到数据库的 `settings` 表，而不是仅依赖 localStorage。
-
-**实现方式**：
-1. 后端提供 `PUT /api/current-state` API 接收当前状态
-2. 前端 `reports.js` 的 `persist()` 方法调用 API 保存到数据库
-3. API 失败时降级到 localStorage（保证数据不丢失）
-4. 页面初始化时优先从数据库加载，数据库无数据时自动迁移 localStorage
-
-**为什么必须持久化到数据库**：
-- ✅ 跨设备同步：不同浏览器/设备共享数据
-- ✅ 数据安全：不依赖浏览器缓存，清除缓存不会丢失
-- ✅ 数据一致性：所有周报相关数据统一从数据库加载
-- ✅ 可靠性：数据库事务保证数据完整性
+- `src/utils/api.js` - API 封装（无 localStorage 操作）
+- `src/stores/records.js` - 直接调用 API（addRecord/updateRecord/deleteRecord）
+- `src/stores/reports.js` - 直接调用 API（saveCurrentState）
+- `src/stores/settings.js` - 直接调用 API（saveSettings）
 
 **相关 API**：
+- `GET /api/records` - 获取工作记录
+- `POST /api/records` - 添加工作记录
+- `PUT /api/records/:id` - 更新工作记录
+- `DELETE /api/records/:id` - 删除工作记录
 - `PUT /api/current-state` - 保存当前编辑状态
 - `GET /api/reports` - 读取周报和当前编辑状态
+- `PUT /api/settings` - 保存设置
+- `GET /api/settings` - 获取设置
 
-### 9. 日期格式规范
+### 9. 数据刷新机制
+
+**多标签页数据同步**：
+系统提供两种自动刷新机制，确保多标签页/多设备数据实时同步。
+
+**页面可见性监听**：
+- 当用户切换回标签页时，自动刷新数据
+- 使用防抖机制（500ms），避免频繁切换导致过多 API 调用
+- 实现位置：`src/App.vue` - `handleVisibilityChange()`
+
+**定期轮询**：
+- 页面可见时，每 30 秒自动刷新数据
+- 页面隐藏时暂停轮询
+- 实现位置：`src/App.vue` - `startPolling()`
+
+**刷新时机**：
+1. 应用启动时：立即加载数据
+2. 页面可见性变化：切换回标签页时刷新（防抖 500ms）
+3. 定期轮询：每 30 秒刷新（页面可见时）
+
+**实现示例**：
+```javascript
+// src/App.vue
+const refreshAllStores = async () => {
+  await Promise.all([
+    settingsStore.init(),
+    recordsStore.init(),
+    reportsStore.init()
+  ])
+}
+
+// 页面可见性监听
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    debounceRefresh()  // 防抖 500ms
+  }
+})
+
+// 定期轮询
+setInterval(() => {
+  if (document.visibilityState === 'visible') {
+    refreshAllStores()
+  }
+}, 30000)
+```
+
+**为什么需要自动刷新**：
+- ✅ 多标签页数据自动同步
+- ✅ 多设备数据实时更新
+- ✅ 用户无需手动刷新
+- ✅ 数据一致性得到保证
+
+### 10. 日期格式规范
 
 **统一使用 ISO 8601 字符串格式**：
 所有日期时间必须使用 `toISOString()` 生成字符串格式：
@@ -481,7 +528,7 @@ const isSameDay = (d1, d2) => {
 }
 ```
 
-### 10. Pinia Store 结构规范
+### 11. Pinia Store 结构规范
 
 **所有 Store 必须使用 Setup Store 模式**，统一结构包含三个分隔部分：
 
@@ -543,7 +590,7 @@ export const useXxxStore = defineStore('xxx', () => {
 - `src/stores/settings.js` - 复杂状态示例
 - `src/stores/reports.js` - 报告管理示例
 
-### 11. API 响应格式规范
+### 12. API 响应格式规范
 
 **所有 API 必须使用统一的响应格式**：
 
@@ -598,7 +645,7 @@ if (result.success) {
 - ✅ 便于日志记录和调试
 - ✅ API 行为可预测，降低开发成本
 
-### 12. 禁止使用原生弹窗规范
+### 13. 禁止使用原生弹窗规范
 
 **禁止使用原生弹窗**：
 项目中禁止使用 `alert()`、`confirm()`、`prompt()` 等原生弹窗方法。
@@ -639,7 +686,7 @@ const handleDelete = async () => {
 
 **注意**：弹窗组件的 z-index 必须设置为 1060，确保显示在普通模态框（z-index: 1040-1050）之上，但在 Toast（z-index: 1070）之下。
 
-### 13. 标签显示规范
+### 14. 标签显示规范
 
 **标签显示规则**：
 - 项目明确 + 类型明确 → `[项目][类型]`
@@ -700,7 +747,7 @@ const generateTags = (project, workType) => {
 3. 优先级 2：只有类型明确
 4. 优先级 3：都是"其他" → 最后
 
-### 14. 软删除规范（强制）
+### 15. 软删除规范（强制）
 
 **所有数据删除必须使用软删除，禁止硬删除！**
 
@@ -836,7 +883,7 @@ const fetchDeletedRecords = async () => {
 }
 ```
 
-### 15. 回收站功能规范
+### 16. 回收站功能规范
 
 **功能概述**：
 回收站提供已删除项目的查看、恢复和永久删除功能，支持 30 天内的数据恢复。
@@ -911,7 +958,7 @@ const handlePermanentDeleteReport = async (id) => {
 - Records Store：`src/stores/records.js`
 - Reports Store：`src/stores/reports.js`
 
-### 16. 文档更新规范（强制）
+### 17. 文档更新规范（强制）
 
 **核心原则**：
 CLAUDE.md 是项目的"活文档"，必须与代码实现保持同步。任何重要变更都必须及时更新文档。
@@ -1000,7 +1047,7 @@ CLAUDE.md 是项目的"活文档"，必须与代码实现保持同步。任何�
 
 ---
 
-### 17. Docker 部署规范
+### 18. Docker 部署规范
 
 **Docker 部署概述**：
 项目支持使用 Docker 进行容器化部署，确保开发、测试、生产环境的一致性。
@@ -1100,7 +1147,7 @@ environment:
 
 ---
 
-### 18. 环境变量配置规范
+### 19. 环境变量配置规范
 
 **环境变量概述**：
 使用环境变量管理不同环境的配置，避免硬编码敏感信息。
@@ -1552,17 +1599,17 @@ curl http://localhost:3000/api/reports
 ## 最后更新
 
 - **日期**: 2026-01-16
-- **版本**: 3.1
+- **版本**: 4.0
 - **主要更新**:
-  - **新增功能**：数据库管理页面 - 只读查看所有表数据
-  - 新增 API：`GET /api/database/tables` - 获取所有表信息和结构
-  - 新增 API：`GET /api/database/table/:tableName` - 获取表数据（支持分页和搜索）
-  - 新增组件：`DatabaseView.vue`、`DataTable.vue`、`CellContent.vue`
-  - 安全特性：白名单验证表名，防止 SQL 注入
-  - 功能特性：表切换、搜索、分页、JSON 格式化显示、响应式设计
-  - 之前版本（3.0）：
-    - 下周计划和本周总结现已持久化到数据库
-    - 新增 API：`PUT /api/current-state` - 保存当前编辑状态
-    - Bug 修复：历史周报删除后正确进入回收站
-    - Bug 修复：禁止修改系统定时任务（计划转换任务）
+  - **架构变更**：移除所有前端缓存（localStorage、sessionStorage），确保数据实时性
+  - **数据流优化**：统一为"数据库 → API → UI"的单向数据流
+  - **自动刷新**：添加页面可见性监听和定期轮询（30秒），实现多标签页数据同步
+  - **错误处理**：API 失败时显示明确错误提示，不再静默降级
+  - **批量操作**：删除 `PUT /api/records/batch` 接口，改为使用单个 CRUD 操作
+  - **规范更新**：
+    - 更新规则 #8：数据持久化规范（禁止前端缓存）
+    - 新增规则 #9：数据刷新机制（页面可见性监听 + 定期轮询）
+  - **之前版本（3.1）**：
+    - 新增功能：数据库管理页面 - 只读查看所有表数据
+    - Bug 修复：修复多个 UI 问题并优化系统功能
 

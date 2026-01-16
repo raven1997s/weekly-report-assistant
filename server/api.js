@@ -86,46 +86,6 @@ app.post('/api/records', async (req, res) => {
   }
 })
 
-// PUT /api/records/batch - 批量保存工作记录（替换全部）
-// 注意：必须在 /api/records/:id 之前定义，否则 batch 会被当作 :id 匹配
-app.put('/api/records/batch', async (req, res) => {
-  try {
-    const { records } = req.body
-
-    if (!Array.isArray(records)) {
-      return res.status(400).json({ success: false, error: '记录必须是数组' })
-    }
-
-    const db = await createDbConnection()
-
-    // 清空现有记录
-    await queryRun(db, 'DELETE FROM records', [])
-
-    // 使用 Promise 批量插入所有记录
-    const insertPromises = records.map(record => {
-      return new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO records (id, content, project, workType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-          [record.id, record.content, record.project || null, record.workType || null, record.createdAt, record.updatedAt],
-          function (err) {
-            if (err) reject(err)
-            else resolve(this.lastID)
-          }
-        )
-      })
-    })
-
-    await Promise.all(insertPromises)
-    db.close()
-
-    console.log(`[API] 批量保存了 ${records.length} 条记录`)
-    res.json({ success: true, count: records.length })
-  } catch (error) {
-    console.error('[API] 批量保存失败:', error)
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
 // PUT /api/records/:id - 更新工作记录
 app.put('/api/records/:id', async (req, res) => {
   try {
