@@ -10,15 +10,11 @@
 
     <!-- 表切换器 -->
     <div class="table-selector">
-      <button
-        v-for="table in tables"
-        :key="table.name"
-        class="table-tab"
-        :class="{ active: currentTable === table.name }"
-        @click="switchTable(table.name)"
-      >
+      <button v-for="table in tables" :key="table.name" class="table-tab"
+        :class="{ active: currentTable === table.name }" @click="switchTable(table.name)">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"/>
+          <path
+            d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
         </svg>
         <span>{{ tableDisplayNames[table.name] }}</span>
         <span class="table-badge">{{ table.rowCount }}</span>
@@ -29,25 +25,20 @@
     <div class="search-filter-bar">
       <div class="search-bar">
         <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+            clip-rule="evenodd" />
         </svg>
-        <select v-model="filterColumn" class="filter-select">
-          <option value="">全部字段</option>
-          <option v-for="col in searchableColumns" :key="col.name" :value="col.name">
-            {{ col.label || col.name }}
-          </option>
-        </select>
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          :placeholder="filterColumn ? `在 ${filterColumn} 中搜索...` : '搜索数据...'"
-        />
+        <input v-model="searchQuery" type="text" class="search-input" placeholder="搜索数据..."
+          @keyup.enter="handleSearch" />
       </div>
 
-      <button class="filter-toggle-btn" @click="showFilterPanel = !showFilterPanel" :class="{ active: showFilterPanel || hasActiveFilters }">
+      <button class="filter-toggle-btn" @click="showFilterPanel = !showFilterPanel"
+        :class="{ active: showFilterPanel || hasActiveFilters }">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M3 3a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+            clip-rule="evenodd" />
         </svg>
         筛选
         <span v-if="hasActiveFilters && !showFilterPanel" class="filter-badge">{{ activeFilterCount }}</span>
@@ -55,32 +46,15 @@
     </div>
 
     <!-- 筛选面板 -->
-    <FilterPanel
-      v-if="showFilterPanel"
-      :columns="columns"
-      v-model="filters"
-      @reset="handleResetFilters"
-    />
+    <FilterPanel v-if="showFilterPanel" :columns="columns" v-model="filters" @reset="handleResetFilters" :loading="loading" />
 
     <!-- 数据表格 -->
-    <DataTable
-      :columns="columns"
-      :rows="rows"
-      :loading="loading"
-      :pagination="pagination"
-      :sort-column="sortColumn"
-      :sort-order="sortOrder"
-      @page-change="handlePageChange"
-      @show-json="handleShowJson"
-      @sort-change="handleSortChange"
-    />
+    <DataTable :columns="columns" :rows="rows" :loading="loading" :pagination="pagination" :sort-column="sortColumn"
+      :sort-order="sortOrder" @page-change="handlePageChange" @show-json="handleShowJson"
+      @sort-change="handleSortChange" />
 
     <!-- JSON 查看器弹窗 -->
-    <JsonViewer
-      v-model="showJsonViewer"
-      :data="jsonData"
-      :title="jsonTitle"
-    />
+    <JsonViewer v-model="showJsonViewer" :data="jsonData" :title="jsonTitle" />
 
     <!-- Toast 提示 -->
     <Transition name="fade">
@@ -109,7 +83,6 @@ const tableDisplayNames = {
 const tables = ref([])
 const currentTable = ref('records')
 const searchQuery = ref('')
-const filterColumn = ref('')
 const loading = ref(false)
 const columns = ref([])
 const rows = ref([])
@@ -118,14 +91,6 @@ const pagination = ref({
   pageSize: 20,
   total: 0,
   totalPages: 0
-})
-
-// 可搜索的列（文本类型）
-const searchableColumns = computed(() => {
-  return columns.value.filter(col => {
-    const type = (col.type || '').toUpperCase()
-    return type.includes('TEXT') || type.includes('CHAR') || type.includes('VARCHAR')
-  })
 })
 
 // Toast 状态
@@ -147,6 +112,7 @@ const sortOrder = ref('DESC')
 
 // 计算激活的筛选条件数量
 const activeFilterCount = computed(() => {
+  if (!filters.value) return 0
   return Object.values(filters.value).filter(v => v !== '' && v !== null && v !== undefined).length
 })
 
@@ -154,6 +120,12 @@ const activeFilterCount = computed(() => {
 const hasActiveFilters = computed(() => {
   return activeFilterCount.value > 0
 })
+
+// 处理搜索
+const handleSearch = () => {
+  pagination.value.page = 1
+  fetchTableData()
+}
 
 // 处理筛选重置
 const handleResetFilters = () => {
@@ -200,7 +172,7 @@ const fetchTableData = async () => {
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
       search: searchQuery.value,
-      column: filterColumn.value,
+      // column: filterColumn.value, // 已移除
       sortColumn: sortColumn.value,
       sortOrder: sortOrder.value
     })
@@ -233,13 +205,16 @@ const fetchTableData = async () => {
 const switchTable = (tableName) => {
   if (currentTable.value !== tableName) {
     currentTable.value = tableName
-    pagination.value.page = 1
+    // 重置所有状态防止污染
+    columns.value = []
+    rows.value = []
+    pagination.value = { ...pagination.value, page: 1, total: 0 }
     searchQuery.value = ''
-    filterColumn.value = ''
     filters.value = {}
     showFilterPanel.value = false
-    sortColumn.value = 'id'
+    sortColumn.value = null // 让后端决定默认排序字段
     sortOrder.value = 'DESC'
+
     fetchTableData()
   }
 }

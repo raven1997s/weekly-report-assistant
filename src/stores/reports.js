@@ -103,7 +103,12 @@ export const useReportsStore = defineStore('reports', () => {
     // 保存周报（调用后端 API 保存到数据库）
     const saveReport = async (reportData) => {
         const toast = useToastStore()
-        const weekStart = getWeekStart(new Date()).toISOString()
+        const now = new Date()
+        const weekStart = getWeekStart(now).toISOString()
+        // 计算周结束日期（周日）
+        const weekEndDate = new Date(getWeekStart(now))
+        weekEndDate.setDate(weekEndDate.getDate() + 6)
+        const weekEnd = weekEndDate.toISOString()
 
         // 检查是否已存在本周周报
         const existingIndex = reports.value.findIndex(r => r.weekStart === weekStart)
@@ -111,7 +116,8 @@ export const useReportsStore = defineStore('reports', () => {
         const report = {
             id: existingIndex !== -1 ? reports.value[existingIndex].id : Date.now().toString(),
             weekStart,
-            weekLabel: formatDate(new Date(), 'YYYY年第W周'),
+            weekEnd,
+            weekLabel: formatDate(now, 'YYYY年第W周'),
             content: reportData.content,
             markdown: reportData.markdown,
             plainText: reportData.plainText || reportData.markdown || '',

@@ -1,44 +1,47 @@
 <template>
-  <div v-if="showPanel" class="filter-panel">
+  <div class="filter-panel">
     <div class="filter-header">
       <h3>筛选条件</h3>
       <button class="reset-btn" @click="handleReset" :disabled="!hasFilters">
         <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+            clip-rule="evenodd" />
         </svg>
         重置
       </button>
     </div>
 
     <div class="filter-list">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="filter-loading">
+        <div class="loading-spinner"></div>
+        <p>加载筛选字段中...</p>
+      </div>
+
+      <!-- 空状态提示 -->
+      <div v-else-if="filterableColumns.length === 0" class="filter-empty">
+        <p>暂无可筛选的字段</p>
+        <p class="filter-empty-hint">该表可能没有可筛选的列</p>
+      </div>
+
       <div v-for="column in filterableColumns" :key="column.name" class="filter-item">
         <label class="filter-label">{{ column.label || column.name }}</label>
 
         <!-- 文本字段：输入框 -->
-        <input
-          v-if="isTextField(column)"
-          :type="column.name.includes('password') ? 'password' : 'text'"
-          v-model="localFilters[column.name]"
-          :placeholder="`搜索 ${column.label || column.name}...`"
-          class="filter-input"
-        />
+        <input v-if="isTextField(column)" :type="column.name.includes('password') ? 'password' : 'text'"
+          v-model="localFilters[column.name]" :placeholder="`搜索 ${column.label || column.name}...`" class="filter-input"
+          @keyup.enter="handleApply" />
 
         <!-- 日期字段：日期范围选择器 -->
         <div v-else-if="isDateField(column)" class="date-range-filter">
-          <input
-            v-model="localFilters[column.name]"
-            type="date"
-            class="filter-input"
-            placeholder="选择日期"
-          />
+          <input v-model="localFilters[column.name]" type="date" class="filter-input" placeholder="选择日期"
+            @keyup.enter="handleApply" />
         </div>
 
+
         <!-- 布尔字段：下拉选择 -->
-        <select
-          v-else-if="isBooleanField(column)"
-          v-model="localFilters[column.name]"
-          class="filter-select"
-        >
+        <select v-else-if="isBooleanField(column)" v-model="localFilters[column.name]" class="filter-select">
           <option value="">全部</option>
           <option value="1">是</option>
           <option value="0">否</option>
@@ -62,7 +65,8 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   columns: Array,
-  modelValue: Object
+  modelValue: Object,
+  loading: Boolean
 })
 
 const emit = defineEmits(['update:modelValue', 'reset'])
@@ -121,14 +125,14 @@ const handleReset = () => {
   emit('reset')
 }
 
-// 自动应用筛选（防抖）
-let debounceTimer = null
-watch(localFilters, () => {
-  if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    handleApply()
-  }, 500)
-}, { deep: true })
+// 自动应用筛选（防抖）已移除，改为手动应用
+// let debounceTimer = null
+// watch(localFilters, () => {
+//   if (debounceTimer) clearTimeout(debounceTimer)
+//   debounceTimer = setTimeout(() => {
+//     handleApply()
+//   }, 500)
+// }, { deep: true })
 </script>
 
 <style lang="scss" scoped>
@@ -185,6 +189,47 @@ watch(localFilters, () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: $spacing-4;
+
+  .filter-loading,
+  .filter-empty {
+    grid-column: 1 / -1;
+    padding: $spacing-6;
+    text-align: center;
+    color: var(--text-muted);
+
+    p {
+      margin: 0;
+      font-size: $font-size-sm;
+    }
+
+    .filter-empty-hint {
+      margin-top: $spacing-2;
+      font-size: $font-size-xs;
+      color: var(--text-placeholder);
+    }
+  }
+
+  .filter-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border-color);
+    border-top-color: $accent-primary;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }
 
 .filter-item {

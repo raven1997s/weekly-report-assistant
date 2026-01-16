@@ -3,7 +3,9 @@
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <svg class="spinner" width="40" height="40" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+        <path fill-rule="evenodd"
+          d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+          clip-rule="evenodd" />
       </svg>
       <p>加载数据中...</p>
     </div>
@@ -11,7 +13,8 @@
     <!-- 空状态 -->
     <div v-else-if="rows.length === 0" class="empty-state">
       <svg width="48" height="48" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M2 4a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+        <path fill-rule="evenodd" d="M2 4a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V4z"
+          clip-rule="evenodd" />
       </svg>
       <p>暂无数据</p>
     </div>
@@ -21,20 +24,17 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th
-              v-for="column in columns"
-              :key="column"
-              class="table-header"
-              :class="{ sortable: true, sorted: sortColumn === column }"
-              @click="handleSort(column)"
-            >
-              <span>{{ columnDisplayNames[column] || column }}</span>
-              <span v-if="sortColumn === column" class="sort-icon">
+            <th v-for="column in columns" :key="column.name" class="table-header"
+              :class="{ sortable: true, sorted: sortColumn === column.name }" @click="handleSort(column.name)">
+              <span>{{ columnDisplayNames[column.name] || column.name }}</span>
+              <span v-if="sortColumn === column.name" class="sort-icon">
                 <svg v-if="sortOrder === 'asc'" width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L10 7.414V17a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z"/>
+                  <path
+                    d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L10 7.414V17a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" />
                 </svg>
                 <svg v-else width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L10 12.586V3a1 1 0 012 0v9.586l3.293-3.293a1 1 0 011.414 0z"/>
+                  <path
+                    d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L10 12.586V3a1 1 0 012 0v9.586l3.293-3.293a1 1 0 011.414 0z" />
                 </svg>
               </span>
             </th>
@@ -42,8 +42,8 @@
         </thead>
         <tbody>
           <tr v-for="(row, index) in rows" :key="row.id || index" class="table-row">
-            <td v-for="column in columns" :key="column" class="table-cell">
-              <CellContent :value="row[column]" :column="column" @show-json="$emit('showJson', $event)" />
+            <td v-for="column in columns" :key="column.name" class="table-cell">
+              <CellContent :value="row[column.name]" :column="column.name" @show-json="$emit('showJson', $event)" />
             </td>
           </tr>
         </tbody>
@@ -52,9 +52,12 @@
 
     <!-- 分页器 -->
     <div v-if="pagination.totalPages > 1" class="pagination">
-      <button class="pagination-btn" :disabled="pagination.page === 1" @click="$emit('pageChange', pagination.page - 1)">
+      <button class="pagination-btn" :disabled="pagination.page === 1"
+        @click="$emit('pageChange', pagination.page - 1)">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+            clip-rule="evenodd" />
         </svg>
       </button>
 
@@ -62,9 +65,12 @@
         第 {{ pagination.page }} / {{ pagination.totalPages }} 页 (共 {{ pagination.total }} 条)
       </span>
 
-      <button class="pagination-btn" :disabled="pagination.page === pagination.totalPages" @click="$emit('pageChange', pagination.page + 1)">
+      <button class="pagination-btn" :disabled="pagination.page === pagination.totalPages"
+        @click="$emit('pageChange', pagination.page + 1)">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+          <path fill-rule="evenodd"
+            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+            clip-rule="evenodd" />
         </svg>
       </button>
     </div>
@@ -177,8 +183,13 @@ const columnDisplayNames = {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .table-wrapper {

@@ -368,14 +368,22 @@ app.post('/api/reports', async (req, res) => {
       )
       console.log(`[API] 更新周报归档: ${reportId} (${weekLabel})`)
     } else {
+      // 计算 weekEnd（如果前端没有提供）
+      const weekEndValue = req.body.weekEnd || (() => {
+        const startDate = new Date(weekStart)
+        startDate.setDate(startDate.getDate() + 6)
+        return startDate.toISOString()
+      })()
+
       // 插入新周报
       await queryRun(
         db,
-        `INSERT INTO reports (id, weekStart, weekLabel, content, markdown, plainText, records, plans, reflections, createdAt, updatedAt, deleted)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        `INSERT INTO reports (id, weekStart, weekEnd, weekLabel, content, markdown, plainText, records, plans, reflections, createdAt, updatedAt, deleted)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         [
           reportId,
           weekStart,
+          weekEndValue,
           weekLabel,
           content || '',
           markdown || '',
@@ -1376,7 +1384,7 @@ app.get('/api/database/table/:tableName', async (req, res) => {
     const TABLE_COLUMNS = {
       records: ['id', 'content', 'project', 'workType', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
       reports: ['id', 'weekLabel', 'weekStart', 'weekEnd', 'markdown', 'plainText', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
-      settings: ['id', 'key', 'value', 'createdAt', 'updatedAt'],
+      settings: ['key', 'value'], // settings 表没有 id
       scheduled_tasks: ['id', 'name', 'type', 'hour', 'minute', 'dayOfWeek', 'enabled', 'isSystemTask', 'createdAt', 'updatedAt'],
       plans: ['id', 'content', 'project', 'workType', 'weekStart', 'status', 'convertedRecordId', 'createdAt', 'updatedAt', 'deleted', 'deletedAt']
     }
@@ -1461,23 +1469,34 @@ app.get('/api/database/table/:tableName', async (req, res) => {
 
     // 添加排序（验证列名）
     const allowedColumns = TABLE_COLUMNS[tableName]
-    const validSortColumn = allowedColumns?.includes(sortColumn) ? sortColumn : 'id'
+    // 智能默认排序：首选 id，否则用第一列
+    const defaultSort = allowedColumns.includes('id') ? 'id' : (allowedColumns[0] || 'rowid')
+    const validSortColumn = allowedColumns?.includes(sortColumn) ? sortColumn : defaultSort
     const validSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC'
     sql += ` ORDER BY ${validSortColumn} ${validSortOrder} LIMIT ? OFFSET ?`
 
     // 执行查询
-    const [data, totalResult] = await Promise.all([
+    const [data, totalResult, tableInfo] = await Promise.all([
       queryAll(db, sql, [...params, limit, offset]),
-      queryGet(db, countSql, params)
+      queryGet(db, countSql, params),
+      queryAll(db, `PRAGMA table_info(${tableName})`)
     ])
 
     db.close()
+
+    // 构建完整的列信息
+    const columnInfo = tableInfo.map(col => ({
+      name: col.name,
+      type: col.type,
+      notNull: col.notnull === 1,
+      primaryKey: col.pk === 1
+    }))
 
     res.json({
       success: true,
       data: {
         tableName,
-        columns: data.length > 0 ? Object.keys(data[0]) : [],
+        columns: columnInfo,
         rows: data,
         pagination: {
           page: parseInt(page),
