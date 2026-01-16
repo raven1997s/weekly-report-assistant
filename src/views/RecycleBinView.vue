@@ -32,7 +32,7 @@
         <span v-if="deletedReportsCount > 0" class="count-badge">{{ deletedReportsCount }}</span>
       </div>
 
-      <div v-if="deletedReports.length === 0" class="empty-hint">
+      <div v-if="deletedReportsData.length === 0" class="empty-hint">
         <svg width="48" height="48" viewBox="0 0 20 20" fill="currentColor" style="opacity: 0.3;">
           <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
         </svg>
@@ -40,7 +40,7 @@
       </div>
 
       <div v-else class="deleted-list">
-        <div v-for="report in deletedReports" :key="report.id" class="deleted-item">
+        <div v-for="report in deletedReportsData" :key="report.id" class="deleted-item">
           <div class="item-info">
             <div class="item-main">
               <span class="item-title">{{ report.weekLabel }}</span>
@@ -72,7 +72,7 @@
         <h3>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
             <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 8a2 2 0 002 2V5a2 2 0 00-2-2zm8.5 5.707l-1.414-1.414a1 1 0 00-1.414 0l-1.414 1.414a1 1 0 001.414 1.414l1.414 1.414a1 1 0 001.414 0l1.414-1.414a1 1 0 00-1.414-1.414z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V5a1 1 0 00-1-1H6z" clip-rule="evenodd"/>
           </svg>
           已删除的工作记录
         </h3>
@@ -129,8 +129,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
@@ -139,15 +139,23 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const recordsStore = useRecordsStore()
 const reportsStore = useReportsStore()
-const { deletedRecords } = storeToRefs(recordsStore)
 const dialogStore = useDialogStore()
+const route = useRoute()
+
+// 监听路由变化，每次进入回收站时重新获取数据
+watch(() => route.path, (newPath) => {
+  if (newPath === '/recycle-bin') {
+    fetchDeletedData()
+  }
+})
 
 // 已删除的数据
-const deletedReports = ref([])
+const deletedReportsData = ref([])
+const deletedRecords = computed(() => recordsStore.deletedRecords || [])
 
 // 计算数量
-const deletedReportsCount = computed(() => deletedReports.value.length)
-const deletedRecordsCount = computed(() => deletedRecords.value.length)
+const deletedReportsCount = computed(() => deletedReportsData.value?.length || 0)
+const deletedRecordsCount = computed(() => deletedRecords.value?.length || 0)
 
 // Toast 状态
 const toastMessage = ref('')
@@ -172,20 +180,31 @@ onMounted(async () => {
 
 // 获取已删除的数据
 const fetchDeletedData = async () => {
-  await Promise.all([
-    reportsStore.fetchDeletedReports().then(data => {
-      deletedReports.value = data
-    }),
-    recordsStore.fetchDeletedRecords().then(data => {
-      // deletedRecords 已通过 storeToRefs 绑定，自动响应
-    })
-  ])
+  console.log('[回收站] 开始获取已删除数据')
+
+  try {
+    await Promise.all([
+      reportsStore.fetchDeletedReports().then(data => {
+        deletedReportsData.value = data || []
+        console.log('[回收站] 已删除周报:', deletedReportsData.value.length, deletedReportsData.value)
+      }),
+      recordsStore.fetchDeletedRecords().then(data => {
+        console.log('[回收站] 已删除记录:', deletedRecords.value?.length, deletedRecords.value)
+      })
+    ])
+
+    console.log('[回收站] 数据获取完成')
+    console.log('[回收站] deletedReportsData:', deletedReportsData.value.length)
+    console.log('[回收站] deletedRecords:', deletedRecords.value?.length)
+  } catch (error) {
+    console.error('[回收站] 获取数据失败:', error)
+  }
 }
 
 // 恢复周报
 const handleRestoreReport = async (id) => {
   // 查找要恢复的周报
-  const report = deletedReports.value.find(r => r.id === id)
+  const report = deletedReportsData.value.find(r => r.id === id)
   if (!report) return
 
   // 判断是否是本周周报

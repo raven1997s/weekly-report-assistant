@@ -996,13 +996,21 @@ app.get('/api/database/tables', async (req, res) => {
 app.get('/api/database/table/:tableName', async (req, res) => {
   try {
     const { tableName } = req.params
-    const { page = 1, pageSize = 20, search = '' } = req.query
+    const { page = 1, pageSize = 20, search = '', column = '' } = req.query
 
     // 安全检查：白名单验证表名
     const validTables = ['records', 'reports', 'settings', 'scheduled_tasks']
     if (!validTables.includes(tableName)) {
       console.warn(`[API] 尝试访问无效表名: ${tableName}`)
       return res.status(400).json({ success: false, error: '无效的表名' })
+    }
+
+    // 列白名单（用于防止 SQL 注入）
+    const TABLE_COLUMNS = {
+      records: ['id', 'content', 'project', 'workType', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
+      reports: ['id', 'weekLabel', 'weekStart', 'weekEnd', 'markdown', 'plainText', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
+      settings: ['id', 'key', 'value', 'createdAt', 'updatedAt'],
+      scheduled_tasks: ['id', 'name', 'type', 'hour', 'minute', 'dayOfWeek', 'enabled', 'isSystemTask', 'createdAt', 'updatedAt']
     }
 
     const db = await createDbConnection()
@@ -1014,18 +1022,31 @@ app.get('/api/database/table/:tableName', async (req, res) => {
     let countSql = `SELECT COUNT(*) as total FROM ${tableName}`
     let params = []
 
-    // 添加搜索条件（模糊匹配所有文本字段）
+    // 添加搜索条件
     if (search && search.trim()) {
-      const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
-      const textColumns = tableInfo
-        .filter(col => col.type && (col.type.includes('TEXT') || col.type.includes('CHAR')))
-        .map(col => col.name)
+      if (column) {
+        // 按指定列搜索
+        const allowedColumns = TABLE_COLUMNS[tableName]
+        if (!allowedColumns || !allowedColumns.includes(column)) {
+          db.close()
+          return res.status(400).json({ success: false, error: '无效的列名' })
+        }
+        sql += ` WHERE ${column} LIKE ?`
+        countSql += ` WHERE ${column} LIKE ?`
+        params.push(`%${search}%`)
+      } else {
+        // 全部字段搜索（原有逻辑）
+        const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
+        const textColumns = tableInfo
+          .filter(col => col.type && (col.type.includes('TEXT') || col.type.includes('CHAR') || col.type.includes('VARCHAR')))
+          .map(col => col.name)
 
-      if (textColumns.length > 0) {
-        const searchConditions = textColumns.map(col => `${col} LIKE ?`).join(' OR ')
-        sql += ` WHERE ${searchConditions}`
-        countSql += ` WHERE ${searchConditions}`
-        params = textColumns.map(() => `%${search}%`)
+        if (textColumns.length > 0) {
+          const searchConditions = textColumns.map(col => `${col} LIKE ?`).join(' OR ')
+          sql += ` WHERE ${searchConditions}`
+          countSql += ` WHERE ${searchConditions}`
+          params = textColumns.map(() => `%${search}%`)
+        }
       }
     }
 

@@ -32,6 +32,16 @@
     <section class="list-section">
       <RecordList />
     </section>
+
+    <!-- 确认弹窗 -->
+    <ConfirmDialog
+      v-model:show="dialogStore.confirmShow"
+      :title="dialogStore.confirmTitle || '确认'"
+      :message="dialogStore.confirmMessage"
+      :details="dialogStore.confirmDetails"
+      @confirm="dialogStore.confirmHandle(true)"
+      @cancel="dialogStore.confirmHandle(false)"
+    />
   </div>
 </template>
 
@@ -39,7 +49,11 @@
 import { ref, computed, onMounted } from 'vue'
 import InputBox from '../components/InputBox.vue'
 import RecordList from '../components/RecordList.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { useDialogStore } from '../stores/dialog'
 import { getWorkWeekInfo, formatDate } from '../utils/date'
+
+const dialogStore = useDialogStore()
 
 const weekInfo = ref(null)
 

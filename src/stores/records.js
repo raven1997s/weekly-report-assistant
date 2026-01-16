@@ -180,6 +180,8 @@ export const useRecordsStore = defineStore('records', () => {
                 if (index !== -1) {
                     records.value.splice(index, 1)
                 }
+                // 重新获取已删除的记录
+                await fetchDeletedRecords()
                 return true
             }
             return false

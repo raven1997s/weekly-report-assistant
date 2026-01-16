@@ -45,7 +45,7 @@
           />
           <button class="btn-icon delete" @click="deleteProject(project.id)">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M8.5 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5a.5.5 0 01.5-.5z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
           </button>
         </div>
@@ -79,7 +79,7 @@
           />
           <button class="btn-icon delete" @click="deleteWorkType(type.id)">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M8.5 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5a.5.5 0 01.5-.5z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
           </button>
         </div>
@@ -155,7 +155,7 @@
 
       <div class="scheduled-tasks">
         <div v-for="task in scheduledTasks" :key="task.id" class="task-item" :class="{ 'system-task': task.isSystemTask }">
-          <div class="task-info" @click="!task.isSystemTask && editTask(task)" :class="{ 'no-pointer': task.isSystemTask }">
+          <div class="task-info" @click="!task.isSystemTask && editTask(task)" :class="{ 'system-task': task.isSystemTask }">
             <div class="task-type-badge" :class="task.type">
               {{ task.type === 'report' ? '周报' : task.type === 'reminder' ? '提醒' : '转换' }}
             </div>
@@ -897,9 +897,18 @@ const handleReset = async () => {
   border-radius: $radius-md;
   transition: all $transition-fast;
 
+  // 系统任务样式
   &.system-task {
     background: rgba($accent-primary, 0.03);
     border-color: rgba($accent-primary, 0.2);
+
+    .task-info {
+      cursor: not-allowed;
+
+      &:hover {
+        background: transparent !important;
+      }
+    }
   }
 
   .task-info {
@@ -911,13 +920,9 @@ const handleReset = async () => {
     padding: $spacing-2;
     margin: -$spacing-2;
     border-radius: $radius-md;
-    transition: all $transition-fast;
+    transition: background $transition-fast;
 
-    &.no-pointer {
-      cursor: default;
-    }
-
-    &:hover:not(.no-pointer) {
+    &:hover:not(.system-task) {
       background: var(--bg-secondary);
     }
 

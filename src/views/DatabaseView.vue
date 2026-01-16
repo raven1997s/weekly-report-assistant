@@ -30,11 +30,17 @@
       <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
         <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
       </svg>
+      <select v-model="filterColumn" class="filter-select">
+        <option value="">全部字段</option>
+        <option v-for="col in searchableColumns" :key="col.name" :value="col.name">
+          {{ col.label || col.name }}
+        </option>
+      </select>
       <input
         v-model="searchQuery"
         type="text"
-        placeholder="搜索数据..."
         class="search-input"
+        :placeholder="filterColumn ? `在 ${filterColumn} 中搜索...` : '搜索数据...'"
       />
     </div>
 
@@ -57,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import DataTable from '../components/DataTable.vue'
 
 // 表的显示名称
@@ -71,6 +77,7 @@ const tableDisplayNames = {
 const tables = ref([])
 const currentTable = ref('records')
 const searchQuery = ref('')
+const filterColumn = ref('')
 const loading = ref(false)
 const columns = ref([])
 const rows = ref([])
@@ -79,6 +86,14 @@ const pagination = ref({
   pageSize: 20,
   total: 0,
   totalPages: 0
+})
+
+// 可搜索的列（文本类型）
+const searchableColumns = computed(() => {
+  return columns.value.filter(col => {
+    const type = (col.type || '').toUpperCase()
+    return type.includes('TEXT') || type.includes('CHAR') || type.includes('VARCHAR')
+  })
 })
 
 // Toast 状态
@@ -107,7 +122,8 @@ const fetchTableData = async () => {
     const params = new URLSearchParams({
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
-      search: searchQuery.value
+      search: searchQuery.value,
+      column: filterColumn.value
     })
 
     const response = await fetch(`/api/database/table/${currentTable.value}?${params}`)
@@ -133,6 +149,7 @@ const switchTable = (tableName) => {
     currentTable.value = tableName
     pagination.value.page = 1
     searchQuery.value = ''
+    filterColumn.value = ''
     fetchTableData()
   }
 }
@@ -242,7 +259,8 @@ onMounted(() => {
 }
 
 .search-bar {
-  position: relative;
+  display: flex;
+  gap: $spacing-3;
   margin-bottom: $spacing-6;
 
   .search-icon {
@@ -254,8 +272,25 @@ onMounted(() => {
     pointer-events: none;
   }
 
+  .filter-select {
+    padding: $spacing-3 $spacing-4;
+    font-size: $font-size-sm;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: $radius-md;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:focus {
+      outline: none;
+      border-color: $accent-primary;
+      box-shadow: 0 0 0 3px $accent-light;
+    }
+  }
+
   .search-input {
-    width: 100%;
+    flex: 1;
     padding: $spacing-3 $spacing-4;
     padding-left: $spacing-10;
     font-size: $font-size-sm;

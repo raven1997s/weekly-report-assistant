@@ -114,6 +114,7 @@ export function useGenerator() {
 
     /**
      * 按优先级排序记录（明确的在前，"其他"在后）
+     * 相同优先级内按项目分组，同项目内按创建时间排序
      * @param {Array} records
      * @returns {Array} 排序后的记录
      */
@@ -121,7 +122,22 @@ export function useGenerator() {
         return [...records].sort((a, b) => {
             const priorityA = getRecordPriority(a)
             const priorityB = getRecordPriority(b)
-            return priorityA - priorityB
+
+            // 先按优先级排序
+            if (priorityA !== priorityB) {
+                return priorityA - priorityB
+            }
+
+            // 相同优先级内，按项目名称分组
+            const projectA = a.project || '其他'
+            const projectB = b.project || '其他'
+            const projectCompare = projectA.localeCompare(projectB, 'zh-CN')
+            if (projectCompare !== 0) {
+                return projectCompare
+            }
+
+            // 同项目内按创建时间排序
+            return new Date(a.createdAt) - new Date(b.createdAt)
         })
     }
 
@@ -146,23 +162,11 @@ export function useGenerator() {
             // 先按优先级排序：明确的在前，"其他"的在后
             const sortedRecords = sortByPriority(records)
 
-            // 按项目分组
-            const groupedByProject = groupByProject(sortedRecords)
-            let globalIndex = 1
-
-            Object.entries(groupedByProject).forEach(([project, projectRecords]) => {
-                // 该项目下的记录按类型排序
-                const groupedByType = groupByType(projectRecords)
-                Object.entries(groupedByType).forEach(([type, typeRecords]) => {
-                    typeRecords.forEach((record) => {
-                        const content = polishContent(record.content)
-                        // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
-                        const tagStr = generateTags(record.project, record.workType)
-                        lines.push(`${globalIndex}. ${tagStr} ${content}`)
-                        globalIndex++
-                    })
-                })
-
+            sortedRecords.forEach((record, index) => {
+                const content = polishContent(record.content)
+                // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
+                const tagStr = generateTags(record.project, record.workType)
+                lines.push(`${index + 1}. ${tagStr} ${content}`)
             })
         }
 
@@ -228,23 +232,11 @@ export function useGenerator() {
             // 先按优先级排序：明确的在前，"其他"的在后
             const sortedRecords = sortByPriority(records)
 
-            // 按项目分组
-            const groupedByProject = groupByProject(sortedRecords)
-            let globalIndex = 1
-
-            Object.entries(groupedByProject).forEach(([project, projectRecords]) => {
-                // 该项目下的记录按类型排序
-                const groupedByType = groupByType(projectRecords)
-                Object.entries(groupedByType).forEach(([type, typeRecords]) => {
-                    typeRecords.forEach((record) => {
-                        const content = polishContent(record.content)
-                        // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
-                        const tagStr = generateTags(record.project, record.workType)
-                        lines.push(`${globalIndex}. ${tagStr} ${content}`)
-                        globalIndex++
-                    })
-                })
-
+            sortedRecords.forEach((record, index) => {
+                const content = polishContent(record.content)
+                // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
+                const tagStr = generateTags(record.project, record.workType)
+                lines.push(`${index + 1}. ${tagStr} ${content}`)
             })
         }
 
@@ -302,7 +294,7 @@ export function useGenerator() {
             markdown: generateMarkdown({ records, plans, reflections }),
             plainText: generatePlainText({ records, plans, reflections }),
             records: [...records],
-            plans: [...plans],
+            plans: sortByPriority([...plans]),
             reflections: { ...reflections },
             generatedAt: new Date().toISOString()
         }

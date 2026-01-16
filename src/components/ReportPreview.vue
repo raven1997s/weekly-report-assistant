@@ -111,6 +111,7 @@ import { marked } from 'marked'
 import { useGenerator } from '../composables/useGenerator'
 import { useSettingsStore } from '../stores/settings'
 import { sendMarkdownToDingTalk } from '../utils/dingtalk'
+import { formatDate } from '../utils/date'
 
 const props = defineProps({
   report: {
@@ -134,7 +135,17 @@ const renderedHtml = computed(() => {
 
 // 预览标题
 const previewTitle = computed(() => {
-  return `周报 - ${props.report.weekLabel || '未知'}`
+  let weekLabel = props.report.weekLabel
+  if (!weekLabel) {
+    // 尝试从 weekStart 计算
+    if (props.report.weekStart) {
+      weekLabel = formatDate(new Date(props.report.weekStart), 'YYYY年第W周')
+    } else {
+      // 使用当前日期
+      weekLabel = formatDate(new Date(), 'YYYY年第W周')
+    }
+  }
+  return `周报 - ${weekLabel}`
 })
 
 // 预览内容（转换为钉钉格式）
@@ -175,7 +186,18 @@ const copyMarkdown = async () => {
 // 下载文件
 const download = () => {
   const content = props.report.markdown || '# 周报\n\n暂无内容'
-  const filename = `周报_${props.report.weekLabel || '未知'}.md`
+  // 生成 weekLabel
+  let weekLabel = props.report.weekLabel
+  if (!weekLabel) {
+    // 尝试从 weekStart 计算
+    if (props.report.weekStart) {
+      weekLabel = formatDate(new Date(props.report.weekStart), 'YYYY年第W周')
+    } else {
+      // 使用当前日期
+      weekLabel = formatDate(new Date(), 'YYYY年第W周')
+    }
+  }
+  const filename = `周报_${weekLabel}.md`
   downloadReport(content, filename)
   showToast('已开始下载')
 }
