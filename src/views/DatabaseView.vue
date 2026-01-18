@@ -263,12 +263,12 @@ onMounted(() => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
-// 页面容器 - 防止表格内容撑宽
+// 页面容器
 .database-view {
   width: 100%;
   max-width: 100%;
-  min-width: 0; // 打破 flex 项默认最小宽度，让 overflow 生效
-  overflow-x: hidden; // 防止表格撑宽整个页面
+  min-width: 0; // 打破 flex 项默认最小宽度
+  // 移除 overflow-x: hidden，让 .table-scroll-container 自己处理滚动
 }
 
 .page-header {
