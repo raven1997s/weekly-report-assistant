@@ -213,6 +213,7 @@ const columnDisplayNames = {
     color: var(--text-primary);
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
+    min-width: 120px; // 确保每列最小宽度，触发横向滚动
     z-index: 10;
     user-select: none;
 
@@ -249,10 +250,8 @@ const columnDisplayNames = {
   .table-cell {
     padding: $spacing-3 $spacing-4;
     color: var(--text-secondary);
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 120px; // 确保每列最小宽度，与表头一致
   }
 }
 
