@@ -46,12 +46,15 @@
     </div>
 
     <!-- 筛选面板 -->
-    <FilterPanel v-if="showFilterPanel" :columns="columns" v-model="filters" @reset="handleResetFilters" :loading="loading" />
+    <FilterPanel v-if="showFilterPanel" :columns="columns" v-model="filters" @reset="handleResetFilters"
+      :loading="loading" />
 
-    <!-- 数据表格 -->
-    <DataTable :columns="columns" :rows="rows" :loading="loading" :pagination="pagination" :sort-column="sortColumn"
-      :sort-order="sortOrder" @page-change="handlePageChange" @show-json="handleShowJson"
-      @sort-change="handleSortChange" />
+    <!-- 数据表格 - 独立滚动容器，不影响上方工具栏宽度 -->
+    <div class="table-scroll-container">
+      <DataTable :columns="columns" :rows="rows" :loading="loading" :pagination="pagination" :sort-column="sortColumn"
+        :sort-order="sortOrder" @page-change="handlePageChange" @show-json="handleShowJson"
+        @sort-change="handleSortChange" />
+    </div>
 
     <!-- JSON 查看器弹窗 -->
     <JsonViewer v-model="showJsonViewer" :data="jsonData" :title="jsonTitle" />
@@ -260,6 +263,14 @@ onMounted(() => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
+// 页面容器 - 防止表格内容撑宽
+.database-view {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0; // 打破 flex 项默认最小宽度，让 overflow 生效
+  overflow-x: hidden; // 防止表格撑宽整个页面
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -330,16 +341,19 @@ onMounted(() => {
 }
 
 .search-filter-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: $spacing-3;
   margin-bottom: $spacing-6;
   align-items: flex-start;
 }
 
 .search-bar {
+  position: relative;
   display: flex;
   gap: $spacing-3;
-  flex: 1;
+  min-width: 0; // 允许收缩，但 grid-template-columns 已保证空间分配
+  overflow: hidden; // 防止内容撑开
 
   .search-icon {
     position: absolute;
@@ -369,6 +383,8 @@ onMounted(() => {
 
   .search-input {
     flex: 1;
+    min-width: 0; // 防止 flex 子元素撑开容器
+    max-width: 100%;
     padding: $spacing-3 $spacing-4;
     padding-left: $spacing-10;
     font-size: $font-size-sm;
@@ -424,6 +440,13 @@ onMounted(() => {
     font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
   }
+}
+
+// 表格独立滚动容器 - 防止表格撑开父容器影响工具栏
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto; // 表格可以水平滚动
+  -webkit-overflow-scrolling: touch;
 }
 
 .toast-message {
