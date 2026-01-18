@@ -213,7 +213,7 @@ const columnDisplayNames = {
     color: var(--text-primary);
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
-    min-width: 150px; // 确保每列最小宽度，触发横向滚动
+    min-width: 100px; // 确保每列最小宽度
     z-index: 10;
     user-select: none;
 
@@ -251,7 +251,10 @@ const columnDisplayNames = {
     padding: $spacing-3 $spacing-4;
     color: var(--text-secondary);
     white-space: nowrap;
-    min-width: 150px; // 确保每列最小宽度，与表头一致
+    min-width: 100px; // 最小宽度
+    max-width: 300px; // 限制最大宽度，防止溢出
+    overflow: hidden;
+    text-overflow: ellipsis; // 超长内容显示省略号
   }
 }
 
