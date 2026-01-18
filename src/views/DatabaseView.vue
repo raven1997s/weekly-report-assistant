@@ -341,18 +341,22 @@ onMounted(() => {
 }
 
 .search-filter-bar {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
   gap: $spacing-3;
   margin-bottom: $spacing-6;
   align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .search-bar {
   position: relative;
   display: flex;
   gap: $spacing-3;
-  min-width: 0; // 允许收缩，但 grid-template-columns 已保证空间分配
+  flex: 1 1 auto; // auto 基准，可收缩
+  min-width: 200px; // 保证最小宽度
+  max-width: calc(100% - 100px - $spacing-3); // 给按钮预留空间
   overflow: hidden; // 防止内容撑开
 
   .search-icon {
@@ -420,6 +424,8 @@ onMounted(() => {
   cursor: pointer;
   transition: all $transition-fast;
   white-space: nowrap;
+  flex: 0 0 auto; // 不伸缩，保持固定大小
+  min-width: fit-content; // 确保有足够空间显示内容
 
   &:hover {
     background: var(--bg-secondary);
