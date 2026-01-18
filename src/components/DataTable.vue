@@ -199,7 +199,8 @@ const columnDisplayNames = {
 }
 
 .data-table {
-  width: 100%; // 确保表格始终占满容器宽度
+  table-layout: fixed; // 固定布局，防止列被容器压缩
+  // 不设置 width: 100%，让表格根据内容宽度决定总宽度
   border-collapse: collapse;
   font-size: $font-size-sm;
 
