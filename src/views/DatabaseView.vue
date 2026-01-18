@@ -354,10 +354,26 @@ onMounted(() => {
   position: relative;
   display: flex;
   gap: $spacing-3;
-  flex: 1 1 auto; // auto 基准，可收缩
-  min-width: 200px; // 保证最小宽度
-  max-width: calc(100% - 100px - $spacing-3); // 给按钮预留空间
-  overflow: hidden; // 防止内容撑开
+  flex: 1 1 auto;
+  min-width: 200px;
+  overflow: hidden;
+
+  // 响应式固定最大宽度，确保按钮始终可见
+  @media (min-width: 1600px) {
+    max-width: 1100px;
+  }
+
+  @media (min-width: 1280px) and (max-width: 1599px) {
+    max-width: 800px;
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    max-width: 600px;
+  }
+
+  @media (max-width: 1023px) {
+    max-width: calc(100% - 140px); // 小屏幕才用百分比
+  }
 
   .search-icon {
     position: absolute;
@@ -424,8 +440,8 @@ onMounted(() => {
   cursor: pointer;
   transition: all $transition-fast;
   white-space: nowrap;
-  flex: 0 0 auto; // 不伸缩，保持固定大小
-  min-width: fit-content; // 确保有足够空间显示内容
+  flex: 0 0 auto; // 不伸缩
+  min-width: 120px; // 强制最小宽度，确保按钮完整显示
 
   &:hover {
     background: var(--bg-secondary);
