@@ -347,7 +347,6 @@ onMounted(() => {
   align-items: flex-start;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
 }
 
 .search-bar {
