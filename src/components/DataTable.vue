@@ -199,7 +199,7 @@ const columnDisplayNames = {
 }
 
 .data-table {
-  // 不设置宽度，让表格根据内容自然扩展
+  width: 100%; // 确保表格始终占满容器宽度
   border-collapse: collapse;
   font-size: $font-size-sm;
 
@@ -213,7 +213,7 @@ const columnDisplayNames = {
     color: var(--text-primary);
     border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
-    min-width: 120px; // 确保每列最小宽度，触发横向滚动
+    min-width: 150px; // 确保每列最小宽度，触发横向滚动
     z-index: 10;
     user-select: none;
 
@@ -251,7 +251,7 @@ const columnDisplayNames = {
     padding: $spacing-3 $spacing-4;
     color: var(--text-secondary);
     white-space: nowrap;
-    min-width: 120px; // 确保每列最小宽度，与表头一致
+    min-width: 150px; // 确保每列最小宽度，与表头一致
   }
 }
 
