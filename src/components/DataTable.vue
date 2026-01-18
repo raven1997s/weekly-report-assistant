@@ -199,7 +199,7 @@ const columnDisplayNames = {
 }
 
 .data-table {
-  min-width: 100%; // 至少占满容器，但可以根据内容扩展触发横向滚动
+  // 不设置宽度，让表格根据内容自然扩展
   border-collapse: collapse;
   font-size: $font-size-sm;
 
