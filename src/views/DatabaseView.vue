@@ -319,24 +319,20 @@ onUnmounted(() => {
 }
 
 .table-selector {
-  display: inline-flex;
+  display: flex; // 改为 flex 实现全宽
   gap: 4px;
   padding: 4px;
   background: var(--bg-secondary);
   border-radius: $radius-lg;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-
-  // 隐藏滚动条但保持功能
-  &::-webkit-scrollbar {
-    height: 0;
-  }
+  width: 100%; // 添加全宽
 
   .table-tab {
     display: flex;
     align-items: center;
+    justify-content: center; // 居中对齐
     gap: $spacing-2;
     padding: $spacing-2 $spacing-4;
+    flex: 1; // 平均分配宽度
     background: transparent;
     border: none;
     border-radius: $radius-md;
@@ -346,6 +342,7 @@ onUnmounted(() => {
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    min-width: 0; // 允许缩小
 
     &:hover:not(.active) {
       background: var(--bg-tertiary);
