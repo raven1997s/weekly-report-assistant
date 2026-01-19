@@ -341,3 +341,20 @@ export const getWorkWeekInfo = (date) => {
     }
 }
 
+/**
+ * 判断给定日期是否是本周
+ * @param {Date|string} date - 要判断的日期
+ * @returns {boolean}
+ */
+export const isCurrentWeek = (date) => {
+    const targetDate = typeof date === 'string' ? new Date(date) : date
+    const workWeekInfo = getWorkWeekInfo(new Date())
+
+    if (workWeekInfo.hasNoWorkdays) {
+        return false
+    }
+
+    const { start, end } = workWeekInfo
+    return targetDate >= start && targetDate <= end
+}
+

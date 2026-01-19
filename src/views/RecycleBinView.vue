@@ -130,17 +130,18 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
-import { formatDate } from '../utils/date'
+import { formatDate, isCurrentWeek } from '../utils/date'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const recordsStore = useRecordsStore()
 const reportsStore = useReportsStore()
 const dialogStore = useDialogStore()
 const route = useRoute()
+const router = useRouter()
 
 // 监听路由变化，每次进入回收站时重新获取数据
 watch(() => route.path, (newPath) => {
@@ -225,10 +226,17 @@ const handleRestoreReport = async (id) => {
   })
   if (!confirmed) return
 
-  const success = await reportsStore.restoreReport(id)
-  if (success) {
-    showToast(isCurrentWeek ? '周报已恢复，可以继续编辑' : '周报已恢复，已在历史列表中显示')
-    await fetchDeletedData()
+  const result = await reportsStore.restoreReport(id)
+  if (result.success) {
+    showToast(result.isCurrentWeek ? '周报已恢复，可以继续编辑' : '周报已恢复，已在历史列表中显示')
+
+    if (result.isCurrentWeek) {
+      // 本周周报，刷新数据
+      await fetchDeletedData()
+    } else {
+      // 历史周报，跳转到历史页面
+      router.push('/history')
+    }
   } else {
     showToast('恢复失败，请重试', true)
   }
@@ -253,6 +261,18 @@ const handlePermanentDeleteReport = async (id) => {
 
 // 恢复工作记录
 const handleRestoreRecord = async (id) => {
+  const record = deletedRecords.value.find(r => r.id === id)
+  if (!record) return
+
+  // 检查是否是本周的记录
+  const recordDate = new Date(record.createdAt)
+  const isCurrentWeekRecord = isCurrentWeek(recordDate)
+
+  if (!isCurrentWeekRecord) {
+    showToast('历史工作记录不允许恢复', true)
+    return
+  }
+
   const confirmed = await dialogStore.confirm({
     message: '确定要恢复这条工作记录吗？'
   })

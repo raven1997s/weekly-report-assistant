@@ -220,10 +220,11 @@ export const useReportsStore = defineStore('reports', () => {
 
             if (result.success) {
                 const restoredReport = result.data?.report
+                let isCurrentWeek = false
 
                 if (restoredReport) {
                     const currentWeekStart = getWeekStart(new Date()).toISOString()
-                    const isCurrentWeek = restoredReport.weekStart === currentWeekStart
+                    isCurrentWeek = restoredReport.weekStart === currentWeekStart
 
                     if (isCurrentWeek) {
                         // 恢复的是本周周报：恢复本周总结
@@ -233,12 +234,12 @@ export const useReportsStore = defineStore('reports', () => {
                 }
 
                 await init()
-                return true
+                return { success: true, isCurrentWeek }
             }
-            return false
+            return { success: false, isCurrentWeek: false }
         } catch (error) {
             console.error('[Reports] 恢复周报失败:', error)
-            return false
+            return { success: false, isCurrentWeek: false }
         }
     }
 
