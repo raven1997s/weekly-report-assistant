@@ -211,14 +211,17 @@ const handleRestoreReport = async (id) => {
   const isCurrentWeek = reportsStore.isCurrentWeekReport(report.weekStart)
 
   let message = '确定要恢复这份周报吗？'
+  let details = ''
+
   if (isCurrentWeek) {
-    message = '确定要恢复这份周报吗？\n\n这是本周的周报，恢复后可以继续编辑'
+    details = '这是本周的周报，恢复后可以继续编辑'
   } else {
-    message = '确定要恢复这份周报吗？\n\n这是历史周报，恢复后只会在历史列表中显示'
+    details = '这是历史周报，恢复后只会在历史列表中显示'
   }
 
   const confirmed = await dialogStore.confirm({
-    message: message.replace('\n\n', '<br><br>')
+    message,
+    details // 使用 details 参数而不是在 message 中使用 <br>
   })
   if (!confirmed) return
 
