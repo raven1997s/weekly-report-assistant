@@ -705,7 +705,7 @@ const moveSelectedToNextWeek = async () => {
 
 .report-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr; // 左侧60%，右侧40%
   gap: $spacing-6;
   align-items: start;
 
@@ -802,6 +802,35 @@ const moveSelectedToNextWeek = async () => {
     color: var(--text-secondary);
     letter-spacing: -0.01em;
     font-weight: $font-weight-medium;
+  }
+}
+
+// 编辑区容器 - 固定高度 + 内部滚动
+.report-editor {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-5;
+  max-height: calc(100vh - 200px); // 根据视口高度计算
+  overflow-y: auto; // 内部滚动
+  padding-right: $spacing-2; // 给滚动条留空间
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: $radius-full;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: $radius-full;
+
+    &:hover {
+      background: var(--border-color-hover);
+    }
   }
 }
 
@@ -1033,6 +1062,28 @@ button:disabled {
 .report-preview-container {
   position: sticky;
   top: $spacing-4;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding-right: $spacing-2; // 给滚动条留空间
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: $radius-full;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: $radius-full;
+
+    &:hover {
+      background: var(--border-color-hover);
+    }
+  }
 }
 
 // 验证提示 Toast
