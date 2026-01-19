@@ -4,15 +4,17 @@
     <div v-if="isJson" class="json-field" @click="handleJsonClick" title="点击查看完整 JSON">
       <span class="json-preview">{{ jsonString }}</span>
       <svg class="json-icon" width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        <path fill-rule="evenodd"
+          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+          clip-rule="evenodd" />
       </svg>
     </div>
 
     <!-- 长文本字段 -->
-    <div v-else-if="isLongText" class="text-field">
-      <span v-if="!expanded">{{ truncatedText }}</span>
-      <span v-else>{{ value }}</span>
-      <button v-if="isLongText" class="expand-btn" @click="expanded = !expanded">
+    <div v-else-if="isLongText" class="long-text-field">
+      <span v-if="!expanded" class="truncated-text">{{ truncatedText }}</span>
+      <div v-else class="expanded-text">{{ value }}</div>
+      <button class="expand-btn" @click="expanded = !expanded">
         {{ expanded ? '收起' : '展开' }}
       </button>
     </div>
@@ -154,6 +156,8 @@ const displayValue = computed(() => {
   display: flex;
   align-items: flex-start;
   gap: $spacing-2;
+  max-width: 100%; // 不超过父容器
+  overflow: hidden; // 隐藏溢出
 
   .expand-btn {
     flex-shrink: 0;
@@ -206,13 +210,51 @@ const displayValue = computed(() => {
 
 .text-field {
   color: var(--text-secondary);
-  word-break: break-word;
+  max-width: 250px; // 限制最大宽度
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 长文本字段容器
+.long-text-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  max-width: 280px;
+
+  .truncated-text {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .expanded-text {
+    max-height: 150px;
+    max-width: 280px;
+    overflow-y: auto;
+    padding: $spacing-2;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: $radius-sm;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: $font-size-xs;
+    line-height: 1.5;
+  }
+
+  .expand-btn {
+    align-self: flex-start;
+  }
 }
 
 .date-field {
   color: var(--text-secondary);
   font-size: $font-size-xs;
   font-family: $font-family-mono;
+  white-space: nowrap;
 }
 
 .boolean-field {
@@ -220,6 +262,7 @@ const displayValue = computed(() => {
   border-radius: $radius-sm;
   font-size: $font-size-xs;
   font-weight: $font-weight-medium;
+  white-space: nowrap;
 
   &:not(.true) {
     background: rgba($error, 0.1);

@@ -138,12 +138,13 @@ const handleReset = () => {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
+// 筛选面板 - 紧凑布局
 .filter-panel {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: $radius-lg;
   padding: $spacing-4;
-  margin-bottom: $spacing-6;
+  margin-top: $spacing-3;
 }
 
 .filter-header {
@@ -154,41 +155,57 @@ const handleReset = () => {
 
   h3 {
     margin: 0;
-    font-size: $font-size-base;
+    font-size: $font-size-sm;
     font-weight: $font-weight-semibold;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: $spacing-2;
+
+    &::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 14px;
+      background: $accent-primary;
+      border-radius: $radius-sm;
+    }
   }
 
   .reset-btn {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
-    padding: $spacing-2 $spacing-3;
-    font-size: $font-size-sm;
-    color: var(--text-secondary);
+    gap: $spacing-1;
+    padding: $spacing-1 $spacing-2;
+    font-size: $font-size-xs;
+    color: var(--text-muted);
     background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: $radius-md;
+    border: none;
+    border-radius: $radius-sm;
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: var(--bg-secondary);
-      border-color: var(--border-color-hover);
-      color: var(--text-primary);
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
     }
 
     &:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+    }
+
+    svg {
+      width: 12px;
+      height: 12px;
     }
   }
 }
 
 .filter-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: $spacing-4;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $spacing-3;
 
   .filter-loading,
   .filter-empty {
@@ -203,7 +220,7 @@ const handleReset = () => {
     }
 
     .filter-empty-hint {
-      margin-top: $spacing-2;
+      margin-top: $spacing-1;
       font-size: $font-size-xs;
       color: var(--text-placeholder);
     }
@@ -217,12 +234,12 @@ const handleReset = () => {
   }
 
   .loading-spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--border-color);
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
     border-top-color: $accent-primary;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
+    animation: spin 0.8s linear infinite;
   }
 
   @keyframes spin {
@@ -235,34 +252,50 @@ const handleReset = () => {
 .filter-item {
   display: flex;
   flex-direction: column;
-  gap: $spacing-2;
+  gap: $spacing-1;
 
   .filter-label {
-    font-size: $font-size-sm;
+    font-size: $font-size-xs;
     font-weight: $font-weight-medium;
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 }
 
 .filter-input,
 .filter-select {
-  padding: $spacing-3;
+  padding: $spacing-2 $spacing-3;
   font-size: $font-size-sm;
-  background: var(--bg-secondary);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
   color: var(--text-primary);
-  transition: all $transition-fast;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: var(--border-color-hover);
+  }
 
   &:focus {
     outline: none;
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px $accent-light;
+    box-shadow: 0 0 0 2px $accent-light;
   }
 
   &::placeholder {
     color: var(--text-muted);
   }
+}
+
+.filter-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239ca3af'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: $spacing-8;
 }
 
 .date-range-filter {
@@ -279,16 +312,16 @@ const handleReset = () => {
   align-items: center;
   justify-content: space-between;
   margin-top: $spacing-4;
-  padding-top: $spacing-4;
+  padding-top: $spacing-3;
   border-top: 1px solid var(--divider-color);
 
   .filter-count {
-    font-size: $font-size-sm;
+    font-size: $font-size-xs;
     color: var(--text-muted);
   }
 
   .apply-btn {
-    padding: $spacing-3 $spacing-6;
+    padding: $spacing-2 $spacing-5;
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
     background: $accent-primary;
@@ -296,24 +329,38 @@ const handleReset = () => {
     border: none;
     border-radius: $radius-md;
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: all 0.15s ease;
 
     &:hover {
-      background: darken($accent-primary, 5%);
+      background: darken($accent-primary, 8%);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
     }
   }
 }
 
 // 响应式
 @media (max-width: $breakpoint-md) {
+  .filter-panel {
+    padding: $spacing-3;
+  }
+
   .filter-list {
     grid-template-columns: 1fr;
+    gap: $spacing-2;
   }
 
   .filter-footer {
     flex-direction: column;
-    gap: $spacing-3;
+    gap: $spacing-2;
     align-items: stretch;
+
+    .filter-count {
+      text-align: center;
+    }
 
     .apply-btn {
       width: 100%;

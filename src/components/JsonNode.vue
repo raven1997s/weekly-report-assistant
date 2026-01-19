@@ -5,7 +5,7 @@
       <div v-if="depth > 0" class="json-bracket">{</div>
       <template v-if="isExpanded">
         <div v-for="(value, key) in data" :key="key" class="json-item">
-          <span class="json-key">"{{ key}}":</span>
+          <span class="json-key">"{{ key }}":</span>
           <JsonNode :data="value" :depth="depth + 1" />
           <span v-if="!isLast(key)" class="json-comma">,</span>
         </div>
@@ -58,7 +58,7 @@ const props = defineProps({
   }
 })
 
-const isExpanded = ref(props.depth < 1) // 默认折叠第一层以下的嵌套
+const isExpanded = ref(true) // 默认全部展开
 
 const isObject = computed(() => typeof props.data === 'object' && props.data !== null && !Array.isArray(props.data))
 const isArray = computed(() => Array.isArray(props.data))

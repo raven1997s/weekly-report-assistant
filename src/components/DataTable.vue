@@ -151,25 +151,31 @@ const columnDisplayNames = {
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
+// 表格容器 - 无边框卡片设计
 .data-table-container {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: $radius-lg;
   overflow: hidden;
+  max-width: 100%; // 不超出父容器
+  min-width: 0; // 允许收缩
 }
 
+// 加载和空状态
 .loading-state,
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: $spacing-12;
+  padding: $spacing-16;
   color: var(--text-muted);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
 
   svg {
     margin-bottom: $spacing-4;
     color: var(--text-secondary);
+    opacity: 0.5;
   }
 
   p {
@@ -180,6 +186,8 @@ const columnDisplayNames = {
 
 .spinner {
   animation: spin 1s linear infinite;
+  color: $accent-primary !important;
+  opacity: 1 !important;
 }
 
 @keyframes spin {
@@ -192,18 +200,42 @@ const columnDisplayNames = {
   }
 }
 
+// 表格包装器
 .table-wrapper {
   overflow-x: auto;
-  max-height: 600px;
   overflow-y: auto;
+  max-height: calc(100vh - 380px);
+  min-height: 300px;
+  -webkit-overflow-scrolling: touch;
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: $radius-full;
+
+    &:hover {
+      background: var(--border-color-hover);
+    }
+  }
 }
 
+// 数据表格
 .data-table {
-  table-layout: fixed; // 固定布局，防止列被容器压缩
-  // 不设置 width: 100%，让表格根据内容宽度决定总宽度
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: $font-size-sm;
 
+  // 表头
   .table-header {
     position: sticky;
     top: 0;
@@ -211,89 +243,125 @@ const columnDisplayNames = {
     padding: $spacing-3 $spacing-4;
     text-align: left;
     font-weight: $font-weight-semibold;
-    color: var(--text-primary);
-    border-bottom: 2px solid var(--border-color);
+    font-size: $font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
-    min-width: 100px; // 确保每列最小宽度
+    min-width: 120px;
     z-index: 10;
     user-select: none;
+    transition: all 0.15s ease;
 
     &.sortable {
       cursor: pointer;
-      transition: background $transition-fast;
 
       &:hover {
-        background: var(--bg-card);
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
       }
     }
 
     &.sorted {
       color: $accent-primary;
+      background: $accent-light;
     }
 
     .sort-icon {
-      display: inline-block;
-      margin-left: $spacing-2;
+      display: inline-flex;
+      align-items: center;
+      margin-left: $spacing-1;
       color: $accent-primary;
+
+      svg {
+        width: 12px;
+        height: 12px;
+      }
     }
   }
 
+  // 表格行
   .table-row {
-    &:hover {
+    transition: background 0.15s ease;
+
+    // 交替行颜色
+    &:nth-child(even) {
       background: var(--bg-secondary);
     }
 
-    &:not(:last-child) {
-      border-bottom: 1px solid var(--divider-color);
+    &:hover {
+      background: $accent-light;
     }
   }
 
+  // 单元格
   .table-cell {
     padding: $spacing-3 $spacing-4;
     color: var(--text-secondary);
     white-space: nowrap;
-    min-width: 100px; // 最小宽度
-    max-width: 300px; // 限制最大宽度，防止溢出
     overflow: hidden;
-    text-overflow: ellipsis; // 超长内容显示省略号
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--divider-color);
+    max-width: 300px;
   }
 }
 
+// 分页器
 .pagination {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: $spacing-4;
+  gap: $spacing-3;
   padding: $spacing-4;
+  background: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
 
   .pagination-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: $radius-md;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: var(--bg-secondary);
+      background: var(--bg-tertiary);
       border-color: var(--border-color-hover);
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
     }
 
     &:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
     }
   }
 
   .pagination-info {
     font-size: $font-size-sm;
     color: var(--text-secondary);
+    padding: 0 $spacing-4;
+    white-space: nowrap;
+
+    // 高亮当前页
+    strong {
+      color: var(--text-primary);
+      font-weight: $font-weight-semibold;
+    }
   }
 }
 
@@ -303,17 +371,42 @@ const columnDisplayNames = {
     max-height: 400px;
   }
 
-  .data-table .table-cell {
-    max-width: 150px;
+  .data-table {
+    .table-header {
+      padding: $spacing-2 $spacing-3;
+      min-width: 100px;
+    }
+
+    .table-cell {
+      padding: $spacing-2 $spacing-3;
+      max-width: 150px;
+    }
   }
 
   .pagination {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: $spacing-2;
+    padding: $spacing-3;
 
     .pagination-info {
       order: -1;
+      width: 100%;
+      text-align: center;
+      padding: 0 0 $spacing-2 0;
     }
+
+    .pagination-btn {
+      width: 32px;
+      height: 32px;
+    }
+  }
+}
+
+@media (max-width: $breakpoint-sm) {
+
+  .loading-state,
+  .empty-state {
+    padding: $spacing-8;
   }
 }
 </style>

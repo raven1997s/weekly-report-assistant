@@ -1,5 +1,5 @@
 <template>
-  <div class="database-view page-container">
+  <div class="database-view page-container-wide">
     <!-- 页面头部 -->
     <div class="page-header">
       <div>
@@ -8,53 +8,57 @@
       </div>
     </div>
 
-    <!-- 表切换器 -->
-    <div class="table-selector">
-      <button v-for="table in tables" :key="table.name" class="table-tab"
-        :class="{ active: currentTable === table.name }" @click="switchTable(table.name)">
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
-        </svg>
-        <span>{{ tableDisplayNames[table.name] }}</span>
-        <span class="table-badge">{{ table.rowCount }}</span>
-      </button>
+    <!-- 表切换器（Segmented Control 风格） -->
+    <div class="table-selector-wrapper">
+      <div class="table-selector">
+        <button v-for="table in tables" :key="table.name" class="table-tab"
+          :class="{ active: currentTable === table.name }" @click="switchTable(table.name)">
+          <span class="table-name">{{ tableDisplayNames[table.name] }}</span>
+          <span class="table-badge">{{ table.rowCount }}</span>
+        </button>
+      </div>
     </div>
 
-    <!-- 搜索和筛选栏 -->
-    <div class="search-filter-bar">
-      <div class="search-bar">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd"
-            d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-            clip-rule="evenodd" />
-        </svg>
-        <input v-model="searchQuery" type="text" class="search-input" placeholder="搜索数据..."
-          @keyup.enter="handleSearch" />
+    <!-- 搜索和筛选区域 -->
+    <div class="search-filter-wrapper">
+      <div class="search-filter-bar">
+        <div class="search-bar">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+              clip-rule="evenodd" />
+          </svg>
+          <input v-model="searchQuery" type="text" class="search-input" placeholder="搜索数据..."
+            @keyup.enter="handleSearch" />
+        </div>
+
+        <button class="filter-toggle-btn" @click="showFilterPanel = !showFilterPanel"
+          :class="{ active: showFilterPanel || hasActiveFilters }">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+              d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z"
+              clip-rule="evenodd" />
+          </svg>
+          <span>筛选</span>
+          <span v-if="hasActiveFilters && !showFilterPanel" class="filter-badge">{{ activeFilterCount }}</span>
+        </button>
       </div>
 
-      <button class="filter-toggle-btn" @click="showFilterPanel = !showFilterPanel"
-        :class="{ active: showFilterPanel || hasActiveFilters }">
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd"
-            d="M3 3a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-            clip-rule="evenodd" />
-        </svg>
-        筛选
-        <span v-if="hasActiveFilters && !showFilterPanel" class="filter-badge">{{ activeFilterCount }}</span>
-      </button>
+      <!-- 筛选面板（带动画） -->
+      <Transition name="slide-fade">
+        <FilterPanel v-if="showFilterPanel" :columns="columns" v-model="filters" @reset="handleResetFilters"
+          :loading="loading" />
+      </Transition>
     </div>
 
-    <!-- 筛选面板 -->
-    <FilterPanel v-if="showFilterPanel" :columns="columns" v-model="filters" @reset="handleResetFilters"
-      :loading="loading" />
-
-    <!-- 数据表格 - 独立滚动容器，不影响上方工具栏宽度 -->
-    <div class="table-scroll-container">
-      <DataTable :columns="columns" :rows="rows" :loading="loading" :pagination="pagination" :sort-column="sortColumn"
-        :sort-order="sortOrder" @page-change="handlePageChange" @show-json="handleShowJson"
-        @sort-change="handleSortChange" />
-    </div>
+    <!-- 数据表格区域 -->
+    <Transition name="table-fade" mode="out-in">
+      <div class="table-scroll-container" :key="currentTable">
+        <DataTable :columns="columns" :rows="rows" :loading="loading" :pagination="pagination" :sort-column="sortColumn"
+          :sort-order="sortOrder" @page-change="handlePageChange" @show-json="handleShowJson"
+          @sort-change="handleSortChange" />
+      </div>
+    </Transition>
 
     <!-- JSON 查看器弹窗 -->
     <JsonViewer v-model="showJsonViewer" :data="jsonData" :title="jsonTitle" />
@@ -69,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import DataTable from '../components/DataTable.vue'
 import JsonViewer from '../components/JsonViewer.vue'
 import FilterPanel from '../components/FilterPanel.vue'
@@ -255,124 +259,149 @@ watch(filters, () => {
 
 // 初始化
 onMounted(() => {
+  document.body.classList.add('allow-horizontal-scroll') // 允许横向滚动
   fetchTables()
   fetchTableData()
+})
+
+// 组件卸载时移除 class
+onUnmounted(() => {
+  document.body.classList.remove('allow-horizontal-scroll')
 })
 </script>
 
 <style lang="scss" scoped>
 @use '../assets/styles/variables.scss' as *;
 
-// 页面容器
+// 页面容器 - 固定布局，禁止水平滚动
 .database-view {
   width: 100%;
   max-width: 100%;
-  min-width: 0; // 打破 flex 项默认最小宽度
-  // 移除 overflow-x: hidden，让 .table-scroll-container 自己处理滚动
+  min-width: 0;
+  padding-bottom: $spacing-8;
+  overflow-x: hidden; // 禁止页面级水平滚动
 }
 
+// 页面头部
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: $spacing-6;
   padding-top: $spacing-4;
+  padding-bottom: $spacing-6;
   max-width: 100%;
 
   h1 {
     font-family: $font-family-heading;
+    font-size: $font-size-2xl;
     letter-spacing: -0.03em;
     line-height: 1.2;
     font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
   }
 
   .page-header-subtitle {
     letter-spacing: -0.01em;
     line-height: 1.5;
-    margin-top: $spacing-2;
-  }
-
-  @media (min-width: $breakpoint-xl) {
-    gap: $spacing-8;
+    margin-top: $spacing-1;
+    color: var(--text-secondary);
+    font-size: $font-size-sm;
   }
 }
 
+// ========================================
+// 表切换器 - Segmented Control 风格
+// ========================================
+.table-selector-wrapper {
+  margin-bottom: $spacing-5;
+}
+
 .table-selector {
-  display: flex;
-  gap: $spacing-2;
-  margin-bottom: $spacing-6;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border-radius: $radius-lg;
   overflow-x: auto;
-  padding-bottom: $spacing-2;
+  -webkit-overflow-scrolling: touch;
+
+  // 隐藏滚动条但保持功能
+  &::-webkit-scrollbar {
+    height: 0;
+  }
 
   .table-tab {
     display: flex;
     align-items: center;
     gap: $spacing-2;
-    padding: $spacing-3 $spacing-4;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    padding: $spacing-2 $spacing-4;
+    background: transparent;
+    border: none;
     border-radius: $radius-md;
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: all 0.2s ease;
     white-space: nowrap;
 
-    &:hover {
-      background: var(--bg-secondary);
-      border-color: var(--border-color-hover);
+    &:hover:not(.active) {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
     }
 
     &.active {
-      background: $accent-light;
-      border-color: $accent-primary;
+      background: var(--bg-card);
       color: $accent-primary;
+      box-shadow: $shadow-sm;
+    }
+
+    .table-name {
+      font-weight: $font-weight-medium;
     }
 
     .table-badge {
-      padding: 2px 6px;
-      background: var(--bg-secondary);
+      padding: 2px 8px;
+      background: var(--bg-tertiary);
       border-radius: $radius-full;
       font-size: $font-size-xs;
       font-weight: $font-weight-semibold;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+    }
+
+    &.active .table-badge {
+      background: $accent-light;
+      color: $accent-primary;
     }
   }
+}
+
+// ========================================
+// 搜索筛选区域 - 卡片容器
+// ========================================
+.search-filter-wrapper {
+  margin-bottom: $spacing-5;
 }
 
 .search-filter-bar {
   display: flex;
   gap: $spacing-3;
-  margin-bottom: $spacing-6;
-  align-items: flex-start;
-  width: 100%;
-  max-width: 100%;
+  padding: $spacing-3;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-xs;
+  align-items: center;
 }
 
 .search-bar {
   position: relative;
   display: flex;
-  gap: $spacing-3;
-  flex: 1 1 auto;
-  min-width: 200px;
-  overflow: hidden;
-
-  // 响应式固定最大宽度，确保按钮始终可见
-  @media (min-width: 1600px) {
-    max-width: 1100px;
-  }
-
-  @media (min-width: 1280px) and (max-width: 1599px) {
-    max-width: 800px;
-  }
-
-  @media (min-width: 1024px) and (max-width: 1279px) {
-    max-width: 600px;
-  }
-
-  @media (max-width: 1023px) {
-    max-width: calc(100% - 140px); // 小屏幕才用百分比
-  }
+  flex: 1;
+  min-width: 0;
 
   .search-icon {
     position: absolute;
@@ -381,40 +410,28 @@ onMounted(() => {
     transform: translateY(-50%);
     color: var(--text-muted);
     pointer-events: none;
-  }
-
-  .filter-select {
-    padding: $spacing-3 $spacing-4;
-    font-size: $font-size-sm;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: $radius-md;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all $transition-fast;
-
-    &:focus {
-      outline: none;
-      border-color: $accent-primary;
-      box-shadow: 0 0 0 3px $accent-light;
-    }
+    z-index: 1;
   }
 
   .search-input {
     flex: 1;
-    min-width: 0; // 防止 flex 子元素撑开容器
-    max-width: 100%;
-    padding: $spacing-3 $spacing-4;
+    min-width: 0;
+    padding: $spacing-2 $spacing-4;
     padding-left: $spacing-10;
     font-size: $font-size-sm;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border: 1px solid transparent;
     border-radius: $radius-md;
     color: var(--text-primary);
-    transition: all $transition-fast;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--border-color);
+    }
 
     &:focus {
       outline: none;
+      background: var(--bg-card);
       border-color: $accent-primary;
       box-shadow: 0 0 0 3px $accent-light;
     }
@@ -429,28 +446,38 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: $spacing-2;
-  padding: $spacing-3 $spacing-4;
+  padding: $spacing-2 $spacing-4;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
   border-radius: $radius-md;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all $transition-fast;
+  transition: all 0.2s ease;
   white-space: nowrap;
-  flex: 0 0 auto; // 不伸缩
-  min-width: 120px; // 强制最小宽度，确保按钮完整显示
+  flex-shrink: 0;
 
-  &:hover {
-    background: var(--bg-secondary);
-    border-color: var(--border-color-hover);
+  svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover:not(.active) {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
   }
 
   &.active {
     background: $accent-light;
     border-color: $accent-primary;
     color: $accent-primary;
+
+    svg {
+      transform: rotate(180deg);
+    }
   }
 
   .filter-badge {
@@ -458,35 +485,69 @@ onMounted(() => {
     background: $accent-primary;
     color: white;
     border-radius: $radius-full;
-    font-size: $font-size-xs;
-    font-weight: $font-weight-semibold;
+    font-size: 10px;
+    font-weight: $font-weight-bold;
+    min-width: 18px;
+    text-align: center;
   }
 }
 
-// 表格独立滚动容器 - 防止表格撑开父容器影响工具栏
+// ========================================
+// 表格容器 - 独立水平滚动
+// ========================================
 .table-scroll-container {
   width: 100%;
-  overflow-x: auto; // 表格可以水平滚动
+  max-width: 100%; // 不超出父容器
+  overflow-x: auto; // 只有表格区域可以水平滚动
   -webkit-overflow-scrolling: touch;
+  border-radius: $radius-lg;
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: $radius-full;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: $radius-full;
+
+    &:hover {
+      background: var(--border-color-hover);
+    }
+  }
 }
 
+// ========================================
+// Toast 消息
+// ========================================
 .toast-message {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: $spacing-4 $spacing-6;
-  background: $accent-primary;
-  color: white;
+  padding: $spacing-3 $spacing-5;
+  background: var(--text-primary);
+  color: var(--bg-primary);
   border-radius: $radius-lg;
-  box-shadow: var(--shadow-xl);
+  box-shadow: $shadow-lg;
   z-index: $z-tooltip;
+  font-size: $font-size-sm;
   font-weight: $font-weight-medium;
 }
 
+// ========================================
+// 动画效果
+// ========================================
+
+// Toast 淡入淡出
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity $transition-normal;
+  transition: opacity 0.25s ease;
 }
 
 .fade-enter-from,
@@ -494,28 +555,87 @@ onMounted(() => {
   opacity: 0;
 }
 
-// 响应式
+// 筛选面板滑动淡入
+.slide-fade-enter-active {
+  transition: all 0.25s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+// 表格切换淡入
+.table-fade-enter-active {
+  transition: opacity 0.2s ease-out;
+}
+
+.table-fade-leave-active {
+  transition: opacity 0.15s ease-in;
+}
+
+.table-fade-enter-from,
+.table-fade-leave-to {
+  opacity: 0;
+}
+
+// ========================================
+// 响应式布局
+// ========================================
 @media (max-width: $breakpoint-md) {
   .page-header {
     flex-direction: column;
-    gap: $spacing-4;
+    gap: $spacing-2;
+    padding-bottom: $spacing-4;
+
+    h1 {
+      font-size: $font-size-xl;
+    }
+  }
+
+  .table-selector-wrapper {
+    margin: 0 (-$spacing-4);
+    padding: 0 $spacing-4;
+    overflow-x: auto;
   }
 
   .table-selector {
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
+    width: max-content;
+    min-width: 100%;
   }
 
   .search-filter-bar {
     flex-direction: column;
+    padding: $spacing-2;
+    gap: $spacing-2;
+  }
 
-    .search-bar {
-      width: 100%;
-    }
+  .search-bar {
+    width: 100%;
+  }
 
-    .filter-toggle-btn {
-      width: 100%;
-      justify-content: center;
+  .filter-toggle-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: $breakpoint-sm) {
+  .table-selector .table-tab {
+    padding: $spacing-2 $spacing-3;
+    font-size: $font-size-xs;
+
+    .table-badge {
+      display: none;
     }
   }
 }
