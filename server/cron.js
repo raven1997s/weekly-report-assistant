@@ -2,7 +2,7 @@
 // 智能周报助手 - 定时任务管理器
 // ========================================
 
-import cron from 'node-cron'
+import schedule from 'node-schedule'
 import { createDbConnection, queryGet, queryAll, queryRun } from './db.js'
 import { isWorkday, getWorkWeekInfo, formatDate } from './utils/date.js'
 
@@ -116,7 +116,6 @@ async function startScheduledTasks() {
     console.log(`[Cron]   - ${task.name} (${task.id})`)
     console.log(`[Cron]     时间: ${String(task.hour).padStart(2, '0')}:${String(task.minute).padStart(2, '0')}`)
     console.log(`[Cron]     类型: ${task.type}`)
-    console.log(`[Cron]     Cron: ${task.minute} ${task.hour} * * *`)
     console.log(`[Cron]     时区: Asia/Shanghai`)
   })
   console.log(`[Cron] ========================================`)
@@ -124,21 +123,26 @@ async function startScheduledTasks() {
 
 /**
  * 启动单个定时任务
- * 所有任务都设置为每天运行，在 executeTask 中进行运行时校验
+ * 使用 node-schedule，基于规则对象调度，运行时校验是否应该执行
  */
 function startTask(task) {
-  // 所有任务都使用相同的 cron 表达式：每天运行
-  const cronExpression = `${task.minute} ${task.hour} * * *`
+  // 创建调度规则：每天在指定时间执行（时区：Asia/Shanghai）
+  const rule = new schedule.RecurrenceRule()
+  rule.hour = task.hour
+  rule.minute = task.minute
+  rule.tz = 'Asia/Shanghai'
 
-  const job = cron.schedule(cronExpression, async () => {
+  const job = schedule.scheduleJob(rule, async () => {
     await executeTask(task)  // 运行时校验是否应该执行
-  }, {
-    scheduled: true,
-    timezone: 'Asia/Shanghai'
   })
 
-  activeJobs.set(task.id, job)
-  console.log(`[Cron] 启动任务: ${task.name} (每天 ${String(task.hour).padStart(2, '0')}:${String(task.minute).padStart(2, '0')}，运行时校验)`)
+  if (job) {
+    activeJobs.set(task.id, job)
+    console.log(`[Cron] 启动任务: ${task.name} (每天 ${String(task.hour).padStart(2, '0')}:${String(task.minute).padStart(2, '0')}，运行时校验)`)
+    console.log(`[Cron]   下次触发: ${job.nextInvocation().toString()}`)
+  } else {
+    console.error(`[Cron] 启动任务失败: ${task.name}`)
+  }
 }
 
 /**
@@ -146,7 +150,7 @@ function startTask(task) {
  */
 function stopAllTasks() {
   activeJobs.forEach((job, id) => {
-    job.stop()
+    job.cancel()
   })
   activeJobs.clear()
 }
