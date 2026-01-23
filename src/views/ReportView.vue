@@ -91,8 +91,11 @@
                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <p>本周暂无工作记录</p>
-            <p class="empty-hint">前往首页添加工作内容</p>
+            <p class="empty-hint">可以直接在下方添加，或前往首页添加</p>
           </div>
+
+          <!-- 快速添加工作记录输入框 -->
+          <InputBox v-if="!isCurrentWeekSaved" @record-added="handleRecordAdded" />
 
           <!-- 批量操作条 -->
           <Transition name="slide-up">
@@ -273,6 +276,7 @@ import { useDialogStore } from '../stores/dialog'
 import { useGenerator } from '../composables/useGenerator'
 import { getWeekStart, getWorkWeekInfo, formatDate } from '../utils/date'
 import ReportPreview from '../components/ReportPreview.vue'
+import InputBox from '../components/InputBox.vue'
 import PlanInputBox from '../components/PlanInputBox.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -391,6 +395,12 @@ const handleAddPlan = (plan) => {
 // 删除计划
 const removePlan = (id) => {
   reportsStore.removePlan(id)
+}
+
+// 添加工作记录后的处理
+const handleRecordAdded = (record) => {
+  console.log('[ReportView] 工作记录已添加:', record)
+  // 记录会自动显示在列表中（Vue 响应式）
 }
 
 // 保存周报

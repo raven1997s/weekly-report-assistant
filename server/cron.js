@@ -305,7 +305,7 @@ async function executeTask(task) {
     // 根据任务类型执行不同的推送逻辑
     if (task.type === 'reminder') {
       // 填写提醒
-      const result = await sendReminder(webhookConfig.value, secretConfig?.value || '')
+      const result = await sendReminder(webhookConfig.value, secretConfig?.value || '', task)
       if (result.success) {
         console.log(`[Cron] ✅ 提醒发送成功: ${task.name}`)
       } else {
@@ -420,7 +420,7 @@ function convertReportToMarkdown(report) {
 /**
  * 发送工作记录填写提醒
  */
-async function sendReminder(webhookUrl, secret) {
+async function sendReminder(webhookUrl, secret, task) {
   const crypto = await import('crypto')
 
   // 生成签名
@@ -446,14 +446,33 @@ async function sendReminder(webhookUrl, secret) {
   const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
   const weekday = weekdays[now.getDay()]
 
+  // 根据任务时间选择人性化文案
+  const hour = task?.hour || 9
+  const isMorning = hour < 12
+
+  let greeting, title, message
+
+  if (isMorning) {
+    // 上午提醒 - 快吃中午饭了
+    title = '上午工作记录提醒'
+    greeting = '快吃中午饭啦 🍱'
+    message = `上午忙得怎么样？趁热记录一下上午的工作内容吧，避免午饭后忘记~`
+  } else {
+    // 下午提醒 - 快下班了
+    title = '下午工作记录提醒'
+    greeting = '快下班啦 👋'
+    message = `辛苦一天了！临走前花 1 分钟记录一下今天的工作，让周报更轻松~`
+  }
+
   // 构建提醒消息
   const messageBody = {
     msgtype: 'markdown',
     markdown: {
-      title: '工作记录提醒',
-      text: `## 📝 工作记录提醒\n\n` +
+      title: title,
+      text: `## 📝 ${title}\n\n` +
             `> ${dateStr} ${weekday}\n\n` +
-            `下班啦！记得记录一下今天的工作内容哦~\n\n` +
+            `**${greeting}**\n\n` +
+            `${message}\n\n` +
             `**记录方式**：\n` +
             `1. 打开周报助手\n` +
             `2. 在首页输入今日工作\n` +

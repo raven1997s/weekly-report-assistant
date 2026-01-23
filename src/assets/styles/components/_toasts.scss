@@ -74,40 +74,40 @@
   &-success {
     background: $success;
     border-color: $success;
-    color: white;
+    color: white !important;
 
-    .toast-icon { color: white; }
-    .toast-message { color: white; }
-    .toast-close { color: white; }
+    .toast-icon { color: white !important; }
+    .toast-message { color: white !important; }
+    .toast-close { color: white !important; }
   }
 
   &-error {
     background: $error;
     border-color: $error;
-    color: white;
+    color: white !important;
 
-    .toast-icon { color: white; }
-    .toast-message { color: white; }
-    .toast-close { color: white; }
+    .toast-icon { color: white !important; }
+    .toast-message { color: white !important; }
+    .toast-close { color: white !important; }
   }
 
   &-warning {
     background: $warning;
     border-color: $warning;
-    color: white;
+    color: white !important;
 
-    .toast-icon { color: white; }
-    .toast-message { color: white; }
-    .toast-close { color: white; }
+    .toast-icon { color: white !important; }
+    .toast-message { color: white !important; }
+    .toast-close { color: white !important; }
   }
 
   &-info {
     background: $accent-primary;
     border-color: $accent-primary;
-    color: white;
+    color: white !important;
 
-    .toast-icon { color: white; }
-    .toast-message { color: white; }
-    .toast-close { color: white; }
+    .toast-icon { color: white !important; }
+    .toast-message { color: white !important; }
+    .toast-close { color: white !important; }
   }
 }
