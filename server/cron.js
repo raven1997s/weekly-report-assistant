@@ -132,7 +132,32 @@ function startTask(task) {
   rule.minute = task.minute
   rule.tz = 'Asia/Shanghai'
 
+  // ========== 新增：检查当前时间是否已过今天的调度时间 ==========
+  const now = new Date()
+  const scheduledTime = new Date()
+  scheduledTime.setHours(task.hour, task.minute, 0, 0)
+  scheduledTime.setSeconds(0, 0)
+
+  // 如果当前时间已过今天的调度时间，标记需要跳过首次触发
+  const shouldSkipFirstRun = now >= scheduledTime
+
+  if (shouldSkipFirstRun) {
+    console.log(`[Cron] ⏰ 当前时间已过 ${String(task.hour).padStart(2, '0')}:${String(task.minute).padStart(2, '0')}，跳过首次触发`)
+  }
+  // ========== 检查结束 ==========
+
+  let isFirstRun = true  // 跟踪是否为首次运行
+
   const job = schedule.scheduleJob(rule, async () => {
+    // ========== 新增：跳过首次触发 ==========
+    if (isFirstRun && shouldSkipFirstRun) {
+      isFirstRun = false
+      console.log(`[Cron] 跳过首次立即触发，等待下一个调度周期`)
+      return
+    }
+    isFirstRun = false
+    // ========== 跳过结束 ==========
+
     await executeTask(task)  // 运行时校验是否应该执行
   })
 
@@ -213,6 +238,31 @@ async function executeTask(task) {
       const db = await createDbConnection()
 
       try {
+        // ========== 新增：检查转换锁 ==========
+        const lockKey = `convert_lock_${todayStr}`
+        const existingLock = await queryGet(
+          db,
+          "SELECT value FROM settings WHERE key = ?",
+          [lockKey]
+        )
+
+        if (existingLock) {
+          const lockData = JSON.parse(existingLock.value)
+          console.log(`[Cron] ⚠️ 今日已执行转换 (${lockData.lockedAt})，跳过: ${todayStr}`)
+          return
+        }
+
+        // ========== 新增：设置转换锁（24小时有效期）==========
+        await db.run(
+          "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+          [lockKey, JSON.stringify({
+            lockedAt: new Date().toISOString(),
+            taskId: task.id
+          })]
+        )
+        console.log(`[Cron] 🔒 设置转换锁: ${todayStr}`)
+        // ========== 锁设置结束 ==========
+
         // 3. 查询上周周报的 plans
         const lastWeekData = await getLastWeekPlans(db, today)
 

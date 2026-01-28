@@ -442,6 +442,21 @@ const confirmSaveReport = async () => {
 
 // 初始化
 onMounted(async () => {
+  // ========== 新增：强制刷新数据，确保获取最新状态 ==========
+  console.log('[ReportView] 开始初始化，先刷新数据...')
+
+  // 并发刷新所有 store 数据
+  await Promise.all([
+    recordsStore.init(),
+    reportsStore.init()
+  ])
+
+  console.log('[ReportView] 数据刷新完成')
+
+  // 等待一小段时间，确保所有异步操作完成
+  await new Promise(resolve => setTimeout(resolve, 300))
+  // ========== 刷新结束 ==========
+
   // 如果本周已归档，加载归档的得与失数据
   if (reportsStore.hasCurrentWeekReport) {
     const archived = reportsStore.getCurrentWeekArchivedReport()
@@ -456,11 +471,19 @@ onMounted(async () => {
   // 初始化周信息
   weekInfo.value = getWorkWeekInfo(new Date())
 
+  // ========== 新增：检查转换状态前再次确认数据已刷新 ==========
+  console.log('[ReportView] 检查是否需要转换上周计划...')
+
   // 检查是否需要转换上周计划（异步）
   const shouldConvert = await shouldShowConvertPrompt()
+
   if (shouldConvert) {
+    console.log('[ReportView] 需要转换，显示确认弹窗')
     convertLastWeekPlansToRecords()
+  } else {
+    console.log('[ReportView] 无需转换（已转换或无上周计划）')
   }
+  // ========== 检查结束 ==========
 })
 
 // ============================================
