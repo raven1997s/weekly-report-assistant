@@ -61,6 +61,16 @@ const DEFAULT_SETTINGS = {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
+    const normalizeSettingItems = (items = []) => items
+        .map(item => ({
+            id: String(item.id ?? Date.now()),
+            name: String(item.name || '').trim(),
+            keywords: Array.isArray(item.keywords)
+                ? item.keywords.map(keyword => String(keyword).trim()).filter(Boolean)
+                : []
+        }))
+        .filter(item => item.name)
+
     // ============ 状态 ============
     const projects = ref([...DEFAULT_SETTINGS.projects])
     const workTypes = ref([...DEFAULT_SETTINGS.workTypes])
@@ -218,6 +228,12 @@ export const useSettingsStore = defineStore('settings', () => {
         }
     }
 
+    // 批量覆盖项目（用于设置页模块化编辑保存）
+    const setProjects = async (projectList) => {
+        projects.value = normalizeSettingItems(projectList)
+        await persist()
+    }
+
     // 删除项目
     const deleteProject = async (id) => {
         const index = projects.value.findIndex(p => p.id === id)
@@ -244,6 +260,12 @@ export const useSettingsStore = defineStore('settings', () => {
             workTypes.value[index] = { ...workTypes.value[index], ...data }
             await persist()
         }
+    }
+
+    // 批量覆盖工作类型（用于设置页模块化编辑保存）
+    const setWorkTypes = async (workTypeList) => {
+        workTypes.value = normalizeSettingItems(workTypeList)
+        await persist()
     }
 
     // 删除工作类型
@@ -387,9 +409,11 @@ export const useSettingsStore = defineStore('settings', () => {
         setTheme,
         addProject,
         updateProject,
+        setProjects,
         deleteProject,
         addWorkType,
         updateWorkType,
+        setWorkTypes,
         deleteWorkType,
         updateDingtalk,
         updateMail,

@@ -27,28 +27,38 @@
           </svg>
           项目管理
         </h3>
-        <button class="btn btn-primary btn-sm" @click="addProject">添加项目</button>
-      </div>
-      <div class="setting-list">
-        <div v-for="project in projects" :key="project.id" class="setting-item">
-          <input
-            v-model="project.name"
-            class="item-input"
-            placeholder="项目名称"
-            @change="updateProject(project.id, { name: project.name })"
-          />
-          <input
-            class="item-input keywords"
-            placeholder="识别关键词 (逗号分隔)"
-            :value="project.keywords.join(', ')"
-            @change="e => updateProjectKeywords(project.id, e.target.value)"
-          />
-          <button class="btn-icon delete" @click="deleteProject(project.id)">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
-            </svg>
-          </button>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('projects')" class="status-badge info">编辑中</span>
+          <button v-if="isSectionEditing('projects')" class="btn btn-primary btn-sm" @click="addProjectDraft">添加项目</button>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('projects')" :disabled="hasActiveEditor">编辑</button>
         </div>
+      </div>
+
+      <template v-if="isSectionEditing('projects')">
+        <div class="setting-list">
+          <div v-for="project in projectDrafts" :key="project.id" class="setting-item">
+            <input v-model="project.name" class="item-input" placeholder="项目名称" />
+            <input v-model="project.keywordsText" class="item-input keywords" placeholder="识别关键词 (逗号分隔)" />
+            <button class="btn-icon delete" @click="removeProjectDraft(project.id)">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+          <div v-if="projectDrafts.length === 0" class="empty-settings">暂无项目，可点击上方按钮新增</div>
+        </div>
+        <div class="section-edit-actions">
+          <button class="btn btn-secondary" @click="cancelSectionEdit('projects')">取消</button>
+          <button class="btn btn-primary" @click="saveProjectsSection">保存</button>
+        </div>
+      </template>
+
+      <div v-else class="readonly-list">
+        <div v-for="project in projects" :key="project.id" class="readonly-item">
+          <div class="readonly-main">{{ project.name }}</div>
+          <div class="readonly-meta">{{ formatKeywords(project.keywords) }}</div>
+        </div>
+        <div v-if="projects.length === 0" class="empty-settings">暂无项目配置</div>
       </div>
     </div>
 
@@ -61,28 +71,38 @@
           </svg>
           工作类型
         </h3>
-        <button class="btn btn-primary btn-sm" @click="addWorkType">添加类型</button>
-      </div>
-      <div class="setting-list">
-        <div v-for="type in workTypes" :key="type.id" class="setting-item">
-          <input
-            v-model="type.name"
-            class="item-input"
-            placeholder="类型名称"
-            @change="updateWorkType(type.id, { name: type.name })"
-          />
-          <input
-            class="item-input keywords"
-            placeholder="识别关键词 (逗号分隔)"
-            :value="type.keywords.join(', ')"
-            @change="e => updateWorkTypeKeywords(type.id, e.target.value)"
-          />
-          <button class="btn-icon delete" @click="deleteWorkType(type.id)">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
-            </svg>
-          </button>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('workTypes')" class="status-badge info">编辑中</span>
+          <button v-if="isSectionEditing('workTypes')" class="btn btn-primary btn-sm" @click="addWorkTypeDraft">添加类型</button>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('workTypes')" :disabled="hasActiveEditor">编辑</button>
         </div>
+      </div>
+
+      <template v-if="isSectionEditing('workTypes')">
+        <div class="setting-list">
+          <div v-for="type in workTypeDrafts" :key="type.id" class="setting-item">
+            <input v-model="type.name" class="item-input" placeholder="类型名称" />
+            <input v-model="type.keywordsText" class="item-input keywords" placeholder="识别关键词 (逗号分隔)" />
+            <button class="btn-icon delete" @click="removeWorkTypeDraft(type.id)">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+          <div v-if="workTypeDrafts.length === 0" class="empty-settings">暂无工作类型，可点击上方按钮新增</div>
+        </div>
+        <div class="section-edit-actions">
+          <button class="btn btn-secondary" @click="cancelSectionEdit('workTypes')">取消</button>
+          <button class="btn btn-primary" @click="saveWorkTypesSection">保存</button>
+        </div>
+      </template>
+
+      <div v-else class="readonly-list">
+        <div v-for="type in workTypes" :key="type.id" class="readonly-item">
+          <div class="readonly-main">{{ type.name }}</div>
+          <div class="readonly-meta">{{ formatKeywords(type.keywords) }}</div>
+        </div>
+        <div v-if="workTypes.length === 0" class="empty-settings">暂无工作类型配置</div>
       </div>
     </div>
 
@@ -95,40 +115,62 @@
           </svg>
           钉钉机器人配置
         </h3>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('dingtalk')" class="status-badge info">编辑中</span>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('dingtalk')" :disabled="hasActiveEditor">编辑</button>
+        </div>
       </div>
-      <div class="dingtalk-config">
-        <div class="input-group">
-          <label>Webhook URL</label>
-          <input
-            v-model="dingtalkConfig.webhookUrl"
-            type="text"
-            placeholder="https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
-            class="config-input"
-            @change="updateDingtalkConfig"
-          />
+
+      <template v-if="isSectionEditing('dingtalk')">
+        <div class="dingtalk-config">
+          <div class="input-group">
+            <label>Webhook URL</label>
+            <input
+              v-model="dingtalkConfig.webhookUrl"
+              type="text"
+              placeholder="https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN"
+              class="config-input"
+            />
+          </div>
+          <div class="input-group">
+            <label>加签密钥 (Secret，可选)</label>
+            <input
+              v-model="dingtalkConfig.secret"
+              type="password"
+              placeholder="SEC开头的密钥"
+              class="config-input"
+            />
+          </div>
+          <div class="section-inline-actions">
+            <button class="btn btn-secondary" @click="testDingTalk" :disabled="isTesting">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
+              </svg>
+              {{ isTesting ? '测试中...' : '发送测试消息' }}
+            </button>
+            <button class="btn btn-secondary" @click="testDingTalkReminder" :disabled="isTestingReminder">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z"/>
+              </svg>
+              {{ isTestingReminder ? '测试中...' : '发送测试提醒' }}
+            </button>
+          </div>
         </div>
-        <div class="input-group">
-          <label>加签密钥 (Secret，可选)</label>
-          <input
-            v-model="dingtalkConfig.secret"
-            type="password"
-            placeholder="SEC开头的密钥"
-            class="config-input"
-            @change="updateDingtalkConfig"
-          />
+        <div class="section-edit-actions">
+          <button class="btn btn-secondary" @click="cancelSectionEdit('dingtalk')">取消</button>
+          <button class="btn btn-primary" @click="saveDingtalkSection">保存</button>
         </div>
-        <button class="btn btn-secondary mt-md" @click="testDingTalk" :disabled="isTesting">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
-          </svg>
-          {{ isTesting ? '测试中...' : '发送测试消息' }}
-        </button>
-        <button class="btn btn-secondary mt-md" @click="testDingTalkReminder" :disabled="isTestingReminder">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 6px;">
-            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z"/>
-          </svg>
-          {{ isTestingReminder ? '测试中...' : '发送测试提醒' }}
-        </button>
+      </template>
+
+      <div v-else class="readonly-grid">
+        <div class="summary-item">
+          <span class="summary-label">Webhook</span>
+          <span class="summary-value">{{ dingtalk.webhookUrl ? maskSensitiveText(dingtalk.webhookUrl, 18) : '未配置' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">加签密钥</span>
+          <span class="summary-value">{{ dingtalk.secret ? '已配置' : '未配置' }}</span>
+        </div>
       </div>
     </div>
 
@@ -142,118 +184,147 @@
           </svg>
           阿里企业邮箱草稿箱
         </h3>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('mail')" class="status-badge info">编辑中</span>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('mail')" :disabled="hasActiveEditor">编辑</button>
+        </div>
       </div>
-      <div class="dingtalk-config">
-        <div class="input-group">
-          <label>邮箱账号</label>
-          <input
-            v-model="mailConfig.account"
-            type="text"
-            placeholder="例如：name@gancao.com"
-            class="config-input"
-            @change="updateMailConfig"
-          />
-        </div>
-        <div class="input-row">
+
+      <template v-if="isSectionEditing('mail')">
+        <div class="dingtalk-config">
           <div class="input-group">
-            <label>IMAP 服务器</label>
+            <label>邮箱账号</label>
             <input
-              v-model="mailConfig.imapHost"
+              v-model="mailConfig.account"
               type="text"
-              placeholder="imap.qiye.aliyun.com"
+              placeholder="例如：name@gancao.com"
               class="config-input"
-              @change="updateMailConfig"
             />
           </div>
-          <div class="input-group input-group-sm">
-            <label>端口</label>
-            <input
-              v-model.number="mailConfig.imapPort"
-              type="number"
-              min="1"
-              placeholder="993"
-              class="config-input"
-              @change="updateMailConfig"
-            />
-          </div>
-        </div>
-        <div class="input-group">
-          <label>安全密码</label>
-          <input
-            v-model="mailConfig.password"
-            type="password"
-            placeholder="输入三方客户端安全密码"
-            class="config-input"
-            @change="updateMailConfig"
-          />
-        </div>
-        <div class="input-row">
-          <div class="input-group">
-            <label>草稿箱文件夹</label>
-            <input
-              v-model="mailConfig.draftsMailbox"
-              type="text"
-              placeholder="Drafts 或 草稿箱"
-              class="config-input"
-              @change="updateMailConfig"
-            />
+          <div class="input-row">
+            <div class="input-group">
+              <label>IMAP 服务器</label>
+              <input
+                v-model="mailConfig.imapHost"
+                type="text"
+                placeholder="imap.qiye.aliyun.com"
+                class="config-input"
+              />
+            </div>
+            <div class="input-group input-group-sm">
+              <label>端口</label>
+              <input
+                v-model.number="mailConfig.imapPort"
+                type="number"
+                min="1"
+                placeholder="993"
+                class="config-input"
+              />
+            </div>
           </div>
           <div class="input-group">
-            <label>邮箱网页地址</label>
+            <label>安全密码</label>
             <input
-              v-model="mailConfig.webmailUrl"
-              type="text"
-              placeholder="例如：https://mail.gancao.com/alimail/"
+              v-model="mailConfig.password"
+              type="password"
+              placeholder="输入三方客户端安全密码"
               class="config-input"
-              @change="updateMailConfig"
             />
           </div>
-        </div>
-        <div class="input-group">
-          <label>默认收件人</label>
-          <input
-            v-model="mailConfig.defaultTo"
-            type="text"
-            placeholder="多个邮箱用英文逗号分隔"
-            class="config-input"
-            @change="updateMailConfig"
-          />
-        </div>
-        <div class="input-row">
-          <div class="input-group">
-            <label>默认抄送</label>
-            <input
-              v-model="mailConfig.defaultCc"
-              type="text"
-              placeholder="可选，多个邮箱用英文逗号分隔"
-              class="config-input"
-              @change="updateMailConfig"
-            />
+          <div class="input-row">
+            <div class="input-group">
+              <label>草稿箱文件夹</label>
+              <input
+                v-model="mailConfig.draftsMailbox"
+                type="text"
+                placeholder="Drafts 或 草稿箱"
+                class="config-input"
+              />
+            </div>
+            <div class="input-group">
+              <label>邮箱网页地址</label>
+              <input
+                v-model="mailConfig.webmailUrl"
+                type="text"
+                placeholder="例如：https://mail.gancao.com/alimail/"
+                class="config-input"
+              />
+            </div>
           </div>
           <div class="input-group">
-            <label>默认密送</label>
+            <label>默认收件人</label>
             <input
-              v-model="mailConfig.defaultBcc"
+              v-model="mailConfig.defaultTo"
               type="text"
-              placeholder="可选，多个邮箱用英文逗号分隔"
+              placeholder="多个邮箱用英文逗号分隔"
               class="config-input"
-              @change="updateMailConfig"
             />
           </div>
+          <div class="input-row">
+            <div class="input-group">
+              <label>默认抄送</label>
+              <input
+                v-model="mailConfig.defaultCc"
+                type="text"
+                placeholder="可选，多个邮箱用英文逗号分隔"
+                class="config-input"
+              />
+            </div>
+            <div class="input-group">
+              <label>默认密送</label>
+              <input
+                v-model="mailConfig.defaultBcc"
+                type="text"
+                placeholder="可选，多个邮箱用英文逗号分隔"
+                class="config-input"
+              />
+            </div>
+          </div>
+          <div class="input-group">
+            <label>默认邮件模板</label>
+            <select v-model="mailConfig.defaultTemplate" class="config-input">
+              <option v-for="template in mailTemplateOptions" :key="template.key" :value="template.key">
+                {{ template.name }}
+              </option>
+            </select>
+          </div>
+          <div class="schedule-hint">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm1 3a1 1 0 00-1 1v5a1 1 0 102 0v-5a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span>当前版本使用系统内置表格模板生成草稿，默认不附加邮箱签名。</span>
+          </div>
         </div>
-        <div class="input-group">
-          <label>默认邮件模板</label>
-          <select v-model="mailConfig.defaultTemplate" class="config-input" @change="updateMailConfig">
-            <option v-for="template in mailTemplateOptions" :key="template.key" :value="template.key">
-              {{ template.name }}
-            </option>
-          </select>
+        <div class="section-edit-actions">
+          <button class="btn btn-secondary" @click="cancelSectionEdit('mail')">取消</button>
+          <button class="btn btn-primary" @click="saveMailSection">保存</button>
         </div>
-        <div class="schedule-hint">
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm1 3a1 1 0 00-1 1v5a1 1 0 102 0v-5a1 1 0 00-1-1z" clip-rule="evenodd"/>
-          </svg>
-          <span>当前版本使用系统内置表格模板生成草稿，默认不附加邮箱签名。</span>
+      </template>
+
+      <div v-else class="readonly-grid">
+        <div class="summary-item">
+          <span class="summary-label">邮箱账号</span>
+          <span class="summary-value">{{ mail.account || '未配置' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">IMAP</span>
+          <span class="summary-value">{{ mail.imapHost ? `${mail.imapHost}:${mail.imapPort}` : '未配置' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">草稿箱</span>
+          <span class="summary-value">{{ mail.draftsMailbox || '未配置' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">默认收件人</span>
+          <span class="summary-value">{{ mail.defaultTo || '未配置' }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">默认模板</span>
+          <span class="summary-value">{{ getMailTemplateName(mail.defaultTemplate) }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">邮箱网页</span>
+          <span class="summary-value">{{ mail.webmailUrl || '未配置' }}</span>
         </div>
       </div>
     </div>
@@ -267,12 +338,12 @@
           </svg>
           定时任务配置
         </h3>
-        <button class="btn btn-primary btn-sm" @click="showAddTaskModal = true" :disabled="!dingtalkConfig.webhookUrl">
+        <button class="btn btn-primary btn-sm" @click="showAddTaskModal = true" :disabled="!dingtalk.webhookUrl">
           添加任务
         </button>
       </div>
 
-      <div v-if="!dingtalkConfig.webhookUrl" class="dingtalk-warning">
+      <div v-if="!dingtalk.webhookUrl" class="dingtalk-warning">
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
           <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
         </svg>
@@ -299,14 +370,14 @@
                 type="checkbox"
                 :checked="task.enabled"
                 @change="toggleTask(task.id, $event.target.checked)"
-                :disabled="!dingtalkConfig.webhookUrl || task.isSystemTask"
+                :disabled="!dingtalk.webhookUrl || task.isSystemTask"
               />
               <span class="toggle-slider"></span>
             </label>
             <button
               class="btn-icon delete"
               @click="deleteTask(task.id)"
-              :disabled="!dingtalkConfig.webhookUrl || task.isSystemTask"
+              :disabled="!dingtalk.webhookUrl || task.isSystemTask"
               :title="task.isSystemTask ? '系统任务无法删除' : '删除任务'"
             >
               <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
@@ -317,7 +388,7 @@
           </div>
         </div>
         <div v-if="scheduledTasks.length === 0" class="empty-tasks">
-          {{ dingtalkConfig.webhookUrl ? '暂无定时任务，点击上方按钮添加' : '请先配置钉钉' }}
+          {{ dingtalk.webhookUrl ? '暂无定时任务，点击上方按钮添加' : '请先配置钉钉' }}
         </div>
       </div>
       <div class="task-hint">
@@ -461,7 +532,44 @@ const { projects, workTypes, dingtalk, mail, scheduledTasks } = storeToRefs(sett
 // 弹窗（使用全局 store）
 const dialogStore = useDialogStore()
 
-// 钉钉配置（使用 ref 避免频繁保存，通过 watch 同步 store）
+const editingSection = ref('')
+const hasActiveEditor = computed(() => Boolean(editingSection.value))
+
+const isSectionEditing = (section) => editingSection.value === section
+
+const createDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+const createSettingDraftItem = () => ({ id: createDraftId(), name: '', keywordsText: '' })
+const cloneSettingItems = (items = []) => items.map(item => ({
+  id: item.id,
+  name: item.name || '',
+  keywordsText: Array.isArray(item.keywords) ? item.keywords.join(', ') : ''
+}))
+const normalizeSettingItems = (items = []) => items.map(item => ({
+  id: String(item.id || createDraftId()),
+  name: String(item.name || '').trim(),
+  keywords: String(item.keywordsText || '')
+    .split(',')
+    .map(keyword => keyword.trim())
+    .filter(Boolean)
+}))
+const formatKeywords = (keywords = []) => {
+  const text = Array.isArray(keywords)
+    ? keywords.map(keyword => String(keyword).trim()).filter(Boolean).join('、')
+    : ''
+  return text || '未设置关键词'
+}
+const maskSensitiveText = (value, visiblePrefix = 10) => {
+  if (!value) return '未配置'
+  if (value.length <= visiblePrefix + 6) return value
+  return `${value.slice(0, visiblePrefix)}...${value.slice(-6)}`
+}
+const getMailTemplateName = (templateKey) => {
+  const template = mailTemplateOptions.find(item => item.key === templateKey)
+  return template?.name || '未配置'
+}
+
+const projectDrafts = ref([])
+const workTypeDrafts = ref([])
 const dingtalkConfig = ref({ ...dingtalk.value })
 const mailConfig = ref({ ...mail.value })
 const isTesting = ref(false)
@@ -470,13 +578,55 @@ const mailTemplateOptions = [
   { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
 ]
 
-// 监听 store 的 dingtalk 变化，同步到本地 ref
+const syncSectionDraft = (section) => {
+  if (section === 'projects') {
+    projectDrafts.value = cloneSettingItems(projects.value)
+  } else if (section === 'workTypes') {
+    workTypeDrafts.value = cloneSettingItems(workTypes.value)
+  } else if (section === 'dingtalk') {
+    dingtalkConfig.value = { ...dingtalk.value }
+  } else if (section === 'mail') {
+    mailConfig.value = { ...mail.value }
+  }
+}
+
+const beginSectionEdit = (section) => {
+  if (hasActiveEditor.value && editingSection.value !== section) {
+    return
+  }
+  syncSectionDraft(section)
+  editingSection.value = section
+}
+
+const cancelSectionEdit = (section) => {
+  syncSectionDraft(section)
+  if (editingSection.value === section) {
+    editingSection.value = ''
+  }
+}
+
+watch(projects, (newVal) => {
+  if (!isSectionEditing('projects')) {
+    projectDrafts.value = cloneSettingItems(newVal)
+  }
+}, { deep: true })
+
+watch(workTypes, (newVal) => {
+  if (!isSectionEditing('workTypes')) {
+    workTypeDrafts.value = cloneSettingItems(newVal)
+  }
+}, { deep: true })
+
 watch(dingtalk, (newVal) => {
-  dingtalkConfig.value = { ...newVal }
+  if (!isSectionEditing('dingtalk')) {
+    dingtalkConfig.value = { ...newVal }
+  }
 }, { deep: true })
 
 watch(mail, (newVal) => {
-  mailConfig.value = { ...newVal }
+  if (!isSectionEditing('mail')) {
+    mailConfig.value = { ...newVal }
+  }
 }, { deep: true })
 
 // 定时任务弹窗状态
@@ -490,7 +640,6 @@ const taskForm = ref({
   minute: 0,
   dayOfWeek: '5'
 })
-const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 // Toast 状态
 const successMessage = ref('')
@@ -516,16 +665,80 @@ const showToast = (message, isErrorMessage = false) => {
 onMounted(async () => {
   // 重新从 API 获取设置数据，确保与后端同步
   await settingsStore.init()
+  syncSectionDraft('projects')
+  syncSectionDraft('workTypes')
+  syncSectionDraft('dingtalk')
+  syncSectionDraft('mail')
   await settingsStore.fetchScheduledTasks()
 })
 
-// 钉钉配置管理
-const updateDingtalkConfig = () => {
-  settingsStore.updateDingtalk(dingtalkConfig.value)
+const validateNamedDrafts = (items, label) => {
+  const hasEmptyName = items.some(item => !String(item.name || '').trim())
+  if (hasEmptyName) {
+    showToast(`请先填写完整的${label}名称，或删除空白项`, true)
+    return false
+  }
+  return true
 }
 
-const updateMailConfig = () => {
-  settingsStore.updateMail(mailConfig.value)
+const saveProjectsSection = async () => {
+  if (!validateNamedDrafts(projectDrafts.value, '项目')) return
+
+  try {
+    await settingsStore.setProjects(normalizeSettingItems(projectDrafts.value))
+    editingSection.value = ''
+    showToast('项目设置已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveWorkTypesSection = async () => {
+  if (!validateNamedDrafts(workTypeDrafts.value, '工作类型')) return
+
+  try {
+    await settingsStore.setWorkTypes(normalizeSettingItems(workTypeDrafts.value))
+    editingSection.value = ''
+    showToast('工作类型已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveDingtalkSection = async () => {
+  try {
+    await settingsStore.updateDingtalk({ ...dingtalkConfig.value })
+    editingSection.value = ''
+    showToast('钉钉配置已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveMailSection = async () => {
+  try {
+    await settingsStore.updateMail({ ...mailConfig.value })
+    editingSection.value = ''
+    showToast('企业邮箱配置已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const addProjectDraft = () => {
+  projectDrafts.value.push(createSettingDraftItem())
+}
+
+const removeProjectDraft = (id) => {
+  projectDrafts.value = projectDrafts.value.filter(project => project.id !== id)
+}
+
+const addWorkTypeDraft = () => {
+  workTypeDrafts.value.push(createSettingDraftItem())
+}
+
+const removeWorkTypeDraft = (id) => {
+  workTypeDrafts.value = workTypeDrafts.value.filter(type => type.id !== id)
 }
 
 const testDingTalk = async () => {
@@ -688,64 +901,6 @@ const deleteTask = async (id) => {
   }
 }
 
-// 项目管理
-const addProject = async () => {
-  const name = await dialogStore.prompt({
-    message: '请输入新项目名称',
-    placeholder: '项目名称'
-  })
-  if (name) {
-    settingsStore.addProject({ name, keywords: [] })
-  }
-}
-
-const updateProject = (id, data) => {
-  settingsStore.updateProject(id, data)
-}
-
-const updateProjectKeywords = (id, str) => {
-  const keywords = str.split(',').map(s => s.trim()).filter(s => s)
-  settingsStore.updateProject(id, { keywords })
-}
-
-const deleteProject = async (id) => {
-  const confirmed = await dialogStore.confirm({
-    message: '确定删除该项目吗？'
-  })
-  if (confirmed) {
-    settingsStore.deleteProject(id)
-  }
-}
-
-// 类型管理
-const addWorkType = async () => {
-  const name = await dialogStore.prompt({
-    message: '请输入新工作类型名称',
-    placeholder: '类型名称'
-  })
-  if (name) {
-    settingsStore.addWorkType({ name, keywords: [] })
-  }
-}
-
-const updateWorkType = (id, data) => {
-  settingsStore.updateWorkType(id, data)
-}
-
-const updateWorkTypeKeywords = (id, str) => {
-  const keywords = str.split(',').map(s => s.trim()).filter(s => s)
-  settingsStore.updateWorkType(id, { keywords })
-}
-
-const deleteWorkType = async (id) => {
-  const confirmed = await dialogStore.confirm({
-    message: '确定删除该类型吗？'
-  })
-  if (confirmed) {
-    settingsStore.deleteWorkType(id)
-  }
-}
-
 // 数据管理
 const handleExport = async () => {
   const data = await exportAllData()
@@ -785,7 +940,13 @@ const handleReset = async () => {
     message: '确定要重置所有设置吗？该操作不可恢复。'
   })
   if (confirmed) {
-    settingsStore.resetToDefault()
+    await settingsStore.resetToDefault()
+    editingSection.value = ''
+    syncSectionDraft('projects')
+    syncSectionDraft('workTypes')
+    syncSectionDraft('dingtalk')
+    syncSectionDraft('mail')
+    showToast('已重置为默认设置')
   }
 }
 </script>
@@ -873,6 +1034,13 @@ const handleReset = async () => {
   }
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+}
+
 .setting-list {
   display: flex;
   flex-direction: column;
@@ -929,6 +1097,84 @@ const handleReset = async () => {
       border-color: rgba($error, 0.3);
     }
   }
+}
+
+.readonly-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.readonly-item {
+  padding: $spacing-4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+}
+
+.readonly-main {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+}
+
+.readonly-meta {
+  margin-top: $spacing-2;
+  font-size: $font-size-xs;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-3;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+}
+
+.summary-label {
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}
+
+.summary-value {
+  font-size: $font-size-sm;
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.empty-settings {
+  text-align: center;
+  padding: $spacing-6;
+  border: 1px dashed var(--border-color);
+  border-radius: $radius-md;
+  color: var(--text-muted);
+  font-size: $font-size-sm;
+}
+
+.section-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+}
+
+.section-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $spacing-3;
+  margin-top: $spacing-4;
+  padding-top: $spacing-4;
+  border-top: 1px solid var(--divider-color);
 }
 
 .dingtalk-config {
@@ -1375,11 +1621,28 @@ const handleReset = async () => {
     gap: $spacing-3;
   }
 
+  .section-actions {
+    width: 100%;
+  }
+
   .setting-item {
     flex-wrap: wrap;
 
     .keywords {
       width: 100%;
+    }
+  }
+
+  .readonly-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-edit-actions {
+    width: 100%;
+    justify-content: stretch;
+
+    .btn {
+      flex: 1;
     }
   }
 
