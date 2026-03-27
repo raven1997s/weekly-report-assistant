@@ -127,10 +127,13 @@ describe('API 集成测试 - 数据库结构验证', () => {
   })
 
   describe('Settings 存储操作', () => {
-    it('应该使用 INSERT OR REPLACE 保存设置', () => {
-      const upsertSQL = "INSERT OR REPLACE INTO settings (key, value) VALUES ('currentPlans', ?)"
-      expect(upsertSQL).toContain('INSERT OR REPLACE')
-      expect(upsertSQL).toContain('settings')
+    it('计划应存储在 plans 表而不是 settings.currentPlans', () => {
+      const insertPlanSQL = `
+        INSERT INTO plans (id, content, project, workType, weekStart, status, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
+      `
+      expect(insertPlanSQL).toContain('INSERT INTO plans')
+      expect(insertPlanSQL).not.toContain('currentPlans')
     })
 
     it('应该支持 JSON 序列化', () => {
@@ -164,14 +167,12 @@ describe('API 集成测试 - 数据库结构验证', () => {
         success: true,
         data: {
           reports: [],
-          currentPlans: [],
           currentReflections: { gains: '', losses: '' }
         }
       }
 
       expect(reportsResponse.data).toBeDefined()
       expect(reportsResponse.data.reports).toBeDefined()
-      expect(reportsResponse.data.currentPlans).toBeDefined()
       expect(reportsResponse.data.currentReflections).toBeDefined()
     })
   })

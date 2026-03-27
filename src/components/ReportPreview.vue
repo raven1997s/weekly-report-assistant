@@ -3,17 +3,29 @@
     <div class="preview-header">
       <h3 class="preview-title">周报预览</h3>
       <div class="preview-actions">
+        <select v-model="selectedMailTemplate" class="template-select">
+          <option v-for="template in mailTemplates" :key="template.key" :value="template.key">
+            {{ template.name }}
+          </option>
+        </select>
+        <button class="btn btn-secondary btn-sm" @click="saveToMailDraft" :disabled="isSavingDraft">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+            <path d="M2.94 6.34A2 2 0 014.76 5h10.48a2 2 0 011.82 1.34L10 10.88 2.94 6.34z"/>
+            <path d="M2 7.55v6.7A1.75 1.75 0 003.75 16h12.5A1.75 1.75 0 0018 14.25v-6.7l-7.37 4.73a1.25 1.25 0 01-1.26 0L2 7.55z"/>
+          </svg>
+          {{ isSavingDraft ? '保存中...' : '保存到阿里邮箱草稿箱' }}
+        </button>
         <button class="btn btn-secondary btn-sm" @click="copyText">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
             <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clip-rule="evenodd"/>
           </svg>
           复制纯文本
         </button>
-        <button class="btn btn-primary btn-sm" @click="copyMarkdown">
+        <button class="btn btn-secondary btn-sm" @click="copyRichText">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
-            <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clip-rule="evenodd"/>
+            <path d="M4 4.75A1.75 1.75 0 015.75 3h8.5A1.75 1.75 0 0116 4.75v7.5A1.75 1.75 0 0114.25 14h-1.69l-1.78 1.78a.75.75 0 01-1.06 0L7.94 14H5.75A1.75 1.75 0 014 12.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h2.5c.199 0 .39.079.53.22L10 13.69l1.22-1.22a.75.75 0 01.53-.22h2.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-8.5z"/>
           </svg>
-          复制 Markdown
+          复制富文本
         </button>
         <button class="btn btn-secondary btn-sm" @click="download">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
@@ -106,12 +118,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { marked } from 'marked'
 import { useGenerator } from '../composables/useGenerator'
 import { useSettingsStore } from '../stores/settings'
 import { sendMarkdownToDingTalk } from '../utils/dingtalk'
 import { formatDate } from '../utils/date'
+import { copyRichContentToClipboard } from '../utils/clipboard'
+import { getMailTemplates, createMailDraft } from '../utils/api'
 
 const props = defineProps({
   report: {
@@ -125,7 +139,32 @@ const settingsStore = useSettingsStore()
 const successMessage = ref('')
 const isError = ref(false)
 const isSending = ref(false)
+const isSavingDraft = ref(false)
 const showPreviewModal = ref(false)
+const mailTemplates = ref([
+  { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
+])
+const selectedMailTemplate = ref(settingsStore.mail?.defaultTemplate || 'gancao-department-weekly-report')
+
+onMounted(async () => {
+  try {
+    const templates = await getMailTemplates()
+    if (Array.isArray(templates) && templates.length > 0) {
+      mailTemplates.value = templates
+    }
+  } catch (error) {
+    console.error('[ReportPreview] 获取邮件模板失败:', error)
+  }
+})
+
+watch(
+  () => settingsStore.mail?.defaultTemplate,
+  (newTemplate) => {
+    if (newTemplate) {
+      selectedMailTemplate.value = newTemplate
+    }
+  }
+)
 
 // 渲染 Markdown 为 HTML
 const renderedHtml = computed(() => {
@@ -176,11 +215,47 @@ const copyText = async () => {
   if (success) showToast('已复制纯文本')
 }
 
-// 复制 Markdown
-const copyMarkdown = async () => {
-  const content = props.report.markdown || '暂无内容'
-  const success = await copyReport(content)
-  if (success) showToast('已复制 Markdown')
+// 复制富文本
+const copyRichText = async () => {
+  const text = props.report.plainText || props.report.markdown || '暂无内容'
+  const html = renderedHtml.value || `<p>${text}</p>`
+  const success = await copyRichContentToClipboard({ text, html })
+  if (success) showToast('已复制富文本，可直接粘贴到邮箱')
+}
+
+// 保存到阿里企业邮箱草稿箱
+const saveToMailDraft = async () => {
+  const mailConfig = settingsStore.mail || {}
+
+  if (!mailConfig.account || !mailConfig.imapHost || !mailConfig.imapPort || !mailConfig.password) {
+    showToast('请先在设置中补全企业邮箱账号、IMAP 地址、端口和安全密码', true)
+    return
+  }
+
+  if (!mailConfig.defaultTo && !mailConfig.defaultCc && !mailConfig.defaultBcc) {
+    showToast('请先在设置中配置默认收件人、抄送或密送', true)
+    return
+  }
+
+  isSavingDraft.value = true
+
+  try {
+    const result = await createMailDraft({
+      templateKey: selectedMailTemplate.value,
+      report: props.report
+    })
+
+    showToast('草稿已保存到阿里邮箱')
+
+    if (result.openUrl) {
+      window.open(result.openUrl, '_blank', 'noopener')
+    }
+  } catch (error) {
+    console.error('[ReportPreview] 保存邮件草稿失败:', error)
+    showToast(`保存草稿失败: ${error.message}`, true)
+  } finally {
+    isSavingDraft.value = false
+  }
 }
 
 // 下载文件
@@ -277,6 +352,18 @@ const convertMarkdownToDingFormat = (markdown) => {
 .preview-actions {
   display: flex;
   gap: $spacing-sm;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.template-select {
+  min-width: 180px;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: $font-size-sm;
 }
 
 .preview-content {

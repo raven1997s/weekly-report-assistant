@@ -97,7 +97,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRecordsStore } from '../../stores/records'
-import { getWeekLabel, getWorkWeekInfo, formatDate } from '../../utils/date'
+import { getWorkMonthWeekLabel, getWorkWeekInfo, formatDate } from '../../utils/date'
 
 const props = defineProps({
   isOpen: {
@@ -132,8 +132,8 @@ const isActive = (path) => {
 // 工作周信息（使用 ref 响应式数据）
 const weekInfo = ref(null)
 
-// 周标签（保持不变：2026年第2周）
-const weekLabel = computed(() => getWeekLabel(new Date()))
+// 周标签（按工作月显示：2026年3月第4周）
+const weekLabel = computed(() => getWorkMonthWeekLabel(new Date()))
 
 // 工作周日期范围
 const weekRange = computed(() => {

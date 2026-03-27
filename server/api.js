@@ -8,8 +8,10 @@ import bodyParser from 'body-parser'
 import crypto from 'crypto'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { initDatabase, queryAll, queryGet, queryRun, createDbConnection } from './db.js'
-import { initTemplates, startScheduledTasks, sendReminder, executeTask } from './cron.js'
+import { initDatabase, queryAll, queryGet, queryRun, createDbConnection, migratePlansFromSettings } from './db.js'
+import { initTemplates, startScheduledTasks, sendReminder, executeTask, getConversionStatusKey } from './cron.js'
+import { MAIL_TEMPLATES, renderMailTemplate } from './mail-templates.js'
+import { createMailDraft } from './mail-service.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -93,14 +95,40 @@ app.put('/api/records/:id', async (req, res) => {
     const { content, project, workType, updatedAt } = req.body
 
     const db = await createDbConnection()
+    const existingRecord = await queryGet(db, 'SELECT * FROM records WHERE id = ?', [id])
+
+    if (!existingRecord) {
+      db.close()
+      return res.status(404).json({ success: false, error: '记录不存在' })
+    }
+
+    const nextContent = content !== undefined ? content : existingRecord.content
+    const nextProject = Object.prototype.hasOwnProperty.call(req.body, 'project')
+      ? (project || null)
+      : existingRecord.project
+    const nextWorkType = Object.prototype.hasOwnProperty.call(req.body, 'workType')
+      ? (workType || null)
+      : existingRecord.workType
+    const nextUpdatedAt = updatedAt || new Date().toISOString()
+
     await queryRun(
       db,
       'UPDATE records SET content = ?, project = ?, workType = ?, updatedAt = ? WHERE id = ?',
-      [content, project || null, workType || null, updatedAt, id]
+      [nextContent, nextProject, nextWorkType, nextUpdatedAt, id]
     )
     db.close()
 
-    res.json({ success: true, data: { ...req.body, id } })
+    res.json({
+      success: true,
+      data: {
+        ...existingRecord,
+        content: nextContent,
+        project: nextProject,
+        workType: nextWorkType,
+        updatedAt: nextUpdatedAt,
+        id
+      }
+    })
   } catch (error) {
     console.error('[API] 更新记录失败:', error)
     res.status(500).json({ success: false, error: error.message })
@@ -188,31 +216,30 @@ app.post('/api/records/move-to-next-week', async (req, res) => {
       return res.status(404).json({ success: false, error: '未找到有效记录' })
     }
 
-    // 2. 获取当前的 currentPlans
-    const plansConfig = await queryGet(
-      db,
-      "SELECT value FROM settings WHERE key = 'currentPlans'"
-    )
-    const currentPlans = plansConfig ? JSON.parse(plansConfig.value) : []
-
-    // 3. 将记录转为计划并追加
+    // 2. 将记录写入 plans 表，统一使用单一数据源
+    const now = new Date().toISOString()
+    const targetWeekStart = getCurrentWeekStart()
     const newPlans = records.map(record => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
       content: record.content,
       project: record.project || null,
-      workType: record.workType || null
+      workType: record.workType || null,
+      weekStart: targetWeekStart,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now
     }))
 
-    const updatedPlans = [...currentPlans, ...newPlans]
+    for (const plan of newPlans) {
+      await queryRun(
+        db,
+        `INSERT INTO plans (id, content, project, workType, weekStart, status, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [plan.id, plan.content, plan.project, plan.workType, plan.weekStart, plan.status, plan.createdAt, plan.updatedAt]
+      )
+    }
 
-    // 4. 保存 currentPlans
-    await queryRun(
-      db,
-      "INSERT OR REPLACE INTO settings (key, value) VALUES ('currentPlans', ?)",
-      [JSON.stringify(updatedPlans)]
-    )
-
-    // 5. 软删除这些记录
+    // 3. 软删除这些记录
     const deletedAt = new Date().toISOString()
     for (const id of recordIds) {
       await queryRun(
@@ -229,7 +256,7 @@ app.post('/api/records/move-to-next-week', async (req, res) => {
     res.json({
       success: true,
       movedCount: records.length,
-      newPlans: newPlans,
+      newPlans,
       message: `已将 ${records.length} 条记录移到下周计划`
     })
   } catch (error) {
@@ -269,10 +296,6 @@ app.get('/api/reports', async (req, res) => {
       reflections: JSON.parse(report.reflections || '{}')
     }))
 
-    // 获取下周计划
-    const plansData = await queryGet(db, "SELECT value FROM settings WHERE key = 'currentPlans'")
-    const currentPlans = plansData ? JSON.parse(plansData.value) : []
-
     // 获取本周总结
     const reflectionsData = await queryGet(db, "SELECT value FROM settings WHERE key = 'currentReflections'")
     const currentReflections = reflectionsData ? JSON.parse(reflectionsData.value) : { gains: '', losses: '' }
@@ -283,7 +306,6 @@ app.get('/api/reports', async (req, res) => {
       success: true,
       data: {
         reports: parsedReports,
-        currentPlans,
         currentReflections
       }
     })
@@ -513,14 +535,8 @@ app.get('/api/plans', async (req, res) => {
     // 默认获取当前周的计划
     const targetWeekStart = weekStart || getCurrentWeekStart()
 
-    let sql = 'SELECT * FROM plans WHERE 1=1'
-    const params = []
-
-    // 按周筛选
-    if (weekStart) {
-      sql += ' AND weekStart = ?'
-      params.push(targetWeekStart)
-    }
+    let sql = 'SELECT * FROM plans WHERE weekStart = ?'
+    const params = [targetWeekStart]
 
     // 按删除状态筛选
     if (deleted === '1') {
@@ -836,9 +852,13 @@ app.put('/api/settings', async (req, res) => {
     const settings = req.body
 
     const db = await createDbConnection()
+    const settingKeys = Object.keys(settings)
 
-    // 清空现有设置
-    await queryRun(db, 'DELETE FROM settings', [])
+    // 仅更新当前提交的设置项，保留 currentReflections、计划转换标记等其他系统设置
+    if (settingKeys.length > 0) {
+      const placeholders = settingKeys.map(() => '?').join(', ')
+      await queryRun(db, `DELETE FROM settings WHERE key IN (${placeholders})`, settingKeys)
+    }
 
     // 使用 Promise 批量插入所有设置
     const insertPromises = Object.entries(settings).map(([key, value]) => {
@@ -862,6 +882,72 @@ app.put('/api/settings', async (req, res) => {
   } catch (error) {
     console.error('[API] 保存设置失败:', error)
     res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+const getMailConfigFromSettings = (settings = {}) => ({
+  account: settings.mail_account || '',
+  imapHost: settings.mail_imap_host || '',
+  imapPort: Number(settings.mail_imap_port || 993),
+  secure: settings.mail_secure === 'false' ? false : true,
+  password: settings.mail_password || '',
+  draftsMailbox: settings.mail_drafts_mailbox || 'Drafts',
+  webmailUrl: settings.mail_web_url || '',
+  defaultTo: settings.mail_default_to || '',
+  defaultCc: settings.mail_default_cc || '',
+  defaultBcc: settings.mail_default_bcc || '',
+  defaultTemplate: settings.mail_default_template || 'gancao-department-weekly-report'
+})
+
+// GET /api/mail/templates - 获取邮件模板列表
+app.get('/api/mail/templates', async (req, res) => {
+  res.json({ success: true, data: MAIL_TEMPLATES })
+})
+
+// POST /api/mail/drafts - 创建企业邮箱草稿
+app.post('/api/mail/drafts', async (req, res) => {
+  try {
+    const { templateKey, report } = req.body
+
+    if (!report || typeof report !== 'object') {
+      return res.status(400).json({ success: false, error: '缺少 report 数据' })
+    }
+
+    const db = await createDbConnection()
+    const settingsArray = await queryAll(db, 'SELECT * FROM settings')
+    db.close()
+
+    const settings = {}
+    settingsArray.forEach(({ key, value }) => {
+      settings[key] = value
+    })
+
+    const mailConfig = getMailConfigFromSettings(settings)
+    const finalTemplateKey = templateKey || mailConfig.defaultTemplate
+    const rendered = renderMailTemplate({
+      templateKey: finalTemplateKey,
+      report
+    })
+
+    const result = await createMailDraft({
+      config: mailConfig,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text
+    })
+
+    res.json({
+      success: true,
+      data: {
+        templateKey: finalTemplateKey,
+        subject: rendered.subject,
+        mailbox: result.mailbox,
+        openUrl: mailConfig.webmailUrl || ''
+      }
+    })
+  } catch (error) {
+    console.error('[API] 创建邮件草稿失败:', error)
+    res.status(500).json({ success: false, error: error.message || '创建邮件草稿失败' })
   }
 })
 
@@ -1078,7 +1164,7 @@ app.get('/api/convert/status', async (req, res) => {
     const converted = await queryGet(
       db,
       "SELECT value FROM settings WHERE key = ?",
-      [`converted_plans_${weekStart}`]
+      [getConversionStatusKey(weekStart)]
     )
     db.close()
 
@@ -1110,9 +1196,10 @@ app.post('/api/convert/mark', async (req, res) => {
     }
 
     const db = await createDbConnection()
-    await db.run(
+    await queryRun(
+      db,
       "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-      [`converted_plans_${weekStart}`, JSON.stringify(markData)]
+      [getConversionStatusKey(weekStart), JSON.stringify(markData)]
     )
     db.close()
 
@@ -1534,6 +1621,11 @@ async function startServer() {
   try {
     // 初始化数据库
     await initDatabase()
+
+    // 将历史 settings.currentPlans 迁移到 plans 表，并清理旧键
+    const db = await createDbConnection()
+    await migratePlansFromSettings(db)
+    await db.close()
 
     // 初始化定时任务模板
     await initTemplates()

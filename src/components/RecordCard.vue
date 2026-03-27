@@ -148,7 +148,9 @@ const startEdit = async () => {
 const saveEdit = () => {
   if (editContent.value.trim()) {
     recordsStore.updateRecord(props.record.id, {
-      content: editContent.value.trim()
+      content: editContent.value.trim(),
+      project: props.record.project ?? null,
+      workType: props.record.workType ?? null
     })
     emit('updated', props.record)
   }

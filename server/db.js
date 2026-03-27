@@ -368,12 +368,12 @@ export async function migratePlansFromSettings(db) {
 
     console.log(`[Migrate] ✅ 成功迁移 ${currentPlans.length} 条计划`)
 
-    // 可选：清理 settings 中的旧数据（暂时保留作为备份）
-    // await queryRun(db, "DELETE FROM settings WHERE key = 'currentPlans'")
+    // 迁移成功后清理旧键，彻底切到 plans 表单一数据源
+    await queryRun(db, "DELETE FROM settings WHERE key = 'currentPlans'")
+    console.log('[Migrate] ✅ 已清理 settings.currentPlans 旧数据')
   } catch (error) {
     console.error('[Migrate] 迁移失败:', error)
   }
 }
 
 export { DB_PATH }
-

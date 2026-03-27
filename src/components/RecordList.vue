@@ -123,14 +123,11 @@ const handleMoveToNextWeek = async (record) => {
     const result = await response.json()
 
     if (result.success) {
-      // 从本地列表移除
-      const index = recordsStore.records.findIndex(r => r.id === record.id)
-      if (index !== -1) {
-        recordsStore.records.splice(index, 1)
-      }
-
-      // 追加到下周计划
-      await reportsStore.appendPlans(result.newPlans)
+      // 统一从后端刷新，避免本地重复写一份计划数据
+      await Promise.all([
+        recordsStore.init(),
+        reportsStore.init()
+      ])
 
       showToast(result.message || '已移到下周计划')
     } else {

@@ -13,6 +13,7 @@
       <button
         class="submit-btn"
         :disabled="!inputText.trim()"
+        type="button"
         @click="handleSubmit"
         :title="'快捷键: Enter'"
       >
@@ -61,7 +62,9 @@
                 v-for="project in projects"
                 :key="project"
                 class="quick-option"
+                type="button"
                 :class="{ active: parseResult?.project === project }"
+                @mousedown.prevent
                 @click="setProject(project)"
               >
                 {{ project }}
@@ -75,7 +78,9 @@
                 v-for="type in workTypes"
                 :key="type"
                 class="quick-option"
+                type="button"
                 :class="{ active: parseResult?.workType === type }"
+                @mousedown.prevent
                 @click="setWorkType(type)"
               >
                 {{ type }}
@@ -103,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRecordsStore } from '../stores/records'
 import { useSettingsStore } from '../stores/settings'
 import { useParser } from '../composables/useParser'
@@ -130,6 +135,11 @@ const manualWorkType = ref(null)
 const projects = computed(() => settingsStore.projectNames)
 const workTypes = computed(() => settingsStore.workTypeNames)
 
+const focusInput = async () => {
+  await nextTick()
+  inputRef.value?.focus()
+}
+
 // 处理输入
 const handleInput = () => {
   if (inputText.value.trim()) {
@@ -152,7 +162,7 @@ const handleInput = () => {
 }
 
 // 手动设置项目
-const setProject = (project) => {
+const setProject = async (project) => {
   manualProject.value = project
   if (parseResult.value) {
     parseResult.value.project = project
@@ -160,10 +170,11 @@ const setProject = (project) => {
   }
   // 检查是否还需要显示快捷选择
   showQuickSelect.value = !parseResult.value.workType
+  await focusInput()
 }
 
 // 手动设置工作类型
-const setWorkType = (type) => {
+const setWorkType = async (type) => {
   manualWorkType.value = type
   if (parseResult.value) {
     parseResult.value.workType = type
@@ -171,6 +182,7 @@ const setWorkType = (type) => {
   }
   // 检查是否还需要显示快捷选择
   showQuickSelect.value = !parseResult.value.project
+  await focusInput()
 }
 
 // 提交记录

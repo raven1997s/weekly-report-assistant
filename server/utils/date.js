@@ -274,6 +274,67 @@ const formatDate = (date, format = 'yyyy-MM-dd') => {
         .replace('ss', seconds)
 }
 
+/**
+ * 获取工作月周标签（如"2026年3月第4周"）
+ * @param {Date} date
+ * @returns {string}
+ */
+const getWorkMonthWeekLabel = (date) => {
+    const currentDate = new Date(date)
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const monthLabel = `${year}年${month + 1}月`
+
+    const currentWeekInfo = getWorkWeekInfo(currentDate)
+    if (currentWeekInfo.hasNoWorkdays) {
+        return `${monthLabel}休假周`
+    }
+
+    const monthStart = new Date(year, month, 1)
+    const monthEnd = new Date(year, month + 1, 0)
+    const uniqueWeeks = []
+    const seenWeekKeys = new Set()
+
+    for (let day = new Date(monthStart); day <= monthEnd; day.setDate(day.getDate() + 1)) {
+        if (!isWorkday(day)) {
+            continue
+        }
+
+        const weekInfo = getWorkWeekInfo(day)
+        if (weekInfo.hasNoWorkdays) {
+            continue
+        }
+
+        const hasWorkdayInCurrentMonth = weekInfo.workdays.some(item => {
+            if (!item.isWorkday) {
+                return false
+            }
+
+            const itemDate = item.date
+            return itemDate.getFullYear() === year && itemDate.getMonth() === month
+        })
+
+        if (!hasWorkdayInCurrentMonth) {
+            continue
+        }
+
+        const weekKey = `${weekInfo.start.toISOString()}_${weekInfo.end.toISOString()}`
+        if (!seenWeekKeys.has(weekKey)) {
+            seenWeekKeys.add(weekKey)
+            uniqueWeeks.push(weekKey)
+        }
+    }
+
+    const currentWeekKey = `${currentWeekInfo.start.toISOString()}_${currentWeekInfo.end.toISOString()}`
+    const currentWeekIndex = uniqueWeeks.indexOf(currentWeekKey)
+
+    if (currentWeekIndex === -1) {
+        return `${monthLabel}第1周`
+    }
+
+    return `${monthLabel}第${currentWeekIndex + 1}周`
+}
+
 export {
     CHINESE_HOLIDAYS,
     isHoliday,
@@ -282,5 +343,6 @@ export {
     getWeekStart,
     getWeekEnd,
     getWorkWeekInfo,
-    formatDate
+    formatDate,
+    getWorkMonthWeekLabel
 }

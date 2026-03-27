@@ -101,7 +101,7 @@ export async function saveRecords(records) {
 // ============================================
 
 /**
- * 获取周报数据（包含归档、下周计划、本周总结）
+ * 获取周报数据（包含归档和本周总结）
  * @returns {Promise<Object>}
  */
 export async function getReports() {
@@ -110,7 +110,7 @@ export async function getReports() {
 
 /**
  * 保存周报数据
- * @param {Object} data - 包含 reports, currentPlans, currentReflections
+ * @param {Object} data - 周报数据
  * @returns {Promise<void>}
  */
 export async function saveReports(data) {
@@ -141,6 +141,26 @@ export async function saveSettings(settings) {
   return await request('/settings', {
     method: 'PUT',
     body: JSON.stringify(settings)
+  })
+}
+
+/**
+ * 获取邮件模板列表
+ * @returns {Promise<Array>}
+ */
+export async function getMailTemplates() {
+  return await request('/mail/templates')
+}
+
+/**
+ * 创建企业邮箱草稿
+ * @param {Object} payload
+ * @returns {Promise<Object>}
+ */
+export async function createMailDraft(payload) {
+  return await request('/mail/drafts', {
+    method: 'POST',
+    body: JSON.stringify(payload)
   })
 }
 

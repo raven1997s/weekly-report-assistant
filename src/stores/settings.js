@@ -42,6 +42,21 @@ const DEFAULT_SETTINGS = {
         webhookUrl: '',
         secret: '',
         enabled: false
+    },
+
+    // 企业邮箱草稿箱配置
+    mail: {
+        account: '',
+        imapHost: 'imap.qiye.aliyun.com',
+        imapPort: 993,
+        secure: true,
+        password: '',
+        draftsMailbox: 'Drafts',
+        webmailUrl: '',
+        defaultTo: '',
+        defaultCc: '',
+        defaultBcc: '',
+        defaultTemplate: 'gancao-department-weekly-report'
     }
 }
 
@@ -51,6 +66,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const workTypes = ref([...DEFAULT_SETTINGS.workTypes])
     const theme = ref(DEFAULT_SETTINGS.theme)
     const dingtalk = ref({ ...DEFAULT_SETTINGS.dingtalk })
+    const mail = ref({ ...DEFAULT_SETTINGS.mail })
     const scheduledTasks = ref([])
 
     // ============ 初始化 ============
@@ -76,12 +92,27 @@ export const useSettingsStore = defineStore('settings', () => {
                     secret: saved.dingtalk_secret || '',
                     enabled: saved.dingtalk_enabled === 'true' || saved.dingtalk_enabled === true
                 }
+
+                mail.value = {
+                    account: saved.mail_account || '',
+                    imapHost: saved.mail_imap_host || DEFAULT_SETTINGS.mail.imapHost,
+                    imapPort: Number(saved.mail_imap_port || DEFAULT_SETTINGS.mail.imapPort),
+                    secure: saved.mail_secure === 'false' ? false : true,
+                    password: saved.mail_password || '',
+                    draftsMailbox: saved.mail_drafts_mailbox || DEFAULT_SETTINGS.mail.draftsMailbox,
+                    webmailUrl: saved.mail_web_url || '',
+                    defaultTo: saved.mail_default_to || '',
+                    defaultCc: saved.mail_default_cc || '',
+                    defaultBcc: saved.mail_default_bcc || '',
+                    defaultTemplate: saved.mail_default_template || DEFAULT_SETTINGS.mail.defaultTemplate
+                }
             } else {
                 // 使用默认设置
                 projects.value = DEFAULT_SETTINGS.projects
                 workTypes.value = DEFAULT_SETTINGS.workTypes
                 theme.value = DEFAULT_SETTINGS.theme
                 dingtalk.value = DEFAULT_SETTINGS.dingtalk
+                mail.value = DEFAULT_SETTINGS.mail
             }
 
             // 应用主题
@@ -94,6 +125,7 @@ export const useSettingsStore = defineStore('settings', () => {
             workTypes.value = DEFAULT_SETTINGS.workTypes
             theme.value = DEFAULT_SETTINGS.theme
             dingtalk.value = DEFAULT_SETTINGS.dingtalk
+            mail.value = DEFAULT_SETTINGS.mail
             applyTheme(theme.value)
         }
     }
@@ -120,7 +152,19 @@ export const useSettingsStore = defineStore('settings', () => {
                 // 钉钉配置转换为后端期望的分开键格式
                 dingtalk_webhookUrl: dingtalk.value.webhookUrl || '',
                 dingtalk_secret: dingtalk.value.secret || '',
-                dingtalk_enabled: String(dingtalk.value.enabled || false)
+                dingtalk_enabled: String(dingtalk.value.enabled || false),
+                // 企业邮箱配置
+                mail_account: mail.value.account || '',
+                mail_imap_host: mail.value.imapHost || '',
+                mail_imap_port: String(mail.value.imapPort || ''),
+                mail_secure: String(mail.value.secure !== false),
+                mail_password: mail.value.password || '',
+                mail_drafts_mailbox: mail.value.draftsMailbox || '',
+                mail_web_url: mail.value.webmailUrl || '',
+                mail_default_to: mail.value.defaultTo || '',
+                mail_default_cc: mail.value.defaultCc || '',
+                mail_default_bcc: mail.value.defaultBcc || '',
+                mail_default_template: mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
             }
 
             await saveToStorage(STORAGE_KEY, cleanData)
@@ -217,12 +261,19 @@ export const useSettingsStore = defineStore('settings', () => {
         await persist()
     }
 
+    // 更新企业邮箱配置
+    const updateMail = async (config) => {
+        mail.value = { ...mail.value, ...config }
+        await persist()
+    }
+
     // 重置为默认设置
     const resetToDefault = async () => {
         projects.value = [...DEFAULT_SETTINGS.projects]
         workTypes.value = [...DEFAULT_SETTINGS.workTypes]
         theme.value = DEFAULT_SETTINGS.theme
         dingtalk.value = { ...DEFAULT_SETTINGS.dingtalk }
+        mail.value = { ...DEFAULT_SETTINGS.mail }
         applyTheme(theme.value)
         await persist()
     }
@@ -325,6 +376,7 @@ export const useSettingsStore = defineStore('settings', () => {
         workTypes,
         theme,
         dingtalk,
+        mail,
         scheduledTasks,
         // 计算属性
         projectNames,
@@ -340,6 +392,7 @@ export const useSettingsStore = defineStore('settings', () => {
         updateWorkType,
         deleteWorkType,
         updateDingtalk,
+        updateMail,
         resetToDefault,
         fetchScheduledTasks,
         updateScheduledTask,

@@ -54,6 +54,10 @@ const SCHEDULE_TEMPLATES = [
 // 存储已启动的 cron 任务
 const activeJobs = new Map()
 
+function getConversionStatusKey(weekStart) {
+  return `converted_plans_${weekStart}`
+}
+
 /**
  * 初始化预设模板到数据库
  */
@@ -70,7 +74,8 @@ async function initTemplates() {
 
     if (!existing) {
       // 插入预设模板（包含 isSystemTask 字段）
-      await db.run(
+      await queryRun(
+        db,
         `INSERT INTO scheduled_tasks (id, name, hour, minute, day_of_week, type, enabled, isSystemTask, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [template.id, template.name, template.hour, template.minute, template.dayOfWeek,
@@ -78,6 +83,16 @@ async function initTemplates() {
          new Date().toISOString(), new Date().toISOString()]
       )
       console.log(`[Cron] 初始化模板: ${template.name} (${template.type})${template.isSystemTask ? ' [系统任务]' : ''}`)
+    } else if (template.isSystemTask) {
+      // 系统任务始终保持启用且恢复到预设定义，避免因历史配置失效
+      await queryRun(
+        db,
+        `UPDATE scheduled_tasks
+         SET name = ?, hour = ?, minute = ?, day_of_week = ?, type = ?, enabled = 1, isSystemTask = 1, deleted = 0, deletedAt = NULL, updated_at = ?
+         WHERE id = ?`,
+        [template.name, template.hour, template.minute, template.dayOfWeek, template.type, new Date().toISOString(), template.id]
+      )
+      console.log(`[Cron] 校正系统任务配置: ${template.name}`)
     }
   }
 
@@ -93,7 +108,7 @@ async function startScheduledTasks() {
   // 获取所有启用的任务
   const tasks = await queryAll(
     db,
-    'SELECT * FROM scheduled_tasks WHERE enabled = 1'
+    'SELECT * FROM scheduled_tasks WHERE enabled = 1 AND deleted = 0'
   )
 
   await db.close()
@@ -110,6 +125,12 @@ async function startScheduledTasks() {
   tasks.forEach(task => {
     startTask(task)
   })
+
+  // 服务在计划时间之后启动时，补跑系统转换任务，避免必须依赖前端触发
+  const convertTask = tasks.find(task => task.type === 'convert')
+  if (convertTask) {
+    await executeTask(convertTask)
+  }
 
   console.log(`[Cron] ========== 已启动 ${tasks.length} 个定时任务 ==========`)
   tasks.forEach(task => {
@@ -618,7 +639,7 @@ async function isPlansConverted(db, weekStart) {
   const converted = await queryGet(
     db,
     "SELECT value FROM settings WHERE key = ?",
-    [`converted_plans_${weekStart}`]
+    [getConversionStatusKey(weekStart)]
   )
 
   return !!converted
@@ -634,12 +655,13 @@ async function markPlansAsConverted(db, weekStart, recordIds) {
     weekStart: weekStart
   }
 
-  await db.run(
+  await queryRun(
+    db,
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-    [`converted_plans_${weekStart}`, JSON.stringify(markData)]
+    [getConversionStatusKey(weekStart), JSON.stringify(markData)]
   )
 
   console.log(`[Cron] 已标记转换: ${weekStart}, ${recordIds.length} 条记录`)
 }
 
-export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES, sendReminder, executeTask }
+export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES, sendReminder, executeTask, getConversionStatusKey }

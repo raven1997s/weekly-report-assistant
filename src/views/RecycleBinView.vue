@@ -134,7 +134,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
-import { formatDate, isCurrentWeek } from '../utils/date'
+import { formatDate } from '../utils/date'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const recordsStore = useRecordsStore()
@@ -264,17 +264,9 @@ const handleRestoreRecord = async (id) => {
   const record = deletedRecords.value.find(r => r.id === id)
   if (!record) return
 
-  // 检查是否是本周的记录
-  const recordDate = new Date(record.createdAt)
-  const isCurrentWeekRecord = isCurrentWeek(recordDate)
-
-  if (!isCurrentWeekRecord) {
-    showToast('历史工作记录不允许恢复', true)
-    return
-  }
-
   const confirmed = await dialogStore.confirm({
-    message: '确定要恢复这条工作记录吗？'
+    message: '确定要恢复这条工作记录吗？',
+    details: '恢复后将回到工作记录列表；若是历史日期的记录，请按原记录日期理解其归属周次'
   })
   if (!confirmed) return
 

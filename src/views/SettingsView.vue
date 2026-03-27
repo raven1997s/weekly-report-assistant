@@ -132,6 +132,132 @@
       </div>
     </div>
 
+    <!-- 企业邮箱草稿箱配置 -->
+    <div class="card setting-section">
+      <div class="section-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M2.94 6.34A2 2 0 014.76 5h10.48a2 2 0 011.82 1.34L10 10.88 2.94 6.34z"/>
+            <path d="M2 7.55v6.7A1.75 1.75 0 003.75 16h12.5A1.75 1.75 0 0018 14.25v-6.7l-7.37 4.73a1.25 1.25 0 01-1.26 0L2 7.55z"/>
+          </svg>
+          阿里企业邮箱草稿箱
+        </h3>
+      </div>
+      <div class="dingtalk-config">
+        <div class="input-group">
+          <label>邮箱账号</label>
+          <input
+            v-model="mailConfig.account"
+            type="text"
+            placeholder="例如：name@gancao.com"
+            class="config-input"
+            @change="updateMailConfig"
+          />
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>IMAP 服务器</label>
+            <input
+              v-model="mailConfig.imapHost"
+              type="text"
+              placeholder="imap.qiye.aliyun.com"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+          <div class="input-group input-group-sm">
+            <label>端口</label>
+            <input
+              v-model.number="mailConfig.imapPort"
+              type="number"
+              min="1"
+              placeholder="993"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+        </div>
+        <div class="input-group">
+          <label>安全密码</label>
+          <input
+            v-model="mailConfig.password"
+            type="password"
+            placeholder="输入三方客户端安全密码"
+            class="config-input"
+            @change="updateMailConfig"
+          />
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>草稿箱文件夹</label>
+            <input
+              v-model="mailConfig.draftsMailbox"
+              type="text"
+              placeholder="Drafts 或 草稿箱"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+          <div class="input-group">
+            <label>邮箱网页地址</label>
+            <input
+              v-model="mailConfig.webmailUrl"
+              type="text"
+              placeholder="例如：https://mail.gancao.com/alimail/"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+        </div>
+        <div class="input-group">
+          <label>默认收件人</label>
+          <input
+            v-model="mailConfig.defaultTo"
+            type="text"
+            placeholder="多个邮箱用英文逗号分隔"
+            class="config-input"
+            @change="updateMailConfig"
+          />
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label>默认抄送</label>
+            <input
+              v-model="mailConfig.defaultCc"
+              type="text"
+              placeholder="可选，多个邮箱用英文逗号分隔"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+          <div class="input-group">
+            <label>默认密送</label>
+            <input
+              v-model="mailConfig.defaultBcc"
+              type="text"
+              placeholder="可选，多个邮箱用英文逗号分隔"
+              class="config-input"
+              @change="updateMailConfig"
+            />
+          </div>
+        </div>
+        <div class="input-group">
+          <label>默认邮件模板</label>
+          <select v-model="mailConfig.defaultTemplate" class="config-input" @change="updateMailConfig">
+            <option v-for="template in mailTemplateOptions" :key="template.key" :value="template.key">
+              {{ template.name }}
+            </option>
+          </select>
+        </div>
+        <div class="schedule-hint">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm1 3a1 1 0 00-1 1v5a1 1 0 102 0v-5a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <span>当前版本使用系统内置表格模板生成草稿，默认不附加邮箱签名。</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 定时推送 -->
     <div class="card setting-section">
       <div class="section-header">
@@ -330,19 +456,27 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PromptDialog from '../components/PromptDialog.vue'
 
 const settingsStore = useSettingsStore()
-const { projects, workTypes, dingtalk, scheduledTasks } = storeToRefs(settingsStore)
+const { projects, workTypes, dingtalk, mail, scheduledTasks } = storeToRefs(settingsStore)
 
 // 弹窗（使用全局 store）
 const dialogStore = useDialogStore()
 
 // 钉钉配置（使用 ref 避免频繁保存，通过 watch 同步 store）
 const dingtalkConfig = ref({ ...dingtalk.value })
+const mailConfig = ref({ ...mail.value })
 const isTesting = ref(false)
 const isTestingReminder = ref(false)
+const mailTemplateOptions = [
+  { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
+]
 
 // 监听 store 的 dingtalk 变化，同步到本地 ref
 watch(dingtalk, (newVal) => {
   dingtalkConfig.value = { ...newVal }
+}, { deep: true })
+
+watch(mail, (newVal) => {
+  mailConfig.value = { ...newVal }
 }, { deep: true })
 
 // 定时任务弹窗状态
@@ -388,6 +522,10 @@ onMounted(async () => {
 // 钉钉配置管理
 const updateDingtalkConfig = () => {
   settingsStore.updateDingtalk(dingtalkConfig.value)
+}
+
+const updateMailConfig = () => {
+  settingsStore.updateMail(mailConfig.value)
 }
 
 const testDingTalk = async () => {
@@ -798,10 +936,20 @@ const handleReset = async () => {
   flex-direction: column;
   gap: $spacing-4;
 
+  .input-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $spacing-4;
+  }
+
   .input-group {
     display: flex;
     flex-direction: column;
     gap: $spacing-2;
+
+    &.input-group-sm {
+      max-width: 180px;
+    }
 
     label {
       font-size: $font-size-sm;
@@ -824,6 +972,16 @@ const handleReset = async () => {
         border-color: $accent-primary;
         box-shadow: 0 0 0 3px $accent-light;
       }
+    }
+  }
+
+  @media (max-width: $breakpoint-md) {
+    .input-row {
+      grid-template-columns: 1fr;
+    }
+
+    .input-group.input-group-sm {
+      max-width: none;
     }
   }
 }

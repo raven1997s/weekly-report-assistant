@@ -36,6 +36,32 @@ export const copyToClipboard = async (text) => {
 }
 
 /**
+ * 同时写入纯文本和 HTML 到剪贴板。
+ * 支持的邮箱/编辑器会优先读取 HTML，从而保留格式。
+ * 不支持富文本剪贴板时自动回退为纯文本。
+ * @param {{ text: string, html: string }} payload
+ * @returns {Promise<boolean>}
+ */
+export const copyRichContentToClipboard = async ({ text, html }) => {
+    try {
+        if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+            const item = new ClipboardItem({
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+                'text/html': new Blob([html], { type: 'text/html' })
+            })
+
+            await navigator.clipboard.write([item])
+            return true
+        }
+
+        return await copyToClipboard(text)
+    } catch (error) {
+        console.error('复制富文本到剪贴板失败:', error)
+        return await copyToClipboard(text)
+    }
+}
+
+/**
  * 从剪贴板读取文本
  * @returns {Promise<string|null>}
  */
