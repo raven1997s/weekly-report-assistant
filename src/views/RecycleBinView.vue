@@ -43,13 +43,17 @@
         <div v-for="report in deletedReportsData" :key="report.id" class="deleted-item">
           <div class="item-info">
             <div class="item-main">
-              <span class="item-title">{{ report.weekLabel }}</span>
+              <span class="item-title">{{ getDisplayWeekLabel(report) }}</span>
               <span class="item-meta">{{ formatDate(report.weekStart, 'YYYY.MM.DD') }} - {{ formatDate(report.weekEnd, 'YYYY.MM.DD') }}</span>
             </div>
             <span class="item-date">删除于 {{ formatDate(report.deletedAt, 'MM-DD HH:mm') }}</span>
           </div>
           <div class="item-actions">
-            <button class="btn btn-sm btn-secondary" @click="handleRestoreReport(report.id)">
+            <button
+              v-if="!reportsStore.isCurrentWeekReport(report.weekStart)"
+              class="btn btn-sm btn-secondary"
+              @click="handleRestoreReport(report.id)"
+            >
               <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 4px;">
                 <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v3.25a1 1 0 11-2 0V13a1 1 0 01-.293.707z" clip-rule="evenodd"/>
               </svg>
@@ -134,7 +138,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
-import { formatDate } from '../utils/date'
+import { formatDate, getWorkMonthWeekLabel } from '../utils/date'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const recordsStore = useRecordsStore()
@@ -202,6 +206,14 @@ const fetchDeletedData = async () => {
   }
 }
 
+const getDisplayWeekLabel = (report) => {
+  if (report?.weekStart) {
+    return getWorkMonthWeekLabel(new Date(report.weekStart))
+  }
+
+  return report?.weekLabel || '未命名周报'
+}
+
 // 恢复周报
 const handleRestoreReport = async (id) => {
   // 查找要恢复的周报
@@ -211,14 +223,14 @@ const handleRestoreReport = async (id) => {
   // 判断是否是本周周报
   const isCurrentWeek = reportsStore.isCurrentWeekReport(report.weekStart)
 
+  if (isCurrentWeek) {
+    showToast('本周周报归档稿不支持从回收站恢复，请直接永久删除', true)
+    return
+  }
+
   let message = '确定要恢复这份周报吗？'
   let details = ''
-
-  if (isCurrentWeek) {
-    details = '这是本周的周报，恢复后可以继续编辑'
-  } else {
-    details = '这是历史周报，恢复后只会在历史列表中显示'
-  }
+  details = '这是历史周报，恢复后只会在历史列表中显示'
 
   const confirmed = await dialogStore.confirm({
     message,
@@ -228,15 +240,8 @@ const handleRestoreReport = async (id) => {
 
   const result = await reportsStore.restoreReport(id)
   if (result.success) {
-    showToast(result.isCurrentWeek ? '周报已恢复，可以继续编辑' : '周报已恢复，已在历史列表中显示')
-
-    if (result.isCurrentWeek) {
-      // 本周周报，刷新数据
-      await fetchDeletedData()
-    } else {
-      // 历史周报，跳转到历史页面
-      router.push('/history')
-    }
+    showToast('周报已恢复，已在历史列表中显示')
+    router.push('/history')
   } else {
     showToast('恢复失败，请重试', true)
   }

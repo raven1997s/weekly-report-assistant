@@ -23,9 +23,24 @@
       </div>
     </div>
 
+    <Transition name="fade">
+      <div v-if="isCurrentWeekSaved" class="locked-notice">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd"
+            d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+            clip-rule="evenodd" />
+        </svg>
+        <span>本周周报已归档，如需继续编辑，请先前往历史周报页面恢复本周周报</span>
+      </div>
+    </Transition>
+
     <!-- 顶部：快速录入 -->
     <section class="input-section">
-      <InputBox @record-added="handleRecordAdded" />
+      <InputBox
+        :disabled="isCurrentWeekSaved"
+        disabled-placeholder="本周周报已归档，请先前往历史周报页面恢复本周周报"
+        @record-added="handleRecordAdded"
+      />
     </section>
 
     <!-- 中部：本周记录列表 -->
@@ -51,11 +66,14 @@ import InputBox from '../components/InputBox.vue'
 import RecordList from '../components/RecordList.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { useDialogStore } from '../stores/dialog'
+import { useReportsStore } from '../stores/reports'
 import { getWorkWeekInfo, formatDate } from '../utils/date'
 
 const dialogStore = useDialogStore()
+const reportsStore = useReportsStore()
 
 const weekInfo = ref(null)
+const isCurrentWeekSaved = computed(() => reportsStore.hasCurrentWeekReport)
 
 // 计算即将到来的假期文本
 const upcomingHolidaysText = computed(() => {
@@ -220,6 +238,20 @@ onMounted(() => {
     margin-bottom: $spacing-10;
     margin-top: $spacing-8;
   }
+}
+
+.locked-notice {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-4;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: $radius-md;
+  color: #856404;
+  margin-top: $spacing-5;
+  margin-bottom: $spacing-5;
+  font-weight: $font-weight-medium;
 }
 
 // ========================================

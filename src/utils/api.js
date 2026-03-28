@@ -164,6 +164,18 @@ export async function createMailDraft(payload) {
   })
 }
 
+/**
+ * 预览邮件模板
+ * @param {Object} payload
+ * @returns {Promise<Object>}
+ */
+export async function previewMailTemplate(payload) {
+  return await request('/mail/preview', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
 // ============================================
 // 兼容旧接口（保持与 database.js 一致的函数名）
 // ============================================

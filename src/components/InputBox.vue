@@ -6,16 +6,17 @@
         v-model="inputText"
         type="text"
         class="input-field"
-        placeholder="记录工作内容，按 Enter 保存..."
+        :placeholder="disabled ? disabledPlaceholder : '记录工作内容，按 Enter 保存...'"
+        :disabled="disabled"
         @keyup.enter="handleSubmit"
         @input="handleInput"
       />
       <button
         class="submit-btn"
-        :disabled="!inputText.trim()"
+        :disabled="disabled || !inputText.trim()"
         type="button"
         @click="handleSubmit"
-        :title="'快捷键: Enter'"
+        :title="disabled ? '请先恢复本周周报后再新增记录' : '快捷键: Enter'"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
           <path d="M10 3a.75.75 0 01.75.75v5.5h5.5a.75.75 0 010 1.5h-5.5v5.5a.75.75 0 01-1.5 0v-5.5h-5.5a.75.75 0 010-1.5h5.5v-5.5A.75.75 0 0110 3z"/>
@@ -27,7 +28,7 @@
     <div class="dynamic-content-area">
       <!-- 解析预览 -->
       <Transition name="fade">
-        <div v-if="parseResult && inputText.trim()" class="parse-preview">
+        <div v-if="!disabled && parseResult && inputText.trim()" class="parse-preview">
           <div class="parse-item">
             <span class="parse-label">项目</span>
             <span class="parse-value" :class="{ detected: parseResult.project }">
@@ -54,7 +55,7 @@
 
       <!-- 快捷选择 -->
       <Transition name="fade">
-        <div v-if="showQuickSelect && inputText.trim()" class="quick-select">
+        <div v-if="!disabled && showQuickSelect && inputText.trim()" class="quick-select">
           <div class="quick-section">
             <span class="quick-label">选择项目</span>
             <div class="quick-options">
@@ -113,6 +114,17 @@ import { useRecordsStore } from '../stores/records'
 import { useSettingsStore } from '../stores/settings'
 import { useParser } from '../composables/useParser'
 
+const props = defineProps({
+  disabled: {
+    type: Boolean,
+    default: false
+  },
+  disabledPlaceholder: {
+    type: String,
+    default: '本周周报已归档，请先恢复本周周报后再新增记录'
+  }
+})
+
 const emit = defineEmits(['record-added'])
 
 const recordsStore = useRecordsStore()
@@ -142,6 +154,10 @@ const focusInput = async () => {
 
 // 处理输入
 const handleInput = () => {
+  if (props.disabled) {
+    return
+  }
+
   if (inputText.value.trim()) {
     parseResult.value = parseInput(inputText.value)
 
@@ -187,6 +203,17 @@ const setWorkType = async (type) => {
 
 // 提交记录
 const handleSubmit = async () => {
+  if (props.disabled) {
+    successMessage.value = props.disabledPlaceholder
+    isError.value = true
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+      isError.value = false
+    }, 2000)
+    return
+  }
+
   if (!inputText.value.trim()) return
 
   // 创建纯净的记录对象（去除 Vue 响应式包装，确保可以序列化）

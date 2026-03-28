@@ -18,8 +18,21 @@
       <p class="page-header-subtitle">自定义项目、类型和偏好设置</p>
     </div>
 
+    <div class="settings-tabs">
+      <button
+        v-for="tab in settingTabs"
+        :key="tab.key"
+        class="settings-tab"
+        :class="{ active: activeTab === tab.key, editing: editingSection === tab.key }"
+        @click="activeTab = tab.key"
+      >
+        <span>{{ tab.label }}</span>
+        <span v-if="editingSection === tab.key" class="tab-dot"></span>
+      </button>
+    </div>
+
     <!-- 项目管理 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'projects'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -54,16 +67,23 @@
       </template>
 
       <div v-else class="readonly-list">
-        <div v-for="project in projects" :key="project.id" class="readonly-item">
+        <div v-for="project in displayedProjects" :key="project.id" class="readonly-item">
           <div class="readonly-main">{{ project.name }}</div>
           <div class="readonly-meta">{{ formatKeywords(project.keywords) }}</div>
         </div>
+        <button
+          v-if="projects.length > settingPreviewLimit"
+          class="btn btn-ghost btn-sm expand-btn"
+          @click="showAllProjects = !showAllProjects"
+        >
+          {{ showAllProjects ? '收起' : `展开更多（${projects.length - settingPreviewLimit}条）` }}
+        </button>
         <div v-if="projects.length === 0" class="empty-settings">暂无项目配置</div>
       </div>
     </div>
 
     <!-- 工作类型管理 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'workTypes'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -98,16 +118,23 @@
       </template>
 
       <div v-else class="readonly-list">
-        <div v-for="type in workTypes" :key="type.id" class="readonly-item">
+        <div v-for="type in displayedWorkTypes" :key="type.id" class="readonly-item">
           <div class="readonly-main">{{ type.name }}</div>
           <div class="readonly-meta">{{ formatKeywords(type.keywords) }}</div>
         </div>
+        <button
+          v-if="workTypes.length > settingPreviewLimit"
+          class="btn btn-ghost btn-sm expand-btn"
+          @click="showAllWorkTypes = !showAllWorkTypes"
+        >
+          {{ showAllWorkTypes ? '收起' : `展开更多（${workTypes.length - settingPreviewLimit}条）` }}
+        </button>
         <div v-if="workTypes.length === 0" class="empty-settings">暂无工作类型配置</div>
       </div>
     </div>
 
     <!-- 钉钉配置 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'dingtalk'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -175,7 +202,7 @@
     </div>
 
     <!-- 企业邮箱草稿箱配置 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'mail'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -280,19 +307,11 @@
               />
             </div>
           </div>
-          <div class="input-group">
-            <label>默认邮件模板</label>
-            <select v-model="mailConfig.defaultTemplate" class="config-input">
-              <option v-for="template in mailTemplateOptions" :key="template.key" :value="template.key">
-                {{ template.name }}
-              </option>
-            </select>
-          </div>
           <div class="schedule-hint">
             <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm1 3a1 1 0 00-1 1v5a1 1 0 102 0v-5a1 1 0 00-1-1z" clip-rule="evenodd"/>
             </svg>
-            <span>当前版本使用系统内置表格模板生成草稿，默认不附加邮箱签名。</span>
+            <span>当前版本通过 IMAP 写入阿里邮箱草稿箱，系统不会主动拼接签名；是否显示签名取决于阿里邮箱侧。</span>
           </div>
         </div>
         <div class="section-edit-actions">
@@ -319,18 +338,257 @@
           <span class="summary-value">{{ mail.defaultTo || '未配置' }}</span>
         </div>
         <div class="summary-item">
-          <span class="summary-label">默认模板</span>
-          <span class="summary-value">{{ getMailTemplateName(mail.defaultTemplate) }}</span>
-        </div>
-        <div class="summary-item">
           <span class="summary-label">邮箱网页</span>
           <span class="summary-value">{{ mail.webmailUrl || '未配置' }}</span>
         </div>
       </div>
     </div>
 
+    <!-- 邮件模板与签名 -->
+    <div v-show="activeTab === 'mailDesign'" class="card setting-section mail-design-section">
+      <div class="section-header">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V8.414A2 2 0 0017.414 7L13 2.586A2 2 0 0011.586 2H4zm7 1.414L15.586 9H12a1 1 0 01-1-1V4.414z"/>
+          </svg>
+          邮件模板与签名
+        </h3>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('mailDesign')" class="status-badge info">编辑中</span>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('mailDesign')" :disabled="hasActiveEditor">编辑</button>
+        </div>
+      </div>
+
+      <div class="mail-design-workbench" :class="{ editing: isSectionEditing('mailDesign') }">
+        <div class="mail-preview-config">
+          <template v-if="isSectionEditing('mailDesign')">
+            <div class="mail-config-lines">
+              <div class="module-block">
+                <div class="module-block-title">模板管理</div>
+                <div class="config-line">
+                  <label class="config-line-label">默认模板</label>
+                  <div class="config-line-control">
+                    <select v-model="mailDesignTemplateKey" class="config-input">
+                      <option v-for="template in mailTemplateOptions" :key="template.key" :value="template.key">
+                        {{ template.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              <div class="template-list">
+                <div
+                  v-for="template in mailTemplateOptions"
+                  :key="template.key"
+                  class="template-card"
+                  :class="{ active: mailDesignTemplateKey === template.key }"
+                >
+                  <div class="template-card-title">{{ template.name }}</div>
+                </div>
+              </div>
+            </div>
+
+              <div class="module-block">
+                <div class="module-block-title">模板文案</div>
+                <div class="config-line">
+                  <label class="config-line-label">标题后缀</label>
+                  <div class="config-line-control">
+                    <input
+                      v-model="mailTemplateConfig.titleSuffix"
+                      type="text"
+                      placeholder="例如：厚朴汤 部门工作周报"
+                      class="config-input"
+                    />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">红色副标题</label>
+                  <div class="config-line-control">
+                    <input
+                      v-model="mailTemplateConfig.subtitle"
+                      type="text"
+                      placeholder="例如：降本增效、协同攻坚、高质量发展"
+                      class="config-input"
+                    />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">横幅文案</label>
+                  <div class="config-line-control">
+                    <input
+                      v-model="mailTemplateConfig.bannerText"
+                      type="text"
+                      placeholder="例如：星光闪烁，助我前行"
+                      class="config-input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="module-block">
+                <div class="module-block-title">签名配置</div>
+                <div class="config-line">
+                  <label class="config-line-label">启用签名</label>
+                  <div class="config-line-control">
+                    <label class="checkbox-row">
+                      <input v-model="mailSignatureConfig.enabled" type="checkbox" />
+                      <span>启用邮件签名</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">展示名</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.displayName" type="text" class="config-input" placeholder="龙角草" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">真实姓名</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.realName" type="text" class="config-input" placeholder="高宁" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">职位</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.jobTitle" type="text" class="config-input" placeholder="JAVA开发工程师" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">手机</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.mobile" type="text" class="config-input" placeholder="18829223750" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">传真</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.fax" type="text" class="config-input" placeholder="0571-8893-5068" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">网址</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.website" type="text" class="config-input" placeholder="www.gancao.com" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">公司</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.company" type="text" class="config-input" placeholder="杭州甘之草科技股份有限公司" />
+                  </div>
+                </div>
+                <div class="config-line">
+                  <label class="config-line-label">地址</label>
+                  <div class="config-line-control">
+                    <input v-model="mailSignatureConfig.address" type="text" class="config-input" placeholder="杭州市聚工路11号创伟科技园B幢10层" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-edit-actions">
+              <button class="btn btn-secondary" @click="cancelSectionEdit('mailDesign')">取消</button>
+              <button class="btn btn-primary" @click="saveMailDesignSection">保存</button>
+            </div>
+          </template>
+
+          <div v-else class="mail-config-lines readonly">
+            <div class="module-block">
+              <div class="module-block-title">模板管理</div>
+              <div class="config-line">
+                <span class="config-line-label">默认模板</span>
+                <div class="config-line-value highlight">{{ getMailTemplateName(mail.defaultTemplate) }}</div>
+              </div>
+              <div class="template-list">
+                <div
+                  v-for="template in mailTemplateOptions"
+                  :key="template.key"
+                  class="template-card"
+                  :class="{ active: mail.defaultTemplate === template.key }"
+                >
+                  <div class="template-card-title">{{ template.name }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="module-block">
+              <div class="module-block-title">模板文案</div>
+              <div class="config-line">
+                <span class="config-line-label">标题后缀</span>
+                <div class="config-line-value">{{ mailTemplate.titleSuffix }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">红色副标题</span>
+                <div class="config-line-value">{{ mailTemplate.subtitle }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">横幅文案</span>
+                <div class="config-line-value">{{ mailTemplate.bannerText }}</div>
+              </div>
+            </div>
+
+            <div class="module-block">
+              <div class="module-block-title">签名配置</div>
+              <div class="config-line">
+                <span class="config-line-label">签名状态</span>
+                <div class="config-line-value">{{ mailSignature.enabled ? '已启用' : '已关闭' }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">姓名 / 职位</span>
+                <div class="config-line-value">{{ signatureSummary }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">手机</span>
+                <div class="config-line-value">{{ mailSignature.mobile || '未配置' }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">传真</span>
+                <div class="config-line-value">{{ mailSignature.fax || '未配置' }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">网址</span>
+                <div class="config-line-value">{{ mailSignature.website || '未配置' }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">公司</span>
+                <div class="config-line-value">{{ mailSignature.company || '未配置' }}</div>
+              </div>
+              <div class="config-line">
+                <span class="config-line-label">地址</span>
+                <div class="config-line-value">{{ mailSignature.address || '未配置' }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mail-preview-stage">
+          <div class="mail-preview-panel">
+          <div class="preview-header">
+            <div>
+              <div class="preview-title">完整邮件预览</div>
+              <div class="preview-subtitle">{{ mailPreviewSubject || '正在生成预览主题...' }}</div>
+            </div>
+            <div class="preview-actions">
+              <span v-if="isMailPreviewLoading" class="status-badge info">预览生成中</span>
+              <button class="btn btn-secondary btn-sm" @click="openPreviewModal">
+                放大预览
+              </button>
+            </div>
+          </div>
+          <div v-if="mailPreviewError" class="preview-error">{{ mailPreviewError }}</div>
+          <div v-else class="mail-preview-paper">
+            <iframe
+              class="mail-preview-frame"
+              :srcdoc="mailPreviewHtml"
+              title="邮件模板与签名预览"
+            ></iframe>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 定时推送 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'scheduledTasks'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -467,7 +725,7 @@
     </Transition>
 
     <!-- 数据管理 -->
-    <div class="card setting-section">
+    <div v-show="activeTab === 'data'" class="card setting-section">
       <div class="section-header">
         <h3>
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
@@ -513,6 +771,30 @@
       @confirm="dialogStore.promptHandle"
       @cancel="dialogStore.promptHandle(null)"
     />
+
+    <Transition name="scale">
+      <div v-if="showPreviewModal" class="modal-overlay preview-modal-overlay" @click="closePreviewModal">
+        <div class="modal-content preview-modal-content" @click.stop>
+          <div class="modal-header preview-modal-header">
+            <div>
+              <h3>完整邮件大预览</h3>
+              <div class="preview-subtitle">{{ mailPreviewSubject || '正在生成预览主题...' }}</div>
+            </div>
+            <div class="preview-actions">
+              <button class="btn btn-secondary btn-sm" @click="refreshMailPreview">刷新</button>
+              <button class="close-btn" @click="closePreviewModal" aria-label="关闭">×</button>
+            </div>
+          </div>
+          <div class="preview-modal-body">
+            <iframe
+              class="preview-modal-frame"
+              :srcdoc="mailPreviewHtml"
+              title="完整邮件大预览"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -521,19 +803,48 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '../stores/settings'
 import { useDialogStore } from '../stores/dialog'
-import { exportAllData, importAllData } from '../utils/api'
+import { exportAllData, getMailTemplates, importAllData, previewMailTemplate } from '../utils/api'
 import { testDingTalkConfig } from '../utils/dingtalk'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PromptDialog from '../components/PromptDialog.vue'
 
 const settingsStore = useSettingsStore()
-const { projects, workTypes, dingtalk, mail, scheduledTasks } = storeToRefs(settingsStore)
+const { projects, workTypes, dingtalk, mail, mailTemplate, mailTemplateConfigs, mailSignature, scheduledTasks } = storeToRefs(settingsStore)
 
 // 弹窗（使用全局 store）
 const dialogStore = useDialogStore()
 
+const SETTINGS_ACTIVE_TAB_KEY = 'weekly_report_settings_active_tab'
+const settingPreviewLimit = 5
+const settingTabs = [
+  { key: 'projects', label: '项目管理' },
+  { key: 'workTypes', label: '工作类型' },
+  { key: 'dingtalk', label: '钉钉配置' },
+  { key: 'mail', label: '邮箱草稿箱' },
+  { key: 'mailDesign', label: '邮件模板与签名' },
+  { key: 'scheduledTasks', label: '定时任务' },
+  { key: 'data', label: '数据管理' }
+]
+const activeTab = ref('projects')
+
 const editingSection = ref('')
 const hasActiveEditor = computed(() => Boolean(editingSection.value))
+const showAllProjects = ref(false)
+const showAllWorkTypes = ref(false)
+
+const displayedProjects = computed(() => {
+  if (isSectionEditing('projects') || showAllProjects.value) {
+    return projects.value
+  }
+  return projects.value.slice(0, settingPreviewLimit)
+})
+
+const displayedWorkTypes = computed(() => {
+  if (isSectionEditing('workTypes') || showAllWorkTypes.value) {
+    return workTypes.value
+  }
+  return workTypes.value.slice(0, settingPreviewLimit)
+})
 
 const isSectionEditing = (section) => editingSection.value === section
 
@@ -564,7 +875,7 @@ const maskSensitiveText = (value, visiblePrefix = 10) => {
   return `${value.slice(0, visiblePrefix)}...${value.slice(-6)}`
 }
 const getMailTemplateName = (templateKey) => {
-  const template = mailTemplateOptions.find(item => item.key === templateKey)
+  const template = mailTemplateOptions.value.find(item => item.key === templateKey)
   return template?.name || '未配置'
 }
 
@@ -572,11 +883,43 @@ const projectDrafts = ref([])
 const workTypeDrafts = ref([])
 const dingtalkConfig = ref({ ...dingtalk.value })
 const mailConfig = ref({ ...mail.value })
+const mailTemplateConfig = ref({ ...mailTemplate.value })
+const mailSignatureConfig = ref({ ...mailSignature.value })
 const isTesting = ref(false)
 const isTestingReminder = ref(false)
-const mailTemplateOptions = [
-  { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
-]
+const mailTemplateOptions = ref([])
+const mailPreviewHtml = ref('<html><body></body></html>')
+const mailPreviewSubject = ref('')
+const mailPreviewError = ref('')
+const isMailPreviewLoading = ref(false)
+const mailPreviewTimer = ref(null)
+const showPreviewModal = ref(false)
+
+const previewReportMock = {
+  weekStart: new Date().toISOString(),
+  records: [
+    { content: '完成周报助手邮件模板设置与签名能力开发', project: '周报助手', workType: '需求开发' },
+    { content: '联调阿里邮箱草稿预览与渲染逻辑', project: '周报助手', workType: '协同' }
+  ],
+  plans: [
+    { content: '完成设置页体验细节优化', project: '周报助手', workType: '优化' },
+    { content: '补充邮件模板与签名相关测试', project: '周报助手', workType: 'Bug修复' }
+  ],
+  reflections: {
+    gains: '统一了模板预览和草稿生成链路，减少重复维护成本。',
+    losses: '预览接口需要在设置页中做更好的加载态处理。'
+  }
+}
+const mailDesignTemplateKey = ref(mail.value.defaultTemplate)
+const resolveTemplateConfig = (templateKey) => {
+  const configs = mailTemplateConfigs.value || {}
+  return {
+    titleSuffix: '厚朴汤 部门工作周报',
+    subtitle: '降本增效、协同攻坚、高质量发展',
+    bannerText: '星光闪烁，助我前行',
+    ...(configs[templateKey] || {})
+  }
+}
 
 const syncSectionDraft = (section) => {
   if (section === 'projects') {
@@ -587,6 +930,14 @@ const syncSectionDraft = (section) => {
     dingtalkConfig.value = { ...dingtalk.value }
   } else if (section === 'mail') {
     mailConfig.value = { ...mail.value }
+  } else if (section === 'mailTemplate') {
+    mailTemplateConfig.value = { ...resolveTemplateConfig(mail.value.defaultTemplate) }
+  } else if (section === 'mailSignature') {
+    mailSignatureConfig.value = { ...mailSignature.value }
+  } else if (section === 'mailDesign') {
+    mailDesignTemplateKey.value = mail.value.defaultTemplate
+    mailTemplateConfig.value = { ...resolveTemplateConfig(mail.value.defaultTemplate) }
+    mailSignatureConfig.value = { ...mailSignature.value }
   }
 }
 
@@ -611,9 +962,21 @@ watch(projects, (newVal) => {
   }
 }, { deep: true })
 
+watch(projects, (newVal) => {
+  if (newVal.length <= settingPreviewLimit) {
+    showAllProjects.value = false
+  }
+}, { deep: true })
+
 watch(workTypes, (newVal) => {
   if (!isSectionEditing('workTypes')) {
     workTypeDrafts.value = cloneSettingItems(newVal)
+  }
+}, { deep: true })
+
+watch(workTypes, (newVal) => {
+  if (newVal.length <= settingPreviewLimit) {
+    showAllWorkTypes.value = false
   }
 }, { deep: true })
 
@@ -627,7 +990,29 @@ watch(mail, (newVal) => {
   if (!isSectionEditing('mail')) {
     mailConfig.value = { ...newVal }
   }
+  if (!isSectionEditing('mailDesign')) {
+    mailDesignTemplateKey.value = newVal.defaultTemplate
+  }
 }, { deep: true })
+
+watch(mailTemplate, (newVal) => {
+  if (!isSectionEditing('mailTemplate') && !isSectionEditing('mailDesign')) {
+    mailTemplateConfig.value = { ...newVal }
+  }
+}, { deep: true })
+
+watch(mailSignature, (newVal) => {
+  if (!isSectionEditing('mailSignature')) {
+    mailSignatureConfig.value = { ...newVal }
+  }
+}, { deep: true })
+
+watch(activeTab, (newVal) => {
+  localStorage.setItem(SETTINGS_ACTIVE_TAB_KEY, newVal)
+  if (newVal === 'mailDesign') {
+    scheduleMailPreview()
+  }
+})
 
 // 定时任务弹窗状态
 const showAddTaskModal = ref(false)
@@ -663,13 +1048,33 @@ const showToast = (message, isErrorMessage = false) => {
 
 // 初始化
 onMounted(async () => {
+  const savedTab = localStorage.getItem(SETTINGS_ACTIVE_TAB_KEY)
+  if (settingTabs.some(tab => tab.key === savedTab)) {
+    activeTab.value = savedTab
+  }
+
   // 重新从 API 获取设置数据，确保与后端同步
   await settingsStore.init()
   syncSectionDraft('projects')
   syncSectionDraft('workTypes')
   syncSectionDraft('dingtalk')
   syncSectionDraft('mail')
+  syncSectionDraft('mailTemplate')
+  syncSectionDraft('mailSignature')
+  syncSectionDraft('mailDesign')
   await settingsStore.fetchScheduledTasks()
+  try {
+    const templates = await getMailTemplates()
+    if (Array.isArray(templates) && templates.length > 0) {
+      mailTemplateOptions.value = templates
+      const matchedTemplate = templates.find(template => template.key === mail.value.defaultTemplate)
+      mailDesignTemplateKey.value = matchedTemplate?.key || templates[0].key
+    }
+  } catch (error) {
+    console.error('[SettingsView] 获取邮件模板列表失败:', error)
+    mailTemplateOptions.value = [{ key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }]
+  }
+  scheduleMailPreview()
 })
 
 const validateNamedDrafts = (items, label) => {
@@ -720,6 +1125,41 @@ const saveMailSection = async () => {
     await settingsStore.updateMail({ ...mailConfig.value })
     editingSection.value = ''
     showToast('企业邮箱配置已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveMailDesignSection = async () => {
+  try {
+    await settingsStore.updateMail({ defaultTemplate: mailDesignTemplateKey.value })
+    await settingsStore.updateMailTemplate({ templateKey: mailDesignTemplateKey.value, ...mailTemplateConfig.value })
+    await settingsStore.updateMailSignature({ ...mailSignatureConfig.value })
+    editingSection.value = ''
+    showToast('邮件模板与签名已保存')
+    scheduleMailPreview()
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveMailTemplateSection = async () => {
+  try {
+    await settingsStore.updateMailTemplate({ templateKey: mailDesignTemplateKey.value, ...mailTemplateConfig.value })
+    editingSection.value = ''
+    showToast('邮件模板已保存')
+    scheduleMailPreview()
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveMailSignatureSection = async () => {
+  try {
+    await settingsStore.updateMailSignature({ ...mailSignatureConfig.value })
+    editingSection.value = ''
+    showToast('邮件签名已保存')
+    scheduleMailPreview()
   } catch (error) {
     showToast(`保存失败: ${error.message}`, true)
   }
@@ -786,6 +1226,90 @@ const testDingTalkReminder = async () => {
     isTestingReminder.value = false
   }
 }
+
+const buildPreviewSettingsOverride = () => ({
+  mail_default_template: isSectionEditing('mailDesign')
+    ? mailDesignTemplateKey.value
+    : (isSectionEditing('mail') ? mailConfig.value.defaultTemplate : mail.value.defaultTemplate),
+  mail_template_configs: JSON.stringify({
+    ...(mailTemplateConfigs.value || {}),
+    [isSectionEditing('mailDesign') ? mailDesignTemplateKey.value : mail.value.defaultTemplate]: (isSectionEditing('mailDesign') || isSectionEditing('mailTemplate'))
+      ? { ...mailTemplateConfig.value }
+      : { ...resolveTemplateConfig(mail.value.defaultTemplate) }
+  }),
+  mail_template_title_suffix: (isSectionEditing('mailDesign') || isSectionEditing('mailTemplate')) ? mailTemplateConfig.value.titleSuffix : mailTemplate.value.titleSuffix,
+  mail_template_subtitle: (isSectionEditing('mailDesign') || isSectionEditing('mailTemplate')) ? mailTemplateConfig.value.subtitle : mailTemplate.value.subtitle,
+  mail_template_banner_text: (isSectionEditing('mailDesign') || isSectionEditing('mailTemplate')) ? mailTemplateConfig.value.bannerText : mailTemplate.value.bannerText,
+  mail_signature_enabled: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.enabled : mailSignature.value.enabled,
+  mail_signature_display_name: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.displayName : mailSignature.value.displayName,
+  mail_signature_real_name: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.realName : mailSignature.value.realName,
+  mail_signature_job_title: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.jobTitle : mailSignature.value.jobTitle,
+  mail_signature_mobile: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.mobile : mailSignature.value.mobile,
+  mail_signature_fax: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.fax : mailSignature.value.fax,
+  mail_signature_website: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.website : mailSignature.value.website,
+  mail_signature_company: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.company : mailSignature.value.company,
+  mail_signature_address: (isSectionEditing('mailDesign') || isSectionEditing('mailSignature')) ? mailSignatureConfig.value.address : mailSignature.value.address
+})
+
+const refreshMailPreview = async () => {
+  if (activeTab.value !== 'mailDesign') {
+    return
+  }
+
+  isMailPreviewLoading.value = true
+  mailPreviewError.value = ''
+
+  try {
+    const result = await previewMailTemplate({
+      templateKey: isSectionEditing('mailDesign') ? mailDesignTemplateKey.value : mail.value.defaultTemplate,
+      report: previewReportMock,
+      settingsOverride: buildPreviewSettingsOverride()
+    })
+    mailPreviewHtml.value = result.html || '<html><body></body></html>'
+    mailPreviewSubject.value = result.subject || ''
+  } catch (error) {
+    mailPreviewError.value = `预览加载失败：${error.message}`
+  } finally {
+    isMailPreviewLoading.value = false
+  }
+}
+
+const scheduleMailPreview = () => {
+  if (mailPreviewTimer.value) {
+    clearTimeout(mailPreviewTimer.value)
+  }
+
+  mailPreviewTimer.value = setTimeout(() => {
+    refreshMailPreview()
+  }, 250)
+}
+
+const openPreviewModal = () => {
+  showPreviewModal.value = true
+}
+
+const closePreviewModal = () => {
+  showPreviewModal.value = false
+}
+
+watch(mailTemplateConfig, () => {
+  scheduleMailPreview()
+}, { deep: true })
+
+watch(mailSignatureConfig, () => {
+  scheduleMailPreview()
+}, { deep: true })
+
+watch(mailConfig, () => {
+  scheduleMailPreview()
+}, { deep: true })
+
+watch(mailDesignTemplateKey, () => {
+  if (isSectionEditing('mailDesign')) {
+    mailTemplateConfig.value = { ...resolveTemplateConfig(mailDesignTemplateKey.value) }
+  }
+  scheduleMailPreview()
+})
 
 // 定时推送管理
 const toggleTask = async (id, enabled) => {
@@ -946,9 +1470,19 @@ const handleReset = async () => {
     syncSectionDraft('workTypes')
     syncSectionDraft('dingtalk')
     syncSectionDraft('mail')
+    syncSectionDraft('mailTemplate')
+    syncSectionDraft('mailSignature')
+    scheduleMailPreview()
     showToast('已重置为默认设置')
   }
 }
+
+const signatureSummary = computed(() => {
+  const effective = isSectionEditing('mailSignature') ? mailSignatureConfig.value : mailSignature.value
+  const name = [effective.displayName, effective.realName ? `（${effective.realName}）` : ''].join('')
+  const title = effective.jobTitle ? ` / ${effective.jobTitle}` : ''
+  return `${name}${title}`.trim() || '未配置'
+})
 </script>
 
 <style lang="scss" scoped>
@@ -1016,9 +1550,64 @@ const handleReset = async () => {
   opacity: 0;
 }
 
+.settings-tabs {
+  display: flex;
+  gap: $spacing-2;
+  margin-bottom: $spacing-6;
+  padding-bottom: $spacing-2;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-4;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-full;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: var(--border-color-hover);
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: rgba($accent-primary, 0.08);
+    border-color: rgba($accent-primary, 0.35);
+    color: $accent-primary;
+  }
+
+  &.editing {
+    border-style: dashed;
+  }
+}
+
+.tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 .setting-section {
   padding: $spacing-6;
   margin-bottom: $spacing-6;
+}
+
+.mail-design-section {
+  overflow: visible;
+  border-color: var(--border-color);
+  background: var(--bg-card);
 }
 
 .section-header {
@@ -1110,6 +1699,10 @@ const handleReset = async () => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
+}
+
+.expand-btn {
+  align-self: flex-start;
 }
 
 .readonly-main {
@@ -1486,6 +2079,339 @@ const handleReset = async () => {
   margin: 0;
 }
 
+.mail-design-workbench {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: $spacing-5;
+  align-items: start;
+}
+
+.mail-design-workbench.editing {
+  .mail-preview-config {
+    border-color: rgba($accent-primary, 0.2);
+    box-shadow:
+      0 20px 48px rgba(15, 23, 42, 0.06),
+      0 0 0 1px rgba($accent-primary, 0.06);
+  }
+
+  .config-line {
+    border-color: rgba($accent-primary, 0.16);
+    background: linear-gradient(180deg, rgba($accent-primary, 0.035), rgba(255, 255, 255, 0.98));
+  }
+}
+
+.mail-preview-config {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-4;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+  position: sticky;
+  top: 20px;
+}
+
+.module-block {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-3;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 250, 252, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.module-block-title {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.mail-preview-config .module-block:first-child {
+  .module-block-title {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .config-line-label {
+    font-size: 11px;
+  }
+}
+
+.mail-config-lines {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.config-line {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: $spacing-2;
+  align-items: start;
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9));
+  transition: all $transition-fast;
+}
+
+.config-line-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-top: 10px;
+}
+
+.config-line-control {
+  min-width: 0;
+}
+
+.config-line-value {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-break: break-all;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.config-line-value.highlight {
+  font-weight: $font-weight-medium;
+}
+
+.template-list {
+  display: grid;
+  gap: $spacing-2;
+}
+
+.template-card {
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  transition: all $transition-fast;
+
+  &.active {
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 2px rgba($accent-primary, 0.1), 0 12px 28px rgba($accent-primary, 0.08);
+    transform: translateY(-1px);
+  }
+}
+
+.mail-preview-config .module-block:first-child .template-card {
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.mail-config-lines.readonly {
+  .module-block {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 250, 252, 0.98));
+  }
+
+  .config-line {
+    background: linear-gradient(180deg, rgba(250, 252, 255, 0.98), rgba(244, 247, 251, 0.96));
+    border-color: rgba(148, 163, 184, 0.16);
+  }
+
+  .config-line-value {
+    background: rgba(255, 255, 255, 0.78);
+  }
+
+  .module-block:first-child {
+    .config-line {
+      padding: 0;
+      border: 0;
+      background: transparent;
+    }
+
+    .config-line-label {
+      padding-top: 8px;
+    }
+
+    .config-line-value {
+      min-height: 34px;
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+  }
+}
+
+.template-card-title {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+}
+
+.mail-preview-config .module-block:first-child .template-card-title {
+  font-size: 12px;
+  font-weight: $font-weight-medium;
+}
+
+.mail-preview-panel {
+  min-height: 820px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 32px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(241, 245, 249, 0.92), rgba(226, 232, 240, 0.78));
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+}
+
+.mail-preview-stage {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  min-width: 0;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-4;
+  border-bottom: 1px solid rgba($accent-primary, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.84));
+}
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.preview-title {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--text-primary);
+}
+
+.preview-subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.preview-error {
+  margin: $spacing-4;
+  padding: $spacing-3 $spacing-4;
+  border-radius: $radius-md;
+  background: rgba($error, 0.08);
+  color: $error;
+  font-size: $font-size-sm;
+}
+
+.mail-preview-paper {
+  margin: $spacing-3;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.05),
+    inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+}
+
+.mail-preview-frame {
+  display: block;
+  width: 100%;
+  min-height: 920px;
+  border: 0;
+  background: #fff;
+  border-radius: 16px;
+}
+
+.mail-preview-config :deep(.config-input),
+.mail-preview-config .config-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1.5px solid rgba($accent-primary, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, rgba(248, 250, 252, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.94),
+    0 1px 2px rgba(15, 23, 42, 0.04);
+  color: var(--text-primary);
+  font-size: $font-size-sm;
+  transition: all $transition-fast;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:hover {
+    border-color: rgba($accent-primary, 0.44);
+    background: #fff;
+  }
+
+  &:focus {
+    border-color: rgba($accent-primary, 0.72);
+    background: #fff;
+    box-shadow:
+      0 0 0 4px rgba($accent-primary, 0.12),
+      0 10px 24px rgba($accent-primary, 0.08);
+  }
+}
+
+.preview-modal-overlay {
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.preview-modal-content {
+  width: min(1500px, calc(100vw - 48px));
+  max-width: none;
+  height: calc(100vh - 48px);
+  border-radius: 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-modal-header {
+  flex-shrink: 0;
+}
+
+.preview-modal-body {
+  flex: 1;
+  min-height: 0;
+  background: #e5e7eb;
+}
+
+.preview-modal-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  min-height: 40px;
+  font-size: $font-size-sm;
+  color: var(--text-primary);
+
+  input {
+    width: 15px;
+    height: 15px;
+  }
+}
+
 // ========================================
 // 任务弹窗样式
 // ========================================
@@ -1649,6 +2575,40 @@ const handleReset = async () => {
   .task-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .mail-design-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .mail-preview-config {
+    position: static;
+  }
+
+  .config-line {
+    grid-template-columns: 1fr;
+    gap: $spacing-2;
+  }
+
+  .config-line-label {
+    padding-top: 0;
+  }
+
+  .mail-preview-panel {
+    min-height: 640px;
+  }
+
+  .mail-preview-frame {
+    min-height: 580px;
+  }
+
+  .preview-modal-overlay {
+    padding: 12px;
+  }
+
+  .preview-modal-content {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
   }
 }
 </style>

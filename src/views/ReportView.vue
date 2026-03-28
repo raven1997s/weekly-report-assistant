@@ -34,7 +34,7 @@
             d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
             clip-rule="evenodd" />
         </svg>
-        <span>本周周报已归档，如需修改请前往历史周报页面</span>
+        <span>本周周报已归档，如需继续编辑，请前往历史周报页面恢复本周周报</span>
       </div>
     </Transition>
 
@@ -42,7 +42,7 @@
       <!-- 左侧编辑区 -->
       <div class="report-editor">
         <!-- 本周工作记录（批量选择区域） -->
-        <div v-if="!isCurrentWeekSaved" class="card editor-section records-section">
+        <div class="card editor-section records-section">
           <div class="section-header">
             <h3>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"
@@ -58,11 +58,21 @@
 
           <!-- 记录列表 -->
           <div v-if="recordsStore.currentWeekRecords.length > 0" class="records-selection-list">
-            <div v-for="record in recordsStore.currentWeekRecords" :key="record.id" class="record-selection-item"
-              :class="{ selected: selectedRecordIds.has(record.id) }" @click="toggleRecordSelection(record.id)">
-              <div class="record-checkbox">
-                <svg v-if="selectedRecordIds.has(record.id)" width="18" height="18" viewBox="0 0 20 20"
-                  fill="currentColor">
+            <div
+              v-for="record in recordsStore.currentWeekRecords"
+              :key="record.id"
+              class="record-selection-item"
+              :class="{ selected: !isCurrentWeekSaved && selectedRecordIds.has(record.id), readonly: isCurrentWeekSaved }"
+              @click="!isCurrentWeekSaved && toggleRecordSelection(record.id)"
+            >
+              <div v-if="!isCurrentWeekSaved" class="record-checkbox">
+                <svg
+                  v-if="selectedRecordIds.has(record.id)"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
                   <path fill-rule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
                     clip-rule="evenodd" />
@@ -99,7 +109,7 @@
 
           <!-- 批量操作条 -->
           <Transition name="slide-up">
-            <div v-if="selectedRecordIds.size > 0" class="batch-actions-bar">
+            <div v-if="!isCurrentWeekSaved && selectedRecordIds.size > 0" class="batch-actions-bar">
               <span class="selected-count">已选择 {{ selectedRecordIds.size }} 条</span>
               <div class="batch-actions-buttons">
                 <button class="btn btn-sm btn-ghost" @click="selectedRecordIds.clear()">
@@ -134,7 +144,7 @@
           <div class="plan-list">
             <div v-for="plan in displayPlans" :key="plan.id" class="plan-item">
               <span class="plan-text">{{ plan.content }}</span>
-              <button class="delete-btn" @click="removePlan(plan.id)">
+              <button v-if="!isCurrentWeekSaved" class="delete-btn" @click="removePlan(plan.id)">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                   <path
                     d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z" />
@@ -249,12 +259,31 @@
                   clip-rule="evenodd" />
               </svg>
               <p class="confirm-message">确定要保存并归档本周周报吗？</p>
-              <p class="confirm-hint">保存后本周周报将被锁定，如需修改请前往历史周报页面</p>
+              <p class="confirm-hint">保存后本周周报将被锁定，如需继续编辑，请前往历史周报页面恢复本周周报</p>
+              <div class="mail-upload-option">
+                <label class="checkbox-option">
+                  <input v-model="saveToMailAfterArchive" type="checkbox" />
+                  <span>同时上传到阿里邮箱草稿箱</span>
+                </label>
+                <div v-if="saveToMailAfterArchive" class="mail-template-picker">
+                  <label for="mail-template-select">邮件模板</label>
+                  <select id="mail-template-select" v-model="selectedMailTemplate" class="mail-template-select">
+                    <option v-for="template in mailTemplates" :key="template.key" :value="template.key">
+                      {{ template.name }}
+                    </option>
+                  </select>
+                  <p v-if="mailUploadWarning" class="mail-upload-warning">
+                    {{ mailUploadWarning }}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" @click="showSaveConfirm = false">取消</button>
-            <button class="btn btn-primary" @click="confirmSaveReport">确认保存</button>
+            <button class="btn btn-primary" @click="confirmSaveReport" :disabled="isSavingReport">
+              {{ isSavingReport ? '保存中...' : '确认保存' }}
+            </button>
           </div>
         </div>
       </div>
@@ -273,8 +302,10 @@ import { useRouter } from 'vue-router'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
+import { useSettingsStore } from '../stores/settings'
 import { useGenerator } from '../composables/useGenerator'
-import { getWorkWeekInfo, formatDate } from '../utils/date'
+import { getWorkWeekInfo, formatDate, getWorkMonthWeekLabel } from '../utils/date'
+import { getMailTemplates, createMailDraft } from '../utils/api'
 import ReportPreview from '../components/ReportPreview.vue'
 import InputBox from '../components/InputBox.vue'
 import PlanInputBox from '../components/PlanInputBox.vue'
@@ -284,6 +315,7 @@ const router = useRouter()
 const recordsStore = useRecordsStore()
 const reportsStore = useReportsStore()
 const dialogStore = useDialogStore()
+const settingsStore = useSettingsStore()
 const { generateReport } = useGenerator()
 
 // 记录选择状态
@@ -318,6 +350,12 @@ const validationMessage = ref('')
 const isValidationError = ref(false)
 const validationTimer = ref(null)
 const showSaveConfirm = ref(false)
+const isSavingReport = ref(false)
+const saveToMailAfterArchive = ref(false)
+const mailTemplates = ref([
+  { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
+])
+const selectedMailTemplate = ref(settingsStore.mail?.defaultTemplate || 'gancao-department-weekly-report')
 
 // 检查本周是否已保存
 const isCurrentWeekSaved = computed(() => reportsStore.hasCurrentWeekReport)
@@ -328,6 +366,11 @@ const archivedReport = computed(() => {
     return reportsStore.getCurrentWeekArchivedReport()
   }
   return null
+})
+
+const mailUploadWarning = computed(() => {
+  if (!saveToMailAfterArchive.value) return ''
+  return getMailDraftWarning()
 })
 
 // 如果已归档，使用归档数据；否则使用 store 中的数据
@@ -375,7 +418,7 @@ const previewReport = computed(() => {
     return {
       ...archivedReport.value,
       // 确保 weekLabel 存在（用于显示标题）
-      weekLabel: archivedReport.value.weekLabel || formatDate(new Date(), 'YYYY年第W周')
+      weekLabel: archivedReport.value.weekLabel || getWorkMonthWeekLabel(new Date())
     }
   }
 
@@ -407,7 +450,7 @@ const handleRecordAdded = (record) => {
 const saveCurrentReport = () => {
   // 验证是否已保存
   if (reportsStore.hasCurrentWeekReport) {
-    showValidationAlert('本周周报已归档，如需修改请前往历史周报页面', true)
+    showValidationAlert('本周周报已归档，如需继续编辑，请前往历史周报页面恢复本周周报', true)
     return
   }
 
@@ -425,18 +468,59 @@ const saveCurrentReport = () => {
   }
 
   // 显示确认弹窗
+  saveToMailAfterArchive.value = false
   showSaveConfirm.value = true
 }
 
 // 确认保存
 const confirmSaveReport = async () => {
+  if (isSavingReport.value) return
+
+  isSavingReport.value = true
   try {
-    await reportsStore.saveReport(previewReport.value)
+    const reportToSave = { ...previewReport.value }
+    await reportsStore.saveReport(reportToSave)
+
+    let message = '周报已归档'
+    let shouldDelayRoute = false
+
+    if (saveToMailAfterArchive.value) {
+      try {
+        const warning = getMailDraftWarning()
+        if (warning) {
+          message = `周报已归档，${warning.replace('；', '，').replace('。', '')}`
+        } else {
+          const result = await createMailDraft({
+            templateKey: selectedMailTemplate.value,
+            report: reportToSave
+          })
+          message = '周报已归档，并已上传到阿里邮箱草稿箱'
+          if (result.openUrl) {
+            window.open(result.openUrl, '_blank', 'noopener')
+          }
+        }
+      } catch (error) {
+        console.error('[ReportView] 保存邮件草稿失败:', error)
+        message = `周报已归档，但草稿保存失败：${error.message}`
+      }
+      shouldDelayRoute = true
+    }
+
     showSaveConfirm.value = false
-    router.push('/history')
+    showValidationAlert(message, message.includes('失败'))
+
+    if (shouldDelayRoute) {
+      setTimeout(() => {
+        router.push('/history')
+      }, 900)
+    } else {
+      router.push('/history')
+    }
   } catch (error) {
     // 保存失败,错误已由 store 显示 toast
     showSaveConfirm.value = false
+  } finally {
+    isSavingReport.value = false
   }
 }
 
@@ -471,7 +555,31 @@ onMounted(async () => {
   // 初始化周信息
   weekInfo.value = getWorkWeekInfo(new Date())
 
+  try {
+    const templates = await getMailTemplates()
+    if (Array.isArray(templates) && templates.length > 0) {
+      mailTemplates.value = templates
+      const matchedTemplate = templates.find(template => template.key === selectedMailTemplate.value)
+      selectedMailTemplate.value = matchedTemplate?.key || templates[0].key
+    }
+  } catch (error) {
+    console.error('[ReportView] 获取邮件模板失败:', error)
+  }
+
 })
+
+const getMailDraftWarning = () => {
+  const mailConfig = settingsStore.mail || {}
+  if (!mailConfig.account || !mailConfig.imapHost || !mailConfig.imapPort || !mailConfig.password) {
+    return '企业邮箱配置不完整，本次仅归档周报，不会上传草稿。'
+  }
+
+  if (!mailConfig.defaultTo && !mailConfig.defaultCc && !mailConfig.defaultBcc) {
+    return '未配置默认收件人/抄送/密送，本次仅归档周报，不会上传草稿。'
+  }
+
+  return ''
+}
 
 // ============================================
 // 记录选择和移动相关函数
@@ -1069,6 +1177,8 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: $spacing-4;
+  text-align: center;
+  width: 100%;
 
   .confirm-icon {
     color: $accent-primary;
@@ -1086,6 +1196,66 @@ button:disabled {
     color: var(--text-secondary);
     margin: 0;
   }
+}
+
+.mail-upload-option {
+  width: 100%;
+  max-width: 420px;
+  margin-top: $spacing-2;
+  padding: $spacing-4;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  text-align: left;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  input {
+    margin: 0;
+  }
+}
+
+.mail-template-picker {
+  margin-top: $spacing-4;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+
+  label {
+    font-size: $font-size-xs;
+    color: var(--text-secondary);
+  }
+}
+
+.mail-template-select {
+  width: 100%;
+  padding: $spacing-3;
+  font-size: $font-size-sm;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  color: var(--text-primary);
+
+  &:focus {
+    outline: none;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px $accent-light;
+  }
+}
+
+.mail-upload-warning {
+  margin: 0;
+  color: $warning;
+  font-size: $font-size-xs;
+  line-height: 1.6;
 }
 
 .scale-enter-active,
@@ -1127,6 +1297,14 @@ button:disabled {
 
   .upcoming-holidays {
     justify-content: center;
+  }
+
+  .modal-content .modal-footer {
+    flex-direction: column-reverse;
+
+    .btn {
+      width: 100%;
+    }
   }
 }
 
@@ -1172,6 +1350,15 @@ button:disabled {
   &.selected {
     border-color: $accent-primary;
     background: rgba($accent-primary, 0.05);
+  }
+
+  &.readonly {
+    cursor: default;
+
+    &:hover {
+      border-color: var(--border-color);
+      background: var(--bg-card);
+    }
   }
 }
 

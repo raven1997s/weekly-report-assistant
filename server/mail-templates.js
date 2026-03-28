@@ -1,10 +1,28 @@
 import { getWorkMonthWeekLabel } from './utils/date.js'
 
+const DEFAULT_MAIL_TEMPLATE_CONFIG = {
+  titleSuffix: '厚朴汤 部门工作周报',
+  subtitle: '降本增效、协同攻坚、高质量发展',
+  bannerText: '星光闪烁，助我前行'
+}
+
+const DEFAULT_MAIL_SIGNATURE_CONFIG = {
+  enabled: true,
+  displayName: '龙角草',
+  realName: '高宁',
+  jobTitle: 'JAVA开发工程师',
+  mobile: '18829223750',
+  fax: '0571-8893-5068',
+  website: 'www.gancao.com',
+  company: '杭州甘之草科技股份有限公司',
+  address: '杭州市聚工路11号创伟科技园B幢10层'
+}
+
 const MAIL_TEMPLATES = [
   {
     key: 'gancao-department-weekly-report',
     name: '厚朴汤部门周报模板',
-    description: '表格样式周报模板，默认不带签名'
+    description: '表格样式周报模板，支持固定文案与签名预览'
   }
 ]
 
@@ -108,29 +126,164 @@ const getReportDate = (report = {}) => {
   return new Date()
 }
 
-const buildMailSubject = (report = {}) => {
+const parseTemplateConfigs = (settings = {}) => {
+  if (!settings.mail_template_configs) {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(settings.mail_template_configs)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch (error) {
+    console.warn('[MailTemplates] 解析 mail_template_configs 失败，回退到旧配置:', error)
+    return {}
+  }
+}
+
+const getMailTemplateConfigFromSettings = (settings = {}, templateKey = 'gancao-department-weekly-report') => {
+  const templateConfigs = parseTemplateConfigs(settings)
+  const matchedConfig = templateConfigs[templateKey]
+
+  if (matchedConfig && typeof matchedConfig === 'object') {
+    return {
+      titleSuffix: matchedConfig.titleSuffix || DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix,
+      subtitle: matchedConfig.subtitle || DEFAULT_MAIL_TEMPLATE_CONFIG.subtitle,
+      bannerText: matchedConfig.bannerText || DEFAULT_MAIL_TEMPLATE_CONFIG.bannerText
+    }
+  }
+
+  return {
+    titleSuffix: settings.mail_template_title_suffix || DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix,
+    subtitle: settings.mail_template_subtitle || DEFAULT_MAIL_TEMPLATE_CONFIG.subtitle,
+    bannerText: settings.mail_template_banner_text || DEFAULT_MAIL_TEMPLATE_CONFIG.bannerText
+  }
+}
+
+const getMailSignatureConfigFromSettings = (settings = {}) => ({
+  enabled: settings.mail_signature_enabled === 'false'
+    ? false
+    : (settings.mail_signature_enabled === 'true'
+      ? true
+      : DEFAULT_MAIL_SIGNATURE_CONFIG.enabled),
+  displayName: settings.mail_signature_display_name || DEFAULT_MAIL_SIGNATURE_CONFIG.displayName,
+  realName: settings.mail_signature_real_name || DEFAULT_MAIL_SIGNATURE_CONFIG.realName,
+  jobTitle: settings.mail_signature_job_title || DEFAULT_MAIL_SIGNATURE_CONFIG.jobTitle,
+  mobile: settings.mail_signature_mobile || DEFAULT_MAIL_SIGNATURE_CONFIG.mobile,
+  fax: settings.mail_signature_fax || DEFAULT_MAIL_SIGNATURE_CONFIG.fax,
+  website: settings.mail_signature_website || DEFAULT_MAIL_SIGNATURE_CONFIG.website,
+  company: settings.mail_signature_company || DEFAULT_MAIL_SIGNATURE_CONFIG.company,
+  address: settings.mail_signature_address || DEFAULT_MAIL_SIGNATURE_CONFIG.address
+})
+
+const buildMailSubject = (report = {}, templateConfig = DEFAULT_MAIL_TEMPLATE_CONFIG) => {
   const reportDate = getReportDate(report)
   const rawLabel = getWorkMonthWeekLabel(reportDate)
   const match = rawLabel.match(/^(\d{4})年(\d{1,2})月第(\d+)周$/)
 
   if (match) {
     const [, year, month, week] = match
-    return `${year} 年 ${month} 月 ${week} 周 厚朴汤 部门工作周报`
+    return `${year} 年 ${month} 月 ${week} 周 ${templateConfig.titleSuffix}`
   }
 
-  return `${rawLabel} 厚朴汤 部门工作周报`
+  return `${rawLabel} ${templateConfig.titleSuffix}`
 }
 
-const buildPlainText = (report = {}) => {
+const renderMailSignature = (signatureConfig = DEFAULT_MAIL_SIGNATURE_CONFIG) => {
+  if (!signatureConfig.enabled) {
+    return ''
+  }
+
+  const hasName = signatureConfig.displayName || signatureConfig.realName || signatureConfig.jobTitle
+  const nameLine = hasName
+    ? `
+      <p style="color: rgb(0, 0, 0); font-size: 14px; font-weight: 400; font-family: Calibri; margin: 1px 0 0; text-align: left; line-height: 17px;">
+        <span style="font-family: Arial; color: rgb(0, 0, 0);">
+          ${signatureConfig.displayName ? `<b style="color: rgb(0, 0, 0); font-family: 宋体; font-size: 16px;">${escapeHtml(signatureConfig.displayName)}</b>` : ''}
+          ${signatureConfig.realName ? `<span style="font-size: 13px; font-weight: 400; color: rgb(0, 0, 0); font-family: 宋体;">（${escapeHtml(signatureConfig.realName)}）</span>` : ''}
+          ${(signatureConfig.displayName || signatureConfig.realName) && signatureConfig.jobTitle ? '<span style="font-size: 13px; font-weight: 400; color: rgb(0, 0, 0); font-family: Arial;">/</span>' : ''}
+          ${signatureConfig.jobTitle ? `<span style="font-size: 13px; font-weight: 700; color: rgb(0, 0, 0); font-family: 宋体;">${escapeHtml(signatureConfig.jobTitle)}</span>` : ''}
+        </span>
+      </p>
+    `
+    : ''
+
+  const optionalLine = (label, value, fontFamily = 'Arial') => {
+    if (!value) return ''
+    return `
+      <p style="color: rgb(0, 0, 0); font-size: 14px; font-weight: 400; font-family: Calibri; margin: 1px 0 0; text-align: left; line-height: 17px;">
+        <span style="font-family: ${fontFamily}; color: rgb(0, 0, 0); font-size: 13px;">${escapeHtml(label)}</span>
+        <span style="font-family: ${fontFamily}; color: rgb(0, 0, 0); font-size: 13px;">${escapeHtml(value)}</span>
+      </p>
+    `
+  }
+
+  const textLine = (value, fontFamily = '宋体') => {
+    if (!value) return ''
+    return `
+      <p style="color: rgb(0, 0, 0); font-size: 14px; font-weight: 400; font-family: Calibri; margin: 1px 0 0; text-align: left; line-height: 17px;">
+        <span style="font-family: ${fontFamily}; color: rgb(0, 0, 0); font-size: 13px;">${escapeHtml(value)}</span>
+      </p>
+    `
+  }
+
+  return `
+    <div style="clear: both; margin-top: 18px;">
+      ${nameLine}
+      ${optionalLine('Mob:', signatureConfig.mobile)}
+      ${signatureConfig.fax ? `<p style="color: rgb(0, 0, 0); font-size: 14px; font-weight: 400; font-family: Calibri; margin: 1px 0 0; text-align: left; line-height: 17px;"><span style="font-family: Arial; color: rgb(0, 0, 0); font-size: 13px;">Fax:${escapeHtml(signatureConfig.fax)}</span></p>` : ''}
+      ${signatureConfig.website ? `<p style="color: rgb(0, 0, 0); font-size: 14px; font-weight: 400; font-family: Calibri; margin: 1px 0 0; text-align: left; line-height: 17px;"><span style="font-family: Arial; color: rgb(0, 0, 0); font-size: 13px;">Web:${escapeHtml(signatureConfig.website)}</span></p>` : ''}
+      ${textLine(signatureConfig.company)}
+      ${textLine(signatureConfig.address)}
+    </div>
+  `
+}
+
+const buildSignaturePlainText = (signatureConfig = DEFAULT_MAIL_SIGNATURE_CONFIG) => {
+  if (!signatureConfig.enabled) {
+    return ''
+  }
+
+  const lines = []
+  const nameParts = []
+
+  if (signatureConfig.displayName) {
+    nameParts.push(signatureConfig.displayName)
+  }
+
+  if (signatureConfig.realName) {
+    nameParts.push(`（${signatureConfig.realName}）`)
+  }
+
+  if (signatureConfig.jobTitle) {
+    const prefix = nameParts.length > 0 ? '/' : ''
+    nameParts.push(`${prefix}${signatureConfig.jobTitle}`)
+  }
+
+  if (nameParts.length > 0) {
+    lines.push(nameParts.join(''))
+  }
+
+  if (signatureConfig.mobile) lines.push(`Mob:${signatureConfig.mobile}`)
+  if (signatureConfig.fax) lines.push(`Fax:${signatureConfig.fax}`)
+  if (signatureConfig.website) lines.push(`Web:${signatureConfig.website}`)
+  if (signatureConfig.company) lines.push(signatureConfig.company)
+  if (signatureConfig.address) lines.push(signatureConfig.address)
+
+  return lines.join('\n')
+}
+
+const buildMailPlainText = (report = {}, signatureConfig = DEFAULT_MAIL_SIGNATURE_CONFIG) => {
   if (report.plainText) {
-    return report.plainText
+    const signatureText = buildSignaturePlainText(signatureConfig)
+    return signatureText ? `${report.plainText}\n\n${signatureText}` : report.plainText
   }
 
   const recordLines = (report.records || []).map((item, index) => `${index + 1}. ${item.content}`)
   const planLines = (report.plans || []).map((item, index) => `${index + 1}. ${item.content}`)
   const reflectionLines = [report.reflections?.gains, report.reflections?.losses].filter(Boolean)
+  const signatureText = buildSignaturePlainText(signatureConfig)
 
-  return [
+  const textBlocks = [
     '本周完成工作',
     recordLines.join('\n') || '暂无',
     '',
@@ -139,32 +292,47 @@ const buildPlainText = (report = {}) => {
     '',
     '本周得与失',
     reflectionLines.join('\n') || '暂无'
-  ].join('\n')
+  ]
+
+  if (signatureText) {
+    textBlocks.push('', signatureText)
+  }
+
+  return textBlocks.join('\n')
 }
 
-const renderGancaoDepartmentTemplate = (report = {}) => {
-  const subject = buildMailSubject(report)
+const renderGancaoDepartmentTemplate = (
+  report = {},
+  {
+    templateConfig = DEFAULT_MAIL_TEMPLATE_CONFIG,
+    signatureConfig = DEFAULT_MAIL_SIGNATURE_CONFIG
+  } = {}
+) => {
+  const subject = buildMailSubject(report, templateConfig)
   const records = (report.records || []).map(item => normalizeTextLine(`${generateTags(item.project, item.workType)} ${polishContent(item.content)}`.trim()))
   const plans = (report.plans || []).map(item => normalizeTextLine(`${generateTags(item.project, item.workType)} ${polishContent(item.content)}`.trim()))
   const reflections = [report.reflections?.gains, report.reflections?.losses].filter(Boolean).map(normalizeTextLine)
+  const signatureHtml = renderMailSignature(signatureConfig)
 
   const html = `
     <html lang="zh-CN">
       <body style="margin: 0 24px; background-color: #FFFFFF; font-size: 14px; line-height: 1.666; word-wrap: break-word; font-family: Tahoma, Arial, STHeitiSC-Light, SimSun; color: #000;">
         <div style="clear: both;">
-          <p style="margin: 10px 0 0; text-align: center;">
-            <span style="font-weight: 700; font-size: 24px; font-family: 黑体;">${escapeHtml(subject)}</span>
-          </p>
-          <p style="margin: 10px 0 0; text-align: center;">
-            <span style="color: red; font-family: 黑体; font-size: 24px; font-weight: 700;">降本增效、协同攻坚、高质量发展</span>
-          </p>
-          <p style="margin: 0;">&nbsp;</p>
-
+          <p style="margin: 0; line-height: 48px;">&nbsp;</p>
+          <div style="width: 784px; text-align: center;">
+            <p style="margin: 10px 0 0; text-align: center;">
+              <span style="font-weight: 700; font-size: 24px; font-family: 黑体;">${escapeHtml(subject)}</span>
+            </p>
+            <p style="margin: 10px 0 0; text-align: center;">
+              <span style="color: red; font-family: 黑体; font-size: 24px; font-weight: 700;">${escapeHtml(templateConfig.subtitle)}</span>
+            </p>
+            <p style="margin: 0;">&nbsp;</p>
+          </div>
           <table style="width: 784px; border-collapse: collapse; border: 1px solid #000;" border="1" cellpadding="0" cellspacing="0">
             <tbody>
               <tr>
                 <td colspan="5" style="border: 1px solid #000; background: rgb(207, 205, 205); padding: 0 7px;">
-                  <p style="margin: 16px 0; font-size: 12px; font-family: 微软雅黑, sans-serif; color: #000; text-align: center;">星光闪烁，助我前行</p>
+                  <p style="margin: 16px 0; font-size: 12px; font-family: 微软雅黑, sans-serif; color: #000; text-align: center;">${escapeHtml(templateConfig.bannerText)}</p>
                 </td>
               </tr>
               <tr>
@@ -210,6 +378,7 @@ const renderGancaoDepartmentTemplate = (report = {}) => {
               </tr>
             </tbody>
           </table>
+          ${signatureHtml}
         </div>
       </body>
     </html>
@@ -218,21 +387,30 @@ const renderGancaoDepartmentTemplate = (report = {}) => {
   return {
     subject,
     html,
-    text: buildPlainText(report)
+    text: buildMailPlainText(report, signatureConfig)
   }
 }
 
-const renderMailTemplate = ({ templateKey, report }) => {
+const renderMailTemplate = ({ templateKey, report, settings = {} }) => {
+  const templateConfig = getMailTemplateConfigFromSettings(settings, templateKey)
+  const signatureConfig = getMailSignatureConfigFromSettings(settings)
+
   switch (templateKey) {
     case 'gancao-department-weekly-report':
-      return renderGancaoDepartmentTemplate(report)
+      return renderGancaoDepartmentTemplate(report, { templateConfig, signatureConfig })
     default:
       throw new Error('不支持的邮件模板')
   }
 }
 
 export {
+  DEFAULT_MAIL_TEMPLATE_CONFIG,
+  DEFAULT_MAIL_SIGNATURE_CONFIG,
   MAIL_TEMPLATES,
+  buildMailPlainText,
   buildMailSubject,
+  getMailSignatureConfigFromSettings,
+  getMailTemplateConfigFromSettings,
+  renderMailSignature,
   renderMailTemplate
 }

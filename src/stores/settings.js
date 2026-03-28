@@ -57,6 +57,28 @@ const DEFAULT_SETTINGS = {
         defaultCc: '',
         defaultBcc: '',
         defaultTemplate: 'gancao-department-weekly-report'
+    },
+
+    // 邮件模板配置（按模板分别保存）
+    mailTemplateConfigs: {
+        'gancao-department-weekly-report': {
+            titleSuffix: '厚朴汤 部门工作周报',
+            subtitle: '降本增效、协同攻坚、高质量发展',
+            bannerText: '星光闪烁，助我前行'
+        }
+    },
+
+    // 邮件签名配置
+    mailSignature: {
+        enabled: true,
+        displayName: '龙角草',
+        realName: '高宁',
+        jobTitle: 'JAVA开发工程师',
+        mobile: '18829223750',
+        fax: '0571-8893-5068',
+        website: 'www.gancao.com',
+        company: '杭州甘之草科技股份有限公司',
+        address: '杭州市聚工路11号创伟科技园B幢10层'
     }
 }
 
@@ -71,12 +93,19 @@ export const useSettingsStore = defineStore('settings', () => {
         }))
         .filter(item => item.name)
 
+    const cloneMailTemplateConfigs = (configs = {}) => JSON.parse(JSON.stringify(configs))
+    const getDefaultMailTemplateConfig = (templateKey = DEFAULT_SETTINGS.mail.defaultTemplate) => ({
+        ...(DEFAULT_SETTINGS.mailTemplateConfigs[templateKey] || DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_SETTINGS.mail.defaultTemplate])
+    })
+
     // ============ 状态 ============
     const projects = ref([...DEFAULT_SETTINGS.projects])
     const workTypes = ref([...DEFAULT_SETTINGS.workTypes])
     const theme = ref(DEFAULT_SETTINGS.theme)
     const dingtalk = ref({ ...DEFAULT_SETTINGS.dingtalk })
     const mail = ref({ ...DEFAULT_SETTINGS.mail })
+    const mailTemplateConfigs = ref(cloneMailTemplateConfigs(DEFAULT_SETTINGS.mailTemplateConfigs))
+    const mailSignature = ref({ ...DEFAULT_SETTINGS.mailSignature })
     const scheduledTasks = ref([])
 
     // ============ 初始化 ============
@@ -116,6 +145,52 @@ export const useSettingsStore = defineStore('settings', () => {
                     defaultBcc: saved.mail_default_bcc || '',
                     defaultTemplate: saved.mail_default_template || DEFAULT_SETTINGS.mail.defaultTemplate
                 }
+
+                const legacyTemplateConfig = {
+                    titleSuffix: saved.mail_template_title_suffix || getDefaultMailTemplateConfig().titleSuffix,
+                    subtitle: saved.mail_template_subtitle || getDefaultMailTemplateConfig().subtitle,
+                    bannerText: saved.mail_template_banner_text || getDefaultMailTemplateConfig().bannerText
+                }
+                let parsedTemplateConfigs = cloneMailTemplateConfigs(DEFAULT_SETTINGS.mailTemplateConfigs)
+
+                if (saved.mail_template_configs) {
+                    try {
+                        const rawConfigs = JSON.parse(saved.mail_template_configs)
+                        parsedTemplateConfigs = {
+                            ...parsedTemplateConfigs,
+                            ...rawConfigs
+                        }
+                    } catch (error) {
+                        console.warn('[Settings] 解析 mail_template_configs 失败，回退到旧格式:', error)
+                    }
+                }
+
+                if (!parsedTemplateConfigs[mail.value.defaultTemplate]) {
+                    parsedTemplateConfigs[mail.value.defaultTemplate] = legacyTemplateConfig
+                }
+
+                parsedTemplateConfigs['gancao-department-weekly-report'] = {
+                    ...getDefaultMailTemplateConfig('gancao-department-weekly-report'),
+                    ...(parsedTemplateConfigs['gancao-department-weekly-report'] || {})
+                }
+
+                mailTemplateConfigs.value = parsedTemplateConfigs
+
+                mailSignature.value = {
+                    enabled: saved.mail_signature_enabled === 'false'
+                        ? false
+                        : (saved.mail_signature_enabled === 'true'
+                            ? true
+                            : DEFAULT_SETTINGS.mailSignature.enabled),
+                    displayName: saved.mail_signature_display_name || DEFAULT_SETTINGS.mailSignature.displayName,
+                    realName: saved.mail_signature_real_name || DEFAULT_SETTINGS.mailSignature.realName,
+                    jobTitle: saved.mail_signature_job_title || DEFAULT_SETTINGS.mailSignature.jobTitle,
+                    mobile: saved.mail_signature_mobile || DEFAULT_SETTINGS.mailSignature.mobile,
+                    fax: saved.mail_signature_fax || DEFAULT_SETTINGS.mailSignature.fax,
+                    website: saved.mail_signature_website || DEFAULT_SETTINGS.mailSignature.website,
+                    company: saved.mail_signature_company || DEFAULT_SETTINGS.mailSignature.company,
+                    address: saved.mail_signature_address || DEFAULT_SETTINGS.mailSignature.address
+                }
             } else {
                 // 使用默认设置
                 projects.value = DEFAULT_SETTINGS.projects
@@ -123,6 +198,8 @@ export const useSettingsStore = defineStore('settings', () => {
                 theme.value = DEFAULT_SETTINGS.theme
                 dingtalk.value = DEFAULT_SETTINGS.dingtalk
                 mail.value = DEFAULT_SETTINGS.mail
+                mailTemplateConfigs.value = cloneMailTemplateConfigs(DEFAULT_SETTINGS.mailTemplateConfigs)
+                mailSignature.value = DEFAULT_SETTINGS.mailSignature
             }
 
             // 应用主题
@@ -136,6 +213,8 @@ export const useSettingsStore = defineStore('settings', () => {
             theme.value = DEFAULT_SETTINGS.theme
             dingtalk.value = DEFAULT_SETTINGS.dingtalk
             mail.value = DEFAULT_SETTINGS.mail
+            mailTemplateConfigs.value = cloneMailTemplateConfigs(DEFAULT_SETTINGS.mailTemplateConfigs)
+            mailSignature.value = DEFAULT_SETTINGS.mailSignature
             applyTheme(theme.value)
         }
     }
@@ -147,6 +226,13 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // 工作类型名称列表
     const workTypeNames = computed(() => workTypes.value.map(t => t.name))
+    const mailTemplate = computed(() => {
+        const currentTemplateKey = mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
+        return {
+            ...getDefaultMailTemplateConfig(currentTemplateKey),
+            ...(mailTemplateConfigs.value[currentTemplateKey] || {})
+        }
+    })
 
     // ============ 方法 ============
 
@@ -174,7 +260,22 @@ export const useSettingsStore = defineStore('settings', () => {
                 mail_default_to: mail.value.defaultTo || '',
                 mail_default_cc: mail.value.defaultCc || '',
                 mail_default_bcc: mail.value.defaultBcc || '',
-                mail_default_template: mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
+                mail_default_template: mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate,
+                // 邮件模板配置（新结构 + 兼容旧结构）
+                mail_template_configs: JSON.stringify(mailTemplateConfigs.value),
+                mail_template_title_suffix: mailTemplate.value.titleSuffix || getDefaultMailTemplateConfig().titleSuffix,
+                mail_template_subtitle: mailTemplate.value.subtitle || getDefaultMailTemplateConfig().subtitle,
+                mail_template_banner_text: mailTemplate.value.bannerText || getDefaultMailTemplateConfig().bannerText,
+                // 邮件签名配置
+                mail_signature_enabled: String(mailSignature.value.enabled !== false),
+                mail_signature_display_name: mailSignature.value.displayName || '',
+                mail_signature_real_name: mailSignature.value.realName || '',
+                mail_signature_job_title: mailSignature.value.jobTitle || '',
+                mail_signature_mobile: mailSignature.value.mobile || '',
+                mail_signature_fax: mailSignature.value.fax || '',
+                mail_signature_website: mailSignature.value.website || '',
+                mail_signature_company: mailSignature.value.company || '',
+                mail_signature_address: mailSignature.value.address || ''
             }
 
             await saveToStorage(STORAGE_KEY, cleanData)
@@ -289,6 +390,29 @@ export const useSettingsStore = defineStore('settings', () => {
         await persist()
     }
 
+    // 更新邮件模板配置
+    const updateMailTemplate = async (config) => {
+        const templateKey = config.templateKey || mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
+        const nextConfig = { ...config }
+        delete nextConfig.templateKey
+
+        mailTemplateConfigs.value = {
+            ...mailTemplateConfigs.value,
+            [templateKey]: {
+                ...getDefaultMailTemplateConfig(templateKey),
+                ...(mailTemplateConfigs.value[templateKey] || {}),
+                ...nextConfig
+            }
+        }
+        await persist()
+    }
+
+    // 更新邮件签名配置
+    const updateMailSignature = async (config) => {
+        mailSignature.value = { ...mailSignature.value, ...config }
+        await persist()
+    }
+
     // 重置为默认设置
     const resetToDefault = async () => {
         projects.value = [...DEFAULT_SETTINGS.projects]
@@ -296,6 +420,8 @@ export const useSettingsStore = defineStore('settings', () => {
         theme.value = DEFAULT_SETTINGS.theme
         dingtalk.value = { ...DEFAULT_SETTINGS.dingtalk }
         mail.value = { ...DEFAULT_SETTINGS.mail }
+        mailTemplateConfigs.value = cloneMailTemplateConfigs(DEFAULT_SETTINGS.mailTemplateConfigs)
+        mailSignature.value = { ...DEFAULT_SETTINGS.mailSignature }
         applyTheme(theme.value)
         await persist()
     }
@@ -399,6 +525,9 @@ export const useSettingsStore = defineStore('settings', () => {
         theme,
         dingtalk,
         mail,
+        mailTemplateConfigs,
+        mailTemplate,
+        mailSignature,
         scheduledTasks,
         // 计算属性
         projectNames,
@@ -417,6 +546,8 @@ export const useSettingsStore = defineStore('settings', () => {
         deleteWorkType,
         updateDingtalk,
         updateMail,
+        updateMailTemplate,
+        updateMailSignature,
         resetToDefault,
         fetchScheduledTasks,
         updateScheduledTask,

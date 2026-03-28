@@ -110,7 +110,7 @@
         @click="viewReport(report)"
       >
         <div class="card-header">
-          <div class="week-title">{{ report.weekLabel }}</div>
+          <div class="week-title">{{ getDisplayWeekLabel(report) }}</div>
           <div class="report-date">{{ formatDate(report.createdAt) }}</div>
         </div>
         <div class="card-preview">
@@ -118,6 +118,13 @@
         </div>
         <div class="card-footer">
           <button class="btn btn-ghost btn-sm" @click.stop="viewReport(report)">查看详情</button>
+          <button
+            v-if="isCurrentWeekReport(report)"
+            class="btn btn-ghost btn-sm restore-btn"
+            @click.stop="restoreCurrentWeekReport(report)"
+          >
+            恢复
+          </button>
           <button class="btn btn-ghost btn-sm delete-btn" @click.stop="deleteReport(report.id)">删除</button>
         </div>
       </div>
@@ -132,7 +139,44 @@
               <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
           </button>
-          <ReportPreview :report="selectedReport" />
+          <ReportPreview
+            :report="selectedReport"
+            :show-mail-draft-action="true"
+            @save-mail-draft="openMailDraftDialog"
+          />
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="scale">
+      <div v-if="showMailDraftDialog" class="modal-overlay" @click="closeMailDraftDialog">
+        <div class="modal-content confirm-modal" @click.stop>
+          <div class="modal-header">
+            <h3>保存到阿里邮箱草稿箱</h3>
+            <button class="close-btn" @click="closeMailDraftDialog">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="mail-draft-content">
+              <p class="confirm-message">选择模板后，将当前周报保存到阿里邮箱草稿箱。</p>
+              <div class="mail-draft-picker">
+                <label for="history-mail-template">邮件模板</label>
+                <select id="history-mail-template" v-model="selectedMailTemplate" class="mail-template-select">
+                  <option v-for="template in mailTemplates" :key="template.key" :value="template.key">
+                    {{ template.name }}
+                  </option>
+                </select>
+              </div>
+              <p v-if="mailDraftWarning" class="confirm-hint warning-text">
+                {{ mailDraftWarning }}
+              </p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeMailDraftDialog">取消</button>
+            <button class="btn btn-primary" @click="saveSelectedReportToMailDraft" :disabled="isSavingMailDraft">
+              {{ isSavingMailDraft ? '保存中...' : '确认保存' }}
+            </button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -177,21 +221,30 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useReportsStore } from '../stores/reports'
 import { useRecordsStore } from '../stores/records'
 import { useSettingsStore } from '../stores/settings'
-import { formatDate } from '../utils/date'
+import { formatDate, getWorkMonthWeekLabel } from '../utils/date'
+import { getMailTemplates, createMailDraft } from '../utils/api'
 import ReportPreview from '../components/ReportPreview.vue'
 
 const reportsStore = useReportsStore()
 const recordsStore = useRecordsStore()
 const settingsStore = useSettingsStore()
+const router = useRouter()
 
 const searchQuery = ref('')
 const selectedProject = ref('')
 const selectedReport = ref(null)
 const showBatchDelete = ref(false)
+const showMailDraftDialog = ref(false)
+const isSavingMailDraft = ref(false)
+const mailTemplates = ref([
+  { key: 'gancao-department-weekly-report', name: '厚朴汤部门周报模板' }
+])
+const selectedMailTemplate = ref(settingsStore.mail?.defaultTemplate || 'gancao-department-weekly-report')
 
 // Toast 状态
 const toastMessage = ref('')
@@ -206,8 +259,22 @@ const confirmConfig = ref({
   onConfirm: null
 })
 
+const mailDraftWarning = computed(() => {
+  const mailConfig = settingsStore.mail || {}
+  if (!mailConfig.account || !mailConfig.imapHost || !mailConfig.imapPort || !mailConfig.password) {
+    return '企业邮箱配置不完整，请先前往设置页补全邮箱账号、IMAP 地址、端口和安全密码。'
+  }
+
+  if (!mailConfig.defaultTo && !mailConfig.defaultCc && !mailConfig.defaultBcc) {
+    return '请先在设置页配置默认收件人、抄送或密送。'
+  }
+
+  return ''
+})
+
 // 获取所有周报
 const reports = computed(() => reportsStore.getAllReports())
+const isCurrentWeekReport = (report) => reportsStore.isCurrentWeekReport(report.weekStart)
 
 // 获取所有项目
 const allProjects = computed(() => {
@@ -245,6 +312,14 @@ const getPreviewText = (text) => {
   return text.substring(0, 100) + (text.length > 100 ? '...' : '')
 }
 
+const getDisplayWeekLabel = (report) => {
+  if (report?.weekStart) {
+    return getWorkMonthWeekLabel(new Date(report.weekStart))
+  }
+
+  return report?.weekLabel || '未命名周报'
+}
+
 // 显示 Toast
 const showToast = (message) => {
   toastMessage.value = message
@@ -255,6 +330,19 @@ const showToast = (message) => {
     toastMessage.value = ''
   }, 3000)
 }
+
+onMounted(async () => {
+  try {
+    const templates = await getMailTemplates()
+    if (Array.isArray(templates) && templates.length > 0) {
+      mailTemplates.value = templates
+      const matchedTemplate = templates.find(template => template.key === selectedMailTemplate.value)
+      selectedMailTemplate.value = matchedTemplate?.key || templates[0].key
+    }
+  } catch (error) {
+    console.error('[HistoryView] 获取邮件模板失败:', error)
+  }
+})
 
 // 显示确认弹窗
 const showConfirm = (title, message, hint, onConfirm) => {
@@ -285,12 +373,81 @@ const closeModal = () => {
   selectedReport.value = null
 }
 
+const openMailDraftDialog = () => {
+  if (!selectedReport.value) return
+  showMailDraftDialog.value = true
+}
+
+const closeMailDraftDialog = () => {
+  showMailDraftDialog.value = false
+}
+
+const saveSelectedReportToMailDraft = async () => {
+  if (!selectedReport.value || isSavingMailDraft.value) return
+
+  if (mailDraftWarning.value) {
+    showToast(mailDraftWarning.value)
+    return
+  }
+
+  isSavingMailDraft.value = true
+
+  try {
+    const result = await createMailDraft({
+      templateKey: selectedMailTemplate.value,
+      report: selectedReport.value
+    })
+
+    if (result.openUrl) {
+      window.open(result.openUrl, '_blank', 'noopener')
+    }
+
+    closeMailDraftDialog()
+    showToast('草稿已保存到阿里邮箱')
+  } catch (error) {
+    console.error('[HistoryView] 保存邮件草稿失败:', error)
+    showToast(`保存草稿失败：${error.message}`)
+  } finally {
+    isSavingMailDraft.value = false
+  }
+}
+
+const restoreCurrentWeekReport = async (report) => {
+  showConfirm(
+    '恢复本周周报',
+    '确定要恢复本周周报吗？',
+    '恢复后可回到工作记录页和生成周报页继续编辑，本次归档稿会移到回收站。',
+    async () => {
+      const success = await reportsStore.deleteReport(report.id)
+      if (!success) {
+        showToast('恢复失败，请重试')
+        return
+      }
+
+      try {
+        await reportsStore.updateReflections(report.reflections || { gains: '', losses: '' })
+      } catch (error) {
+        console.error('[HistoryView] 恢复本周周报总结失败:', error)
+      }
+
+      if (selectedReport.value?.id === report.id) {
+        closeModal()
+      }
+
+      showToast('本周周报已恢复，可继续编辑')
+      router.push('/report')
+    }
+  )
+}
+
 // 删除周报
 const deleteReport = async (id) => {
+  const report = reports.value.find(item => item.id === id)
+  const isCurrentWeek = report ? isCurrentWeekReport(report) : false
   showConfirm(
     '删除周报确认',
     '确定要删除这份周报吗？',
-    '删除后可在回收站恢复',
+    isCurrentWeek ? '删除后会进入回收站，且不能再恢复为本周编辑态' : '删除后可在回收站恢复',
     async () => {
       const success = await reportsStore.deleteReport(id)
       if (success) {
@@ -511,6 +668,14 @@ const batchDeleteAll = async () => {
     justify-content: flex-end;
     gap: $spacing-2;
 
+    .restore-btn {
+      color: $accent-primary;
+
+      &:hover {
+        background: rgba($accent-primary, 0.1);
+      }
+    }
+
     .delete-btn {
       color: $error;
 
@@ -645,6 +810,43 @@ const batchDeleteAll = async () => {
   }
 }
 
+.mail-draft-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.mail-draft-picker {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+
+  label {
+    font-size: $font-size-xs;
+    color: var(--text-secondary);
+  }
+}
+
+.mail-template-select {
+  width: 100%;
+  padding: $spacing-3 $spacing-4;
+  font-size: $font-size-sm;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  color: var(--text-primary);
+
+  &:focus {
+    outline: none;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px $accent-light;
+  }
+}
+
+.warning-text {
+  color: $warning;
+}
+
 // 响应式
 @media (max-width: $breakpoint-md) {
   .page-header {
@@ -664,6 +866,14 @@ const batchDeleteAll = async () => {
   .modal-content {
     max-width: calc(100vw - #{$spacing-8});
     margin: $spacing-4;
+  }
+
+  .confirm-modal .modal-footer {
+    flex-direction: column-reverse;
+
+    .btn {
+      width: 100%;
+    }
   }
 }
 

@@ -357,8 +357,12 @@ app.post('/api/reports', async (req, res) => {
 
     const db = await createDbConnection()
 
-    // 检查是否已存在本周周报
-    const existing = await queryGet(db, 'SELECT * FROM reports WHERE weekStart = ?', [weekStart])
+    // 只把未删除的周报视为“已存在归档稿”，避免本周稿件进回收站后阻塞重新归档
+    const existing = await queryGet(
+      db,
+      'SELECT * FROM reports WHERE weekStart = ? AND deleted = 0',
+      [weekStart]
+    )
 
     const reportId = id || `${weekStart}-${Date.now()}`
 
@@ -385,10 +389,10 @@ app.post('/api/reports', async (req, res) => {
           JSON.stringify(plans || []),
           JSON.stringify(reflections || {}),
           updatedAt || new Date().toISOString(),
-          reportId
+          existing.id
         ]
       )
-      console.log(`[API] 更新周报归档: ${reportId} (${weekLabel})`)
+      console.log(`[API] 更新周报归档: ${existing.id} (${weekLabel})`)
     } else {
       // 计算 weekEnd（如果前端没有提供）
       const weekEndValue = req.body.weekEnd || (() => {
@@ -899,9 +903,67 @@ const getMailConfigFromSettings = (settings = {}) => ({
   defaultTemplate: settings.mail_default_template || 'gancao-department-weekly-report'
 })
 
+const convertSettingsRowsToObject = (settingsArray = []) => {
+  const settings = {}
+  settingsArray.forEach(({ key, value }) => {
+    settings[key] = value
+  })
+  return settings
+}
+
+const loadSettingsFromDb = async () => {
+  const db = await createDbConnection()
+  const settingsArray = await queryAll(db, 'SELECT * FROM settings')
+  db.close()
+  return convertSettingsRowsToObject(settingsArray)
+}
+
+const mergeSettings = (baseSettings = {}, settingsOverride = {}) => {
+  const merged = { ...baseSettings }
+
+  Object.entries(settingsOverride || {}).forEach(([key, value]) => {
+    merged[key] = typeof value === 'boolean' ? String(value) : String(value ?? '')
+  })
+
+  return merged
+}
+
 // GET /api/mail/templates - 获取邮件模板列表
 app.get('/api/mail/templates', async (req, res) => {
   res.json({ success: true, data: MAIL_TEMPLATES })
+})
+
+// POST /api/mail/preview - 预览邮件模板
+app.post('/api/mail/preview', async (req, res) => {
+  try {
+    const { templateKey, report, settingsOverride } = req.body
+
+    if (!report || typeof report !== 'object') {
+      return res.status(400).json({ success: false, error: '缺少 report 数据' })
+    }
+
+    const settings = mergeSettings(await loadSettingsFromDb(), settingsOverride)
+    const mailConfig = getMailConfigFromSettings(settings)
+    const finalTemplateKey = templateKey || mailConfig.defaultTemplate
+    const rendered = renderMailTemplate({
+      templateKey: finalTemplateKey,
+      report,
+      settings
+    })
+
+    res.json({
+      success: true,
+      data: {
+        templateKey: finalTemplateKey,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text
+      }
+    })
+  } catch (error) {
+    console.error('[API] 预览邮件模板失败:', error)
+    res.status(500).json({ success: false, error: error.message || '预览邮件模板失败' })
+  }
 })
 
 // POST /api/mail/drafts - 创建企业邮箱草稿
@@ -913,20 +975,13 @@ app.post('/api/mail/drafts', async (req, res) => {
       return res.status(400).json({ success: false, error: '缺少 report 数据' })
     }
 
-    const db = await createDbConnection()
-    const settingsArray = await queryAll(db, 'SELECT * FROM settings')
-    db.close()
-
-    const settings = {}
-    settingsArray.forEach(({ key, value }) => {
-      settings[key] = value
-    })
-
+    const settings = await loadSettingsFromDb()
     const mailConfig = getMailConfigFromSettings(settings)
     const finalTemplateKey = templateKey || mailConfig.defaultTemplate
     const rendered = renderMailTemplate({
       templateKey: finalTemplateKey,
-      report
+      report,
+      settings
     })
 
     const result = await createMailDraft({

@@ -4,7 +4,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getWeekStart, formatDate } from '../utils/date'
+import { getWeekStart, getWorkMonthWeekLabel } from '../utils/date'
 import { useToastStore } from './toast'
 
 // API 基础 URL（支持环境变量）
@@ -117,7 +117,7 @@ export const useReportsStore = defineStore('reports', () => {
             id: existingIndex !== -1 ? reports.value[existingIndex].id : Date.now().toString(),
             weekStart,
             weekEnd,
-            weekLabel: formatDate(now, 'YYYY年第W周'),
+            weekLabel: getWorkMonthWeekLabel(now),
             content: reportData.content,
             markdown: reportData.markdown,
             plainText: reportData.plainText || reportData.markdown || '',
