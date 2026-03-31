@@ -70,7 +70,7 @@ npm run dev
 
 ```bash
 # 进入项目目录
-cd /Users/raven/Documents/devlop/all_in_ai/weekly_report_assistant
+cd <project-root>
 
 # 使用 SQLite 命令行
 sqlite3 data/app.db

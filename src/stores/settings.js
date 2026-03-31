@@ -71,14 +71,14 @@ const DEFAULT_SETTINGS = {
     // 邮件签名配置
     mailSignature: {
         enabled: true,
-        displayName: '龙角草',
-        realName: '高宁',
-        jobTitle: 'JAVA开发工程师',
-        mobile: '18829223750',
-        fax: '0571-8893-5068',
-        website: 'www.gancao.com',
-        company: '杭州甘之草科技股份有限公司',
-        address: '杭州市聚工路11号创伟科技园B幢10层'
+        displayName: '示例昵称',
+        realName: '示例姓名',
+        jobTitle: '软件开发工程师',
+        mobile: '13800000000',
+        fax: '010-12345678',
+        website: 'www.example.com',
+        company: '示例科技有限公司',
+        address: '示例市示例区示例路 88 号'
     }
 }
 

@@ -1049,7 +1049,7 @@ docker compose restart
 ### 查看数据库内容
 ```bash
 # 进入项目目录
-cd /Users/raven/Documents/devlop/all_in_ai/weekly_report_assistant
+cd <project-root>
 
 # 使用 SQLite 命令行
 sqlite3 data/app.db
@@ -1206,4 +1206,3 @@ curl http://localhost:3000/api/reports
   - 之前版本（5.0）：
     - 文档精简：减少约 38% 的 token 占用（13,000 → 8,000）
     - 删除重复内容，创建子文档（deployment.md、configuration.md、troubleshooting.md）
-

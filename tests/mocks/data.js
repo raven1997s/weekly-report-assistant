@@ -220,8 +220,8 @@ export const generateMockApiResponse = (type = 'success', data = null, message =
  */
 export const generateMockDingTalkConfig = (overrides = {}) => {
   return {
-    webhookUrl: 'https://oapi.dingtalk.com/robot/send?access_token=test',
-    secret: 'SEC1234567890abcdef',
+    webhookUrl: 'https://example.com/webhook/mock',
+    secret: 'mock-secret-for-tests',
     enabled: true,
     ...overrides
   }

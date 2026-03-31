@@ -438,49 +438,49 @@
                 <div class="config-line">
                   <label class="config-line-label">展示名</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.displayName" type="text" class="config-input" placeholder="龙角草" />
+                    <input v-model="mailSignatureConfig.displayName" type="text" class="config-input" placeholder="示例昵称" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">真实姓名</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.realName" type="text" class="config-input" placeholder="高宁" />
+                    <input v-model="mailSignatureConfig.realName" type="text" class="config-input" placeholder="示例姓名" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">职位</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.jobTitle" type="text" class="config-input" placeholder="JAVA开发工程师" />
+                    <input v-model="mailSignatureConfig.jobTitle" type="text" class="config-input" placeholder="软件开发工程师" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">手机</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.mobile" type="text" class="config-input" placeholder="18829223750" />
+                    <input v-model="mailSignatureConfig.mobile" type="text" class="config-input" placeholder="13800000000" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">传真</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.fax" type="text" class="config-input" placeholder="0571-8893-5068" />
+                    <input v-model="mailSignatureConfig.fax" type="text" class="config-input" placeholder="010-12345678" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">网址</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.website" type="text" class="config-input" placeholder="www.gancao.com" />
+                    <input v-model="mailSignatureConfig.website" type="text" class="config-input" placeholder="www.example.com" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">公司</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.company" type="text" class="config-input" placeholder="杭州甘之草科技股份有限公司" />
+                    <input v-model="mailSignatureConfig.company" type="text" class="config-input" placeholder="示例科技有限公司" />
                   </div>
                 </div>
                 <div class="config-line">
                   <label class="config-line-label">地址</label>
                   <div class="config-line-control">
-                    <input v-model="mailSignatureConfig.address" type="text" class="config-input" placeholder="杭州市聚工路11号创伟科技园B幢10层" />
+                    <input v-model="mailSignatureConfig.address" type="text" class="config-input" placeholder="示例市示例区示例路 88 号" />
                   </div>
                 </div>
               </div>
