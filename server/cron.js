@@ -58,6 +58,10 @@ function getConversionStatusKey(weekStart) {
   return `converted_plans_${weekStart}`
 }
 
+function getPlanConversionCutoff(today) {
+  return getWeekStart(today).toISOString()
+}
+
 /**
  * 初始化预设模板到数据库
  */
@@ -245,45 +249,26 @@ async function executeTask(task) {
     // ========== 计划转换任务 ==========
     if (task.type === 'convert') {
       const today = new Date()
+      const currentWeekStart = getWeekStart(today)
+      const currentWeekStartStr = formatDate(currentWeekStart, 'yyyy-MM-dd')
 
-      // 1. 判断是否为新工作周开始
-      if (!isNewWorkWeekStart(today)) {
-        console.log(`[Cron] 今天不是新工作周开始，跳过转换`)
+      // 转换任务只在工作日执行；如果错过了周一，也允许在本工作周内补跑。
+      if (!isWorkday(today)) {
+        console.log(`[Cron] 今天不是工作日，跳过计划转换`)
         return
       }
 
-      const todayStr = formatDate(today, 'yyyy-MM-dd')
-      console.log(`[Cron] ✅ 检测到新工作周开始: ${todayStr}`)
+      if (isNewWorkWeekStart(today)) {
+        console.log(`[Cron] ✅ 检测到新工作周开始: ${currentWeekStartStr}`)
+      } else {
+        console.log(`[Cron] ⏰ 当前不是新工作周开始，进入补跑检查: ${currentWeekStartStr}`)
+      }
 
       // 2. 打开数据库连接
       const db = await createDbConnection()
+      const lockKey = `convert_lock_${currentWeekStartStr}`
 
       try {
-        // ========== 新增：检查转换锁 ==========
-        const lockKey = `convert_lock_${todayStr}`
-        const existingLock = await queryGet(
-          db,
-          "SELECT value FROM settings WHERE key = ?",
-          [lockKey]
-        )
-
-        if (existingLock) {
-          const lockData = JSON.parse(existingLock.value)
-          console.log(`[Cron] ⚠️ 今日已执行转换 (${lockData.lockedAt})，跳过: ${todayStr}`)
-          return
-        }
-
-        // ========== 新增：设置转换锁（24小时有效期）==========
-        await db.run(
-          "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-          [lockKey, JSON.stringify({
-            lockedAt: new Date().toISOString(),
-            taskId: task.id
-          })]
-        )
-        console.log(`[Cron] 🔒 设置转换锁: ${todayStr}`)
-        // ========== 锁设置结束 ==========
-
         // 3. 查询上周周报的 plans
         const lastWeekData = await getLastWeekPlans(db, today)
 
@@ -298,6 +283,30 @@ async function executeTask(task) {
           console.log(`[Cron] 上周计划已转换过，跳过: ${lastWeekData.weekStart}`)
           return
         }
+
+        // 只有在确实存在待转换数据时才加锁，避免“先加锁后发现无数据”导致当天无法补跑。
+        const existingLock = await queryGet(
+          db,
+          "SELECT value FROM settings WHERE key = ?",
+          [lockKey]
+        )
+
+        if (existingLock) {
+          const lockData = JSON.parse(existingLock.value)
+          console.log(`[Cron] ⚠️ 本工作周已执行转换 (${lockData.lockedAt})，跳过: ${currentWeekStartStr}`)
+          return
+        }
+
+        await queryRun(
+          db,
+          "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+          [lockKey, JSON.stringify({
+            lockedAt: new Date().toISOString(),
+            taskId: task.id,
+            weekStart: currentWeekStart.toISOString()
+          })]
+        )
+        console.log(`[Cron] 🔒 设置转换锁: ${currentWeekStartStr}`)
 
         // 5. 转换 plans 为 records
         const now = new Date().toISOString()
@@ -335,6 +344,12 @@ async function executeTask(task) {
 
       } catch (error) {
         console.error(`[Cron] 计划转换失败:`, error)
+        await queryRun(
+          db,
+          'DELETE FROM settings WHERE key = ?',
+          [lockKey]
+        )
+        console.log(`[Cron] 已清理转换锁，允许后续重试: ${lockKey}`)
       } finally {
         await db.close()
       }
@@ -594,7 +609,7 @@ function isNewWorkWeekStart(today) {
  * 查询最新的已归档周报（weekStart 小于今天的最新周报）
  */
 async function getLastWeekPlans(db, today) {
-  const todayStr = formatDate(today, 'yyyy-MM-dd')
+  const cutoffWeekStart = getPlanConversionCutoff(today)
 
   const report = await queryGet(
     db,
@@ -602,7 +617,7 @@ async function getLastWeekPlans(db, today) {
      WHERE weekStart < ? AND deleted = 0
      ORDER BY weekStart DESC
      LIMIT 1`,
-    [today.toISOString()]
+    [cutoffWeekStart]
   )
 
   if (!report || !report.plans) {
@@ -664,4 +679,13 @@ async function markPlansAsConverted(db, weekStart, recordIds) {
   console.log(`[Cron] 已标记转换: ${weekStart}, ${recordIds.length} 条记录`)
 }
 
-export { initTemplates, startScheduledTasks, stopAllTasks, SCHEDULE_TEMPLATES, sendReminder, executeTask, getConversionStatusKey }
+export {
+  initTemplates,
+  startScheduledTasks,
+  stopAllTasks,
+  SCHEDULE_TEMPLATES,
+  sendReminder,
+  executeTask,
+  getConversionStatusKey,
+  getPlanConversionCutoff
+}
