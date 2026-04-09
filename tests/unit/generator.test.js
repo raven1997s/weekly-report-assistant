@@ -116,18 +116,28 @@ describe('sortByPriority', () => {
     expect(sorted[3].workType).toBe('其他')
   })
 
-  it('应该保持相同优先级的记录的相对顺序', () => {
+  it('应该在相同优先级内按项目分组', () => {
     const records = [
-      { id: 1, project: 'WMS', workType: '需求开发' },
-      { id: 2, project: 'WMS', workType: 'Bug修复' },
-      { id: 3, project: 'OMS', workType: '需求开发' }
+      { id: 1, project: '周报助手', workType: '需求开发' },
+      { id: 2, project: '支付中心', workType: 'Bug修复' },
+      { id: 3, project: '仓储智控', workType: '需求开发' }
     ]
     const sorted = generator.sortByPriority(records)
 
-    // 所有记录优先级都是 0，顺序应该保持不变
-    expect(sorted[0].id).toBe(1)
+    expect(sorted[0].id).toBe(3)
     expect(sorted[1].id).toBe(2)
-    expect(sorted[2].id).toBe(3)
+    expect(sorted[2].id).toBe(1)
+  })
+
+  it('应该在同项目内按创建时间升序排序', () => {
+    const records = [
+      { id: 1, project: 'WMS', workType: '需求开发', createdAt: '2026-04-09T09:00:00.000Z' },
+      { id: 2, project: 'WMS', workType: '需求开发', createdAt: '2026-04-09T08:00:00.000Z' },
+      { id: 3, project: 'WMS', workType: '需求开发', createdAt: '2026-04-09T10:00:00.000Z' }
+    ]
+    const sorted = generator.sortByPriority(records)
+
+    expect(sorted.map(record => record.id)).toEqual([2, 1, 3])
   })
 
   it('应该返回新数组而不修改原数组', () => {
@@ -411,5 +421,16 @@ describe('generateReport', () => {
 
     // 但对象引用是相同的（浅拷贝）
     expect(report.records[0]).toBe(originalRecords[0])
+  })
+
+  it('应该让生成结果中的 records 与预览排序保持一致', () => {
+    const report = generator.generateReport({
+      records: [
+        { id: 1, content: 'WMS协同', project: 'WMS', workType: '协同', createdAt: '2026-04-09T09:00:00.000Z' },
+        { id: 2, content: 'AI需求', project: 'AI', workType: '需求开发', createdAt: '2026-04-09T08:00:00.000Z' }
+      ]
+    })
+
+    expect(report.records.map(record => record.id)).toEqual([2, 1])
   })
 })

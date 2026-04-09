@@ -119,21 +119,28 @@ export function useGenerator() {
      * @returns {Array} 排序后的记录
      */
     const sortByPriority = (records) => {
-        return [...records]
-            .map((record, index) => ({ record, index }))
-            .sort((a, b) => {
-            const priorityA = getRecordPriority(a.record)
-            const priorityB = getRecordPriority(b.record)
+        return [...records].sort((a, b) => {
+            const priorityA = getRecordPriority(a)
+            const priorityB = getRecordPriority(b)
 
             // 先按优先级排序
             if (priorityA !== priorityB) {
                 return priorityA - priorityB
             }
 
-            // 相同优先级保持原有顺序，避免用户手动整理后的内容被打乱
-            return a.index - b.index
-            })
-            .map(item => item.record)
+            // 相同优先级内，按项目名称分组，确保预览顺序稳定
+            const projectA = a.project || '其他'
+            const projectB = b.project || '其他'
+            const projectCompare = projectA.localeCompare(projectB, 'zh-CN')
+            if (projectCompare !== 0) {
+                return projectCompare
+            }
+
+            // 同项目内按创建时间排序，避免后端返回顺序影响预览
+            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+            return timeA - timeB
+        })
     }
 
     /**
@@ -288,7 +295,7 @@ export function useGenerator() {
         return {
             markdown: generateMarkdown({ records, plans, reflections }),
             plainText: generatePlainText({ records, plans, reflections }),
-            records: [...records],
+            records: sortByPriority([...records]),
             plans: sortByPriority([...plans]),
             reflections: { ...reflections },
             generatedAt: new Date().toISOString()
