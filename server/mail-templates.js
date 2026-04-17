@@ -1,10 +1,14 @@
-import { getWorkMonthWeekLabel } from './utils/date.js'
+import { getWorkMonthWeekLabel, getWorkWeekInfo } from './utils/date.js'
 
 const DEFAULT_MAIL_TEMPLATE_CONFIG = {
-  titleSuffix: '厚朴汤 部门工作周报',
+  titleSuffix: '工作周报',
   subtitle: '降本增效、协同攻坚、高质量发展',
   bannerText: '星光闪烁，助我前行'
 }
+
+const LEGACY_TITLE_SUFFIXES = new Set([
+  '厚朴汤部门工作周报'
+])
 
 const DEFAULT_MAIL_SIGNATURE_CONFIG = {
   enabled: true,
@@ -126,6 +130,31 @@ const getReportDate = (report = {}) => {
   return new Date()
 }
 
+const normalizeTitleSuffix = (value) => {
+  const trimmed = String(value || '').trim()
+
+  if (!trimmed) {
+    return DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix
+  }
+
+  if (LEGACY_TITLE_SUFFIXES.has(trimmed.replace(/\s+/g, ''))) {
+    return DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix
+  }
+
+  return trimmed
+}
+
+const normalizeMailTemplateConfig = (config = {}) => ({
+  titleSuffix: normalizeTitleSuffix(config.titleSuffix),
+  subtitle: config.subtitle || DEFAULT_MAIL_TEMPLATE_CONFIG.subtitle,
+  bannerText: config.bannerText || DEFAULT_MAIL_TEMPLATE_CONFIG.bannerText
+})
+
+const formatSubjectDate = (date) => {
+  const target = new Date(date)
+  return `${target.getMonth() + 1}.${target.getDate()}`
+}
+
 const parseTemplateConfigs = (settings = {}) => {
   if (!settings.mail_template_configs) {
     return {}
@@ -145,18 +174,14 @@ const getMailTemplateConfigFromSettings = (settings = {}, templateKey = 'gancao-
   const matchedConfig = templateConfigs[templateKey]
 
   if (matchedConfig && typeof matchedConfig === 'object') {
-    return {
-      titleSuffix: matchedConfig.titleSuffix || DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix,
-      subtitle: matchedConfig.subtitle || DEFAULT_MAIL_TEMPLATE_CONFIG.subtitle,
-      bannerText: matchedConfig.bannerText || DEFAULT_MAIL_TEMPLATE_CONFIG.bannerText
-    }
+    return normalizeMailTemplateConfig(matchedConfig)
   }
 
-  return {
+  return normalizeMailTemplateConfig({
     titleSuffix: settings.mail_template_title_suffix || DEFAULT_MAIL_TEMPLATE_CONFIG.titleSuffix,
     subtitle: settings.mail_template_subtitle || DEFAULT_MAIL_TEMPLATE_CONFIG.subtitle,
     bannerText: settings.mail_template_banner_text || DEFAULT_MAIL_TEMPLATE_CONFIG.bannerText
-  }
+  })
 }
 
 const getMailSignatureConfigFromSettings = (settings = {}) => ({
@@ -178,14 +203,15 @@ const getMailSignatureConfigFromSettings = (settings = {}) => ({
 const buildMailSubject = (report = {}, templateConfig = DEFAULT_MAIL_TEMPLATE_CONFIG) => {
   const reportDate = getReportDate(report)
   const rawLabel = getWorkMonthWeekLabel(reportDate)
-  const match = rawLabel.match(/^(\d{4})年(\d{1,2})月第(\d+)周$/)
+  const normalizedConfig = normalizeMailTemplateConfig(templateConfig)
+  const workWeekInfo = getWorkWeekInfo(reportDate)
 
-  if (match) {
-    const [, year, month, week] = match
-    return `${year} 年 ${month} 月 ${week} 周 ${templateConfig.titleSuffix}`
+  if (workWeekInfo.hasNoWorkdays || !workWeekInfo.start || !workWeekInfo.end) {
+    return `${rawLabel}${normalizedConfig.titleSuffix}`
   }
 
-  return `${rawLabel} ${templateConfig.titleSuffix}`
+  const range = `${formatSubjectDate(workWeekInfo.start)}-${formatSubjectDate(workWeekInfo.end)}`
+  return `${rawLabel}${normalizedConfig.titleSuffix}（${range}）`
 }
 
 const renderMailSignature = (signatureConfig = DEFAULT_MAIL_SIGNATURE_CONFIG) => {

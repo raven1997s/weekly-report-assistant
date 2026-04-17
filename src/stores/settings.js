@@ -11,6 +11,8 @@ import { useToastStore } from './toast'
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 const STORAGE_KEY = 'weekly_report_settings'
+const DEFAULT_MAIL_TEMPLATE_KEY = 'gancao-department-weekly-report'
+const LEGACY_MAIL_TITLE_SUFFIXES = new Set(['厚朴汤部门工作周报'])
 
 // 默认配置
 const DEFAULT_SETTINGS = {
@@ -61,8 +63,8 @@ const DEFAULT_SETTINGS = {
 
     // 邮件模板配置（按模板分别保存）
     mailTemplateConfigs: {
-        'gancao-department-weekly-report': {
-            titleSuffix: '厚朴汤 部门工作周报',
+        [DEFAULT_MAIL_TEMPLATE_KEY]: {
+            titleSuffix: '工作周报',
             subtitle: '降本增效、协同攻坚、高质量发展',
             bannerText: '星光闪烁，助我前行'
         }
@@ -93,9 +95,36 @@ export const useSettingsStore = defineStore('settings', () => {
         }))
         .filter(item => item.name)
 
+    const normalizeTitleSuffix = (value) => {
+        const trimmed = String(value || '').trim()
+        if (!trimmed) {
+            return DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY].titleSuffix
+        }
+
+        if (LEGACY_MAIL_TITLE_SUFFIXES.has(trimmed.replace(/\s+/g, ''))) {
+            return DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY].titleSuffix
+        }
+
+        return trimmed
+    }
+
+    const normalizeMailTemplateConfig = (config = {}, templateKey = DEFAULT_MAIL_TEMPLATE_KEY) => {
+        const fallback = DEFAULT_SETTINGS.mailTemplateConfigs[templateKey]
+            || DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY]
+
+        return {
+            titleSuffix: normalizeTitleSuffix(config.titleSuffix ?? fallback.titleSuffix),
+            subtitle: config.subtitle || fallback.subtitle,
+            bannerText: config.bannerText || fallback.bannerText
+        }
+    }
+
     const cloneMailTemplateConfigs = (configs = {}) => JSON.parse(JSON.stringify(configs))
     const getDefaultMailTemplateConfig = (templateKey = DEFAULT_SETTINGS.mail.defaultTemplate) => ({
-        ...(DEFAULT_SETTINGS.mailTemplateConfigs[templateKey] || DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_SETTINGS.mail.defaultTemplate])
+        ...normalizeMailTemplateConfig(
+            DEFAULT_SETTINGS.mailTemplateConfigs[templateKey] || DEFAULT_SETTINGS.mailTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY],
+            templateKey
+        )
     })
 
     // ============ 状态 ============
@@ -147,7 +176,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 }
 
                 const legacyTemplateConfig = {
-                    titleSuffix: saved.mail_template_title_suffix || getDefaultMailTemplateConfig().titleSuffix,
+                    titleSuffix: normalizeTitleSuffix(saved.mail_template_title_suffix || getDefaultMailTemplateConfig().titleSuffix),
                     subtitle: saved.mail_template_subtitle || getDefaultMailTemplateConfig().subtitle,
                     bannerText: saved.mail_template_banner_text || getDefaultMailTemplateConfig().bannerText
                 }
@@ -169,10 +198,17 @@ export const useSettingsStore = defineStore('settings', () => {
                     parsedTemplateConfigs[mail.value.defaultTemplate] = legacyTemplateConfig
                 }
 
-                parsedTemplateConfigs['gancao-department-weekly-report'] = {
-                    ...getDefaultMailTemplateConfig('gancao-department-weekly-report'),
-                    ...(parsedTemplateConfigs['gancao-department-weekly-report'] || {})
-                }
+                parsedTemplateConfigs = Object.fromEntries(
+                    Object.entries(parsedTemplateConfigs).map(([templateKey, config]) => [
+                        templateKey,
+                        normalizeMailTemplateConfig(config, templateKey)
+                    ])
+                )
+
+                parsedTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY] = normalizeMailTemplateConfig(
+                    parsedTemplateConfigs[DEFAULT_MAIL_TEMPLATE_KEY] || getDefaultMailTemplateConfig(DEFAULT_MAIL_TEMPLATE_KEY),
+                    DEFAULT_MAIL_TEMPLATE_KEY
+                )
 
                 mailTemplateConfigs.value = parsedTemplateConfigs
 
@@ -228,10 +264,10 @@ export const useSettingsStore = defineStore('settings', () => {
     const workTypeNames = computed(() => workTypes.value.map(t => t.name))
     const mailTemplate = computed(() => {
         const currentTemplateKey = mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
-        return {
+        return normalizeMailTemplateConfig({
             ...getDefaultMailTemplateConfig(currentTemplateKey),
             ...(mailTemplateConfigs.value[currentTemplateKey] || {})
-        }
+        }, currentTemplateKey)
     })
 
     // ============ 方法 ============

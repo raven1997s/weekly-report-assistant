@@ -395,7 +395,7 @@
                     <input
                       v-model="mailTemplateConfig.titleSuffix"
                       type="text"
-                      placeholder="例如：厚朴汤 部门工作周报"
+                      placeholder="例如：工作周报"
                       class="config-input"
                     />
                   </div>
@@ -914,7 +914,7 @@ const mailDesignTemplateKey = ref(mail.value.defaultTemplate)
 const resolveTemplateConfig = (templateKey) => {
   const configs = mailTemplateConfigs.value || {}
   return {
-    titleSuffix: '厚朴汤 部门工作周报',
+    titleSuffix: '工作周报',
     subtitle: '降本增效、协同攻坚、高质量发展',
     bannerText: '星光闪烁，助我前行',
     ...(configs[templateKey] || {})
