@@ -12,6 +12,30 @@
         <span>{{ successMessage }}</span>
       </div>
     </Transition>
+    <div class="record-filters" aria-label="工作记录筛选">
+      <label class="filter-field">
+        <span>项目</span>
+        <select v-model="selectedProject" class="filter-select project-filter">
+          <option value="">全部项目</option>
+          <option v-for="project in projectOptions" :key="project" :value="project">{{ project }}</option>
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>类型</span>
+        <select v-model="selectedWorkType" class="filter-select type-filter">
+          <option value="">全部类型</option>
+          <option v-for="type in workTypeOptions" :key="type" :value="type">{{ type }}</option>
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>状态</span>
+        <select v-model="selectedStatus" class="filter-select status-filter">
+          <option value="">全部状态</option>
+          <option v-for="status in statusOptions" :key="status" :value="status">{{ status }}</option>
+        </select>
+      </label>
+      <button v-if="hasActiveFilters" class="btn btn-ghost btn-sm" type="button" @click="resetFilters">清除筛选</button>
+    </div>
     <!-- 空状态 -->
     <div v-if="groupedRecords && Object.keys(groupedRecords).length === 0" class="empty-state">
       <div class="empty-state-icon">
@@ -20,7 +44,7 @@
         </svg>
       </div>
       <div class="empty-state-title">暂无工作记录</div>
-      <div class="empty-state-desc">在上方输入框记录你的工作内容</div>
+      <div class="empty-state-desc">{{ hasActiveFilters ? '没有符合筛选条件的记录' : '在上方输入框记录你的工作内容' }}</div>
     </div>
 
     <!-- 按项目分组展示 -->
@@ -68,10 +92,13 @@ import RecordCard from './RecordCard.vue'
 import { useRecordsStore } from '../stores/records'
 import { useReportsStore } from '../stores/reports'
 import { useDialogStore } from '../stores/dialog'
+import { useSettingsStore } from '../stores/settings'
+import { mergeRecordStatusNames, resolveRecordStatus } from '../../shared/record-status'
 
 const recordsStore = useRecordsStore()
 const reportsStore = useReportsStore()
 const dialogStore = useDialogStore()
+const settingsStore = useSettingsStore()
 
 // Toast 状态
 const successMessage = ref('')
@@ -91,8 +118,41 @@ const showToast = (message, isErrorMessage = false) => {
   }, 3000)
 }
 
+const selectedProject = ref('')
+const selectedWorkType = ref('')
+const selectedStatus = ref('')
+
+const currentRecords = computed(() => recordsStore.currentWorkWeekRecords)
+const projectOptions = computed(() => [...new Set([
+  ...settingsStore.projectNames,
+  ...currentRecords.value.map(record => record.project).filter(Boolean)
+])])
+const workTypeOptions = computed(() => [...new Set([
+  ...settingsStore.workTypeNames,
+  ...currentRecords.value.map(record => record.workType).filter(Boolean)
+])])
+const statusOptions = computed(() => mergeRecordStatusNames(settingsStore.recordStatuses, currentRecords.value))
+const hasActiveFilters = computed(() => Boolean(selectedProject.value || selectedWorkType.value || selectedStatus.value))
+
+const filteredRecords = computed(() => currentRecords.value.filter(record => (
+  (!selectedProject.value || record.project === selectedProject.value)
+  && (!selectedWorkType.value || record.workType === selectedWorkType.value)
+  && (!selectedStatus.value || resolveRecordStatus(record.status) === selectedStatus.value)
+)))
+
 // 按项目分组的记录
-const groupedRecords = computed(() => recordsStore.currentWeekByProject)
+const groupedRecords = computed(() => filteredRecords.value.reduce((groups, record) => {
+  const project = record.project || '其他'
+  if (!groups[project]) groups[project] = []
+  groups[project].push(record)
+  return groups
+}, {}))
+
+const resetFilters = () => {
+  selectedProject.value = ''
+  selectedWorkType.value = ''
+  selectedStatus.value = ''
+}
 
 // 处理删除事件
 const handleDeleted = (record) => {
@@ -152,6 +212,42 @@ const onDragEnd = (recordsList) => {
 
 .record-list {
   margin-top: $spacing-6;
+}
+
+.record-filters {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+  margin-bottom: $spacing-6;
+}
+
+.filter-field {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+
+  span {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: var(--text-secondary);
+  }
+}
+
+.filter-select {
+  min-width: 140px;
+  padding: $spacing-2 $spacing-3;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+
+  &:focus {
+    outline: none;
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 3px $accent-light;
+  }
 }
 
 .record-groups {
@@ -287,6 +383,20 @@ const onDragEnd = (recordsList) => {
 @media (max-width: $breakpoint-md) {
   .record-list {
     margin-top: $spacing-4;
+  }
+
+  .record-filters {
+    align-items: stretch;
+  }
+
+  .filter-field {
+    flex: 1 1 180px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-select {
+    min-height: 44px;
   }
 
   .record-groups {

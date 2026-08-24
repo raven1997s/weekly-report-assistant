@@ -179,6 +179,16 @@ lines.push('下周工作计划')
 lines.push('本周得与失')
 ```
 
+**本周工作记录标签必须追加状态，下周计划格式保持不变：**
+```text
+[WMS][需求开发][已完成] 完成功能开发
+[WMS][需求开发] 下周继续开发
+```
+
+- 历史记录状态为空时按“已完成”处理
+- 工作状态配置保存在 `settings.recordStatuses`
+- 计划转换生成的工作记录状态为“待开始”
+
 **"本周得与失"列表必须使用固定编号：**
 ```javascript
 const items = []
@@ -567,6 +577,8 @@ const handleDelete = async () => {
 - 项目为"其他" + 类型为"其他" → `[其他]`
 - 只有项目（没有类型字段） → `[项目][其他]`
 - 只有类型（没有项目字段） → `[类型]`
+- 本周工作记录在上述标签末尾追加 `[状态]`
+- 下周计划不追加状态标签
 
 **实现位置**：`src/composables/useGenerator.js` - `generateTags()` 函数
 
@@ -653,7 +665,7 @@ const generateTags = (project, workType) => {
 - ✅ `scheduled_tasks` - 定时任务
 
 **例外情况**（可以硬删除）：
-- 配置项（projects、workTypes）- 使用全量替换，不涉及删除 API
+- 配置项（projects、workTypes、recordStatuses）- 使用全量替换，不涉及删除 API
 - 临时数据（session data）
 
 **为什么必须软删除**：
@@ -926,31 +938,6 @@ const PORT = process.env.PORT || 3000
 - **回收站页面**: `src/views/RecycleBinView.vue`
 - **数据库迁移**: `server/migrations/add_soft_delete.cjs`
 
-### 数据库管理功能
-- **数据库管理页面**: `src/views/DatabaseView.vue` - 只读查看所有表数据
-- **数据表格组件**: `src/components/DataTable.vue` - 通用数据表格展示（支持列排序）
-- **JSON 查看器组件**: `src/components/JsonViewer.vue` - JSON 弹窗查看器（语法高亮、折叠/展开、复制）
-- **JSON 节点组件**: `src/components/JsonNode.vue` - 递归 JSON 渲染组件
-- **筛选面板组件**: `src/components/FilterPanel.vue` - 高级筛选面板（动态生成筛选器）
-- **单元格内容组件**: `src/components/CellContent.vue` - JSON/日期/布尔字段格式化（点击 JSON 打开弹窗）
-- **后端 API**: `server/api.js` - 数据库管理接口
-  - `GET /api/database/tables` - 获取所有表信息和结构
-  - `GET /api/database/table/:tableName` - 获取表数据（支持分页、搜索、筛选、排序）
-- **功能特性**:
-  - **表切换**: Tab 切换，显示行数徽章
-  - **数据搜索**: 模糊匹配文本字段，500ms 防抖，可按指定字段搜索
-  - **高级筛选**: 根据字段类型动态生成筛选器（文本框、日期选择器、下拉选择）
-  - **列排序**: 点击表头排序（ASC → DESC → 无），默认 id DESC
-  - **JSON 查看**: 点击 JSON 字段打开弹窗查看完整内容，支持语法高亮和折叠/展开
-  - **分页浏览**: 默认每页 20 条
-  - **长文本截断**: 超长文本字段截断显示
-  - **日期格式化**: 本地化日期格式显示
-  - **布尔字段**: 中文显示（是/否）
-  - **白名单验证**: 只允许访问 4 个系统表（records、reports、settings、scheduled_tasks）
-  - **SQL 注入防护**: 参数化查询，列名白名单验证
-
----
-
 ## 已知问题和解决方案
 
 ### 问题 1：复制纯文本格式错误
@@ -1170,6 +1157,7 @@ curl http://localhost:3000/api/reports
 - [ ] 所有页面容器样式统一（.page-header）
 - [ ] **禁止使用普通表情符号，必须使用 SVG 图标**
 - [ ] 标签排序使用了 `sortByPriority`
+- [ ] 本周记录包含状态标签，下周计划不包含状态标签
 - [ ] "本周得与失" 使用固定编号（1. 2.）
 - [ ] Markdown 格式带 `**`，纯文本不带
 - [ ] 归档后显示归档数据，不是内存数据
@@ -1196,13 +1184,20 @@ curl http://localhost:3000/api/reports
 
 ## 最后更新
 
-- **日期**: 2026-01-28
-- **版本**: 5.1
+- **日期**: 2026-08-24
+- **版本**: 5.3
 - **主要更新**:
-  - **修复问题 #6**：定时任务重复执行、重启立即触发、前端数据未刷新
-  - 添加数据库锁机制防止转换任务重复执行
-  - 修改任务启动逻辑，防止服务重启后立即触发
-  - 前端强制刷新数据后再检查转换状态
+  - 移除数据库管理页面、导航、专用组件和通用查询 API
+  - 保留 SQLite 数据库、业务表和 Docker 数据卷
+  - 之前版本（5.2）：
+    - 添加可配置工作状态、记录状态选择和组合筛选
+    - 周报本周记录格式扩展为 `[项目][工作类型][状态]`
+    - 保持周报章节和下周计划格式不变
+  - 之前版本（5.1）：
+    - **修复问题 #6**：定时任务重复执行、重启立即触发、前端数据未刷新
+    - 添加数据库锁机制防止转换任务重复执行
+    - 修改任务启动逻辑，防止服务重启后立即触发
+    - 前端强制刷新数据后再检查转换状态
   - 之前版本（5.0）：
     - 文档精简：减少约 38% 的 token 占用（13,000 → 8,000）
     - 删除重复内容，创建子文档（deployment.md、configuration.md、troubleshooting.md）

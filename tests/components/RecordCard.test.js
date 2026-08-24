@@ -27,6 +27,7 @@ describe('RecordCard', () => {
     content: '完成WMS仓储功能开发',
     project: 'WMS',
     workType: '需求开发',
+    status: '进行中',
     createdAt: new Date().toISOString()
   }
 
@@ -67,6 +68,12 @@ describe('RecordCard', () => {
       const typeTag = wrapper.find('.tag.type')
       expect(typeTag.exists()).toBe(true)
       expect(typeTag.text()).toBe('需求开发')
+    })
+
+    it('应该渲染工作状态标签', () => {
+      const statusTag = wrapper.find('.tag.status')
+      expect(statusTag.exists()).toBe(true)
+      expect(statusTag.text()).toBe('进行中')
     })
 
     it('应该显示相对时间', () => {
@@ -213,8 +220,24 @@ describe('RecordCard', () => {
       await saveButton.trigger('click')
 
       expect(recordsStore.updateRecord).toHaveBeenCalledWith('test-record-1', {
-        content: '更新后的内容'
+        content: '更新后的内容',
+        project: 'WMS',
+        workType: '需求开发',
+        status: '进行中'
       })
+    })
+
+    it('编辑时应该允许修改工作状态', async () => {
+      recordsStore.updateRecord = vi.fn().mockResolvedValue(true)
+
+      await wrapper.find('button[aria-label="编辑"]').trigger('click')
+      const statusSelect = wrapper.find('.edit-status-select')
+      await statusSelect.setValue('已阻塞')
+      await wrapper.find('.edit-actions .btn-primary').trigger('click')
+
+      expect(recordsStore.updateRecord).toHaveBeenCalledWith('test-record-1', expect.objectContaining({
+        status: '已阻塞'
+      }))
     })
 
     it('按 Enter 键应该保存编辑', async () => {

@@ -12,6 +12,11 @@ import { initDatabase, queryAll, queryGet, queryRun, createDbConnection, migrate
 import { initTemplates, startScheduledTasks, sendReminder, executeTask, getConversionStatusKey } from './cron.js'
 import { MAIL_TEMPLATES, renderMailTemplate } from './mail-templates.js'
 import { createMailDraft } from './mail-service.js'
+import {
+  PLAN_RECORD_STATUS,
+  getDefaultRecordStatus,
+  resolveRecordStatus
+} from '../shared/record-status.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -37,6 +42,17 @@ app.use((req, res, next) => {
 // 工作记录 API
 // ============================================
 
+const getConfiguredRecordStatuses = async (db) => {
+  const row = await queryGet(db, "SELECT value FROM settings WHERE key = 'recordStatuses'")
+  if (!row?.value) return []
+
+  try {
+    return JSON.parse(row.value)
+  } catch {
+    return []
+  }
+}
+
 // GET /api/records - 获取所有工作记录
 app.get('/api/records', async (req, res) => {
   try {
@@ -56,7 +72,10 @@ app.get('/api/records', async (req, res) => {
 
     sql += ' ORDER BY createdAt DESC'
 
-    const records = await queryAll(db, sql, params)
+    const records = (await queryAll(db, sql, params)).map(record => ({
+      ...record,
+      status: resolveRecordStatus(record.status)
+    }))
     db.close()
     res.json({ success: true, data: records })
   } catch (error) {
@@ -68,19 +87,20 @@ app.get('/api/records', async (req, res) => {
 // POST /api/records - 添加工作记录
 app.post('/api/records', async (req, res) => {
   try {
-    const { id, content, project, workType, createdAt, updatedAt } = req.body
+    const { id, content, project, workType, status, createdAt, updatedAt } = req.body
 
     const db = await createDbConnection()
-    const result = await queryRun(
+    const nextStatus = String(status || '').trim() || getDefaultRecordStatus(await getConfiguredRecordStatuses(db))
+    await queryRun(
       db,
-      'INSERT INTO records (id, content, project, workType, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, content, project || null, workType || null, createdAt, updatedAt]
+      'INSERT INTO records (id, content, project, workType, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, content, project || null, workType || null, nextStatus, createdAt, updatedAt]
     )
     db.close()
 
     res.json({
       success: true,
-      data: { ...req.body, id }
+      data: { ...req.body, id, status: nextStatus }
     })
   } catch (error) {
     console.error('[API] 添加记录失败:', error)
@@ -92,7 +112,7 @@ app.post('/api/records', async (req, res) => {
 app.put('/api/records/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { content, project, workType, updatedAt } = req.body
+    const { content, project, workType, status, updatedAt } = req.body
 
     const db = await createDbConnection()
     const existingRecord = await queryGet(db, 'SELECT * FROM records WHERE id = ?', [id])
@@ -109,12 +129,15 @@ app.put('/api/records/:id', async (req, res) => {
     const nextWorkType = Object.prototype.hasOwnProperty.call(req.body, 'workType')
       ? (workType || null)
       : existingRecord.workType
+    const nextStatus = Object.prototype.hasOwnProperty.call(req.body, 'status')
+      ? resolveRecordStatus(status)
+      : resolveRecordStatus(existingRecord.status)
     const nextUpdatedAt = updatedAt || new Date().toISOString()
 
     await queryRun(
       db,
-      'UPDATE records SET content = ?, project = ?, workType = ?, updatedAt = ? WHERE id = ?',
-      [nextContent, nextProject, nextWorkType, nextUpdatedAt, id]
+      'UPDATE records SET content = ?, project = ?, workType = ?, status = ?, updatedAt = ? WHERE id = ?',
+      [nextContent, nextProject, nextWorkType, nextStatus, nextUpdatedAt, id]
     )
     db.close()
 
@@ -125,6 +148,7 @@ app.put('/api/records/:id', async (req, res) => {
         content: nextContent,
         project: nextProject,
         workType: nextWorkType,
+        status: nextStatus,
         updatedAt: nextUpdatedAt,
         id
       }
@@ -726,9 +750,9 @@ app.post('/api/plans/:id/convert', async (req, res) => {
     const now = new Date().toISOString()
 
     await queryRun(db, `
-      INSERT INTO records (id, content, project, workType, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [recordId, plan.content, plan.project, plan.workType, now, now])
+      INSERT INTO records (id, content, project, workType, status, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [recordId, plan.content, plan.project, plan.workType, PLAN_RECORD_STATUS, now, now])
 
     // 更新计划状态
     await queryRun(db, `
@@ -748,6 +772,7 @@ app.post('/api/plans/:id/convert', async (req, res) => {
           content: plan.content,
           project: plan.project,
           workType: plan.workType,
+          status: PLAN_RECORD_STATUS,
           createdAt: now,
           updatedAt: now
         }
@@ -794,9 +819,9 @@ app.post('/api/plans/batch-convert', async (req, res) => {
 
       // 创建工作记录
       await queryRun(db, `
-        INSERT INTO records (id, content, project, workType, createdAt, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [recordId, plan.content, plan.project, plan.workType, now, now])
+        INSERT INTO records (id, content, project, workType, status, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [recordId, plan.content, plan.project, plan.workType, PLAN_RECORD_STATUS, now, now])
 
       // 更新计划状态
       await queryRun(db, `
@@ -808,7 +833,8 @@ app.post('/api/plans/batch-convert', async (req, res) => {
         recordId,
         content: plan.content,
         project: plan.project,
-        workType: plan.workType
+        workType: plan.workType,
+        status: PLAN_RECORD_STATUS
       })
     }
 
@@ -1445,211 +1471,6 @@ app.delete('/api/scheduled-tasks/:id/permanent', async (req, res) => {
     res.json({ success: true, message: '定时任务已永久删除' })
   } catch (error) {
     console.error('[API] 永久删除定时任务失败:', error)
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// ============================================
-// 数据库管理 API
-// ============================================
-
-// GET /api/database/tables - 获取所有表信息
-app.get('/api/database/tables', async (req, res) => {
-  try {
-    const db = await createDbConnection()
-
-    // 获取所有表名（排除系统表）
-    const tables = await queryAll(
-      db,
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-    )
-
-    // 获取每个表的结构和行数
-    const tableInfo = await Promise.all(
-      tables.map(async ({ name }) => {
-        const columns = await queryAll(db, `PRAGMA table_info(${name})`)
-        const countResult = await queryGet(db, `SELECT COUNT(*) as count FROM ${name}`)
-        return {
-          name,
-          columns: columns.map(col => ({
-            name: col.name,
-            type: col.type,
-            notNull: col.notnull === 1,
-            primaryKey: col.pk === 1
-          })),
-          rowCount: countResult.count
-        }
-      })
-    )
-
-    db.close()
-    console.log(`[API] 获取表信息成功: ${tableInfo.length} 个表`)
-    res.json({ success: true, data: tableInfo })
-  } catch (error) {
-    console.error('[API] 获取表信息失败:', error)
-    res.status(500).json({ success: false, error: error.message })
-  }
-})
-
-// GET /api/database/table/:tableName - 获取表数据（支持分页、搜索、筛选和排序）
-app.get('/api/database/table/:tableName', async (req, res) => {
-  try {
-    const { tableName } = req.params
-    const {
-      page = 1,
-      pageSize = 20,
-      search = '',
-      column = '',
-      sortColumn = 'id',
-      sortOrder = 'DESC'
-    } = req.query
-
-    // 解析筛选参数（格式：filters[columnName]=value）
-    const filters = {}
-    for (const [key, value] of Object.entries(req.query)) {
-      if (key.startsWith('filters[') && key.endsWith(']')) {
-        const columnName = key.slice(8, -1) // 去掉 'filters[' 和 ']'
-        if (value && value !== '') {
-          filters[columnName] = value
-        }
-      }
-    }
-
-    // 安全检查：白名单验证表名
-    const validTables = ['records', 'reports', 'settings', 'scheduled_tasks', 'plans']
-    if (!validTables.includes(tableName)) {
-      console.warn(`[API] 尝试访问无效表名: ${tableName}`)
-      return res.status(400).json({ success: false, error: '无效的表名' })
-    }
-
-    // 列白名单（用于防止 SQL 注入）
-    const TABLE_COLUMNS = {
-      records: ['id', 'content', 'project', 'workType', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
-      reports: ['id', 'weekLabel', 'weekStart', 'weekEnd', 'markdown', 'plainText', 'createdAt', 'updatedAt', 'deleted', 'deletedAt'],
-      settings: ['key', 'value'], // settings 表没有 id
-      scheduled_tasks: ['id', 'name', 'type', 'hour', 'minute', 'dayOfWeek', 'enabled', 'isSystemTask', 'createdAt', 'updatedAt'],
-      plans: ['id', 'content', 'project', 'workType', 'weekStart', 'status', 'convertedRecordId', 'createdAt', 'updatedAt', 'deleted', 'deletedAt']
-    }
-
-    const db = await createDbConnection()
-    const offset = (page - 1) * pageSize
-    const limit = Math.min(parseInt(pageSize), 100) // 限制最大查询数量
-
-    // 构建查询
-    let sql = `SELECT * FROM ${tableName}`
-    let countSql = `SELECT COUNT(*) as total FROM ${tableName}`
-    let params = []
-    const conditions = []
-
-    // 添加筛选条件
-    for (const [columnName, value] of Object.entries(filters)) {
-      const allowedColumns = TABLE_COLUMNS[tableName]
-      if (!allowedColumns || !allowedColumns.includes(columnName)) {
-        continue // 跳过不在白名单中的列
-      }
-
-      // 判断字段类型
-      const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
-      const columnInfo = tableInfo.find(col => col.name === columnName)
-      const columnType = columnInfo?.type || ''
-
-      if (columnType.includes('TEXT') || columnType.includes('CHAR') || columnType.includes('VARCHAR')) {
-        // 文本字段：模糊匹配
-        conditions.push(`${columnName} LIKE ?`)
-        params.push(`%${value}%`)
-      } else if (columnType === 'INTEGER') {
-        // 整数字段：精确匹配（用于布尔字段 0/1）
-        conditions.push(`${columnName} = ?`)
-        params.push(value)
-      } else {
-        // 其他字段：精确匹配
-        conditions.push(`${columnName} = ?`)
-        params.push(value)
-      }
-    }
-
-    // 添加搜索条件（与筛选条件是 AND 关系）
-    if (search && search.trim()) {
-      if (column) {
-        // 按指定列搜索
-        const allowedColumns = TABLE_COLUMNS[tableName]
-        if (!allowedColumns || !allowedColumns.includes(column)) {
-          db.close()
-          return res.status(400).json({ success: false, error: '无效的列名' })
-        }
-        const searchCondition = `${column} LIKE ?`
-        if (conditions.length > 0) {
-          // 筛选和搜索是 AND 关系：先应用筛选，再在结果中搜索
-          conditions.push(searchCondition)
-        } else {
-          conditions.push(searchCondition)
-        }
-        params.push(`%${search}%`)
-      } else {
-        // 全部字段搜索（搜索任意文本字段）
-        const tableInfo = await queryAll(db, `PRAGMA table_info(${tableName})`)
-        const textColumns = tableInfo
-          .filter(col => col.type && (col.type.includes('TEXT') || col.type.includes('CHAR') || col.type.includes('VARCHAR')))
-          .map(col => col.name)
-
-        if (textColumns.length > 0) {
-          const searchConditions = textColumns.map(col => `${col} LIKE ?`)
-          // 将所有搜索条件用括号括起来，用 OR 连接
-          const searchGroup = `(${searchConditions.join(' OR ')})`
-          conditions.push(searchGroup)
-          // 为每个文本列添加搜索参数
-          textColumns.forEach(() => params.push(`%${search}%`))
-        }
-      }
-    }
-
-    // 构建 WHERE 子句
-    if (conditions.length > 0) {
-      sql += ` WHERE ${conditions.join(' AND ')}`
-      countSql += ` WHERE ${conditions.join(' AND ')}`
-    }
-
-    // 添加排序（验证列名）
-    const allowedColumns = TABLE_COLUMNS[tableName]
-    // 智能默认排序：首选 id，否则用第一列
-    const defaultSort = allowedColumns.includes('id') ? 'id' : (allowedColumns[0] || 'rowid')
-    const validSortColumn = allowedColumns?.includes(sortColumn) ? sortColumn : defaultSort
-    const validSortOrder = ['ASC', 'DESC'].includes(sortOrder?.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC'
-    sql += ` ORDER BY ${validSortColumn} ${validSortOrder} LIMIT ? OFFSET ?`
-
-    // 执行查询
-    const [data, totalResult, tableInfo] = await Promise.all([
-      queryAll(db, sql, [...params, limit, offset]),
-      queryGet(db, countSql, params),
-      queryAll(db, `PRAGMA table_info(${tableName})`)
-    ])
-
-    db.close()
-
-    // 构建完整的列信息
-    const columnInfo = tableInfo.map(col => ({
-      name: col.name,
-      type: col.type,
-      notNull: col.notnull === 1,
-      primaryKey: col.pk === 1
-    }))
-
-    res.json({
-      success: true,
-      data: {
-        tableName,
-        columns: columnInfo,
-        rows: data,
-        pagination: {
-          page: parseInt(page),
-          pageSize: limit,
-          total: totalResult.total,
-          totalPages: Math.ceil(totalResult.total / limit)
-        }
-      }
-    })
-  } catch (error) {
-    console.error('[API] 获取表数据失败:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })

@@ -133,6 +133,63 @@
       </div>
     </div>
 
+    <!-- 工作状态管理 -->
+    <div v-show="activeTab === 'recordStatuses'" class="card setting-section">
+      <div class="section-header">
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle; margin-right: 8px;">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.707a1 1 0 00-1.414-1.414L9 10.172 7.707 8.879a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          工作状态
+        </h3>
+        <div class="section-actions">
+          <span v-if="isSectionEditing('recordStatuses')" class="status-badge info">编辑中</span>
+          <button v-if="isSectionEditing('recordStatuses')" class="btn btn-primary btn-sm" @click="addRecordStatusDraft">添加状态</button>
+          <button v-else class="btn btn-secondary btn-sm" @click="beginSectionEdit('recordStatuses')" :disabled="hasActiveEditor">编辑</button>
+        </div>
+      </div>
+
+      <template v-if="isSectionEditing('recordStatuses')">
+        <div class="setting-list">
+          <div v-for="(status, index) in recordStatusDrafts" :key="status.id" class="setting-item">
+            <input v-model="status.name" class="item-input keywords" placeholder="状态名称" />
+            <div class="status-order-actions">
+              <button class="btn-icon" :disabled="index === 0" aria-label="上移状态" @click="moveRecordStatusDraft(index, -1)">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 5l5 6H5l5-6z"/></svg>
+              </button>
+              <button class="btn-icon" :disabled="index === recordStatusDrafts.length - 1" aria-label="下移状态" @click="moveRecordStatusDraft(index, 1)">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M10 15l-5-6h10l-5 6z"/></svg>
+              </button>
+              <button class="btn-icon delete" aria-label="删除状态" @click="removeRecordStatusDraft(status.id)">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div v-if="recordStatusDrafts.length === 0" class="empty-settings">暂无工作状态，可点击上方按钮新增</div>
+        </div>
+        <div class="section-edit-actions">
+          <button class="btn btn-secondary" @click="cancelSectionEdit('recordStatuses')">取消</button>
+          <button class="btn btn-primary" @click="saveRecordStatusesSection">保存</button>
+        </div>
+      </template>
+
+      <div v-else class="readonly-list">
+        <div v-for="status in displayedRecordStatuses" :key="status.id" class="readonly-item">
+          <div class="readonly-main">{{ status.name }}</div>
+        </div>
+        <button
+          v-if="recordStatuses.length > settingPreviewLimit"
+          class="btn btn-ghost btn-sm expand-btn"
+          @click="showAllRecordStatuses = !showAllRecordStatuses"
+        >
+          {{ showAllRecordStatuses ? '收起' : `展开更多（${recordStatuses.length - settingPreviewLimit}条）` }}
+        </button>
+        <div v-if="recordStatuses.length === 0" class="empty-settings">暂无工作状态配置</div>
+      </div>
+    </div>
+
     <!-- 钉钉配置 -->
     <div v-show="activeTab === 'dingtalk'" class="card setting-section">
       <div class="section-header">
@@ -809,7 +866,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PromptDialog from '../components/PromptDialog.vue'
 
 const settingsStore = useSettingsStore()
-const { projects, workTypes, dingtalk, mail, mailTemplate, mailTemplateConfigs, mailSignature, scheduledTasks } = storeToRefs(settingsStore)
+const { projects, workTypes, recordStatuses, dingtalk, mail, mailTemplate, mailTemplateConfigs, mailSignature, scheduledTasks } = storeToRefs(settingsStore)
 
 // 弹窗（使用全局 store）
 const dialogStore = useDialogStore()
@@ -819,6 +876,7 @@ const settingPreviewLimit = 5
 const settingTabs = [
   { key: 'projects', label: '项目管理' },
   { key: 'workTypes', label: '工作类型' },
+  { key: 'recordStatuses', label: '工作状态' },
   { key: 'dingtalk', label: '钉钉配置' },
   { key: 'mail', label: '邮箱草稿箱' },
   { key: 'mailDesign', label: '邮件模板与签名' },
@@ -831,6 +889,7 @@ const editingSection = ref('')
 const hasActiveEditor = computed(() => Boolean(editingSection.value))
 const showAllProjects = ref(false)
 const showAllWorkTypes = ref(false)
+const showAllRecordStatuses = ref(false)
 
 const displayedProjects = computed(() => {
   if (isSectionEditing('projects') || showAllProjects.value) {
@@ -846,6 +905,13 @@ const displayedWorkTypes = computed(() => {
   return workTypes.value.slice(0, settingPreviewLimit)
 })
 
+const displayedRecordStatuses = computed(() => {
+  if (isSectionEditing('recordStatuses') || showAllRecordStatuses.value) {
+    return recordStatuses.value
+  }
+  return recordStatuses.value.slice(0, settingPreviewLimit)
+})
+
 const isSectionEditing = (section) => editingSection.value === section
 
 const createDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -854,6 +920,10 @@ const cloneSettingItems = (items = []) => items.map(item => ({
   id: item.id,
   name: item.name || '',
   keywordsText: Array.isArray(item.keywords) ? item.keywords.join(', ') : ''
+}))
+const cloneRecordStatuses = (items = []) => items.map(item => ({
+  id: item.id,
+  name: item.name || ''
 }))
 const normalizeSettingItems = (items = []) => items.map(item => ({
   id: String(item.id || createDraftId()),
@@ -881,6 +951,7 @@ const getMailTemplateName = (templateKey) => {
 
 const projectDrafts = ref([])
 const workTypeDrafts = ref([])
+const recordStatusDrafts = ref([])
 const dingtalkConfig = ref({ ...dingtalk.value })
 const mailConfig = ref({ ...mail.value })
 const mailTemplateConfig = ref({ ...mailTemplate.value })
@@ -926,6 +997,8 @@ const syncSectionDraft = (section) => {
     projectDrafts.value = cloneSettingItems(projects.value)
   } else if (section === 'workTypes') {
     workTypeDrafts.value = cloneSettingItems(workTypes.value)
+  } else if (section === 'recordStatuses') {
+    recordStatusDrafts.value = cloneRecordStatuses(recordStatuses.value)
   } else if (section === 'dingtalk') {
     dingtalkConfig.value = { ...dingtalk.value }
   } else if (section === 'mail') {
@@ -971,6 +1044,15 @@ watch(projects, (newVal) => {
 watch(workTypes, (newVal) => {
   if (!isSectionEditing('workTypes')) {
     workTypeDrafts.value = cloneSettingItems(newVal)
+  }
+}, { deep: true })
+
+watch(recordStatuses, (newVal) => {
+  if (!isSectionEditing('recordStatuses')) {
+    recordStatusDrafts.value = cloneRecordStatuses(newVal)
+  }
+  if (newVal.length <= settingPreviewLimit) {
+    showAllRecordStatuses.value = false
   }
 }, { deep: true })
 
@@ -1057,6 +1139,7 @@ onMounted(async () => {
   await settingsStore.init()
   syncSectionDraft('projects')
   syncSectionDraft('workTypes')
+  syncSectionDraft('recordStatuses')
   syncSectionDraft('dingtalk')
   syncSectionDraft('mail')
   syncSectionDraft('mailTemplate')
@@ -1105,6 +1188,18 @@ const saveWorkTypesSection = async () => {
     await settingsStore.setWorkTypes(normalizeSettingItems(workTypeDrafts.value))
     editingSection.value = ''
     showToast('工作类型已保存')
+  } catch (error) {
+    showToast(`保存失败: ${error.message}`, true)
+  }
+}
+
+const saveRecordStatusesSection = async () => {
+  if (!validateNamedDrafts(recordStatusDrafts.value, '工作状态')) return
+
+  try {
+    await settingsStore.setRecordStatuses(recordStatusDrafts.value)
+    editingSection.value = ''
+    showToast('工作状态已保存')
   } catch (error) {
     showToast(`保存失败: ${error.message}`, true)
   }
@@ -1179,6 +1274,21 @@ const addWorkTypeDraft = () => {
 
 const removeWorkTypeDraft = (id) => {
   workTypeDrafts.value = workTypeDrafts.value.filter(type => type.id !== id)
+}
+
+const addRecordStatusDraft = () => {
+  recordStatusDrafts.value.push({ id: createDraftId(), name: '' })
+}
+
+const removeRecordStatusDraft = (id) => {
+  recordStatusDrafts.value = recordStatusDrafts.value.filter(status => status.id !== id)
+}
+
+const moveRecordStatusDraft = (index, offset) => {
+  const target = index + offset
+  if (target < 0 || target >= recordStatusDrafts.value.length) return
+  const [status] = recordStatusDrafts.value.splice(index, 1)
+  recordStatusDrafts.value.splice(target, 0, status)
 }
 
 const testDingTalk = async () => {
@@ -1684,6 +1794,23 @@ const signatureSummary = computed(() => {
       background: rgba($error, 0.1);
       color: $error;
       border-color: rgba($error, 0.3);
+    }
+  }
+}
+
+.status-order-actions {
+  display: flex;
+  gap: $spacing-2;
+
+  .btn-icon:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: $breakpoint-md) {
+    .btn-icon {
+      width: 44px;
+      height: 44px;
     }
   }
 }

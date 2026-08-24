@@ -3,6 +3,7 @@
 // ========================================
 
 import schedule from 'node-schedule'
+import { PLAN_RECORD_STATUS } from '../shared/record-status.js'
 import { createDbConnection, queryGet, queryAll, queryRun } from './db.js'
 import { isWorkday, getWorkWeekInfo, formatDate } from './utils/date.js'
 
@@ -322,10 +323,10 @@ async function executeTask(task) {
           try {
             await queryRun(
               db,
-              `INSERT INTO records (id, content, project, workType, createdAt, updatedAt, deleted)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO records (id, content, project, workType, status, createdAt, updatedAt, deleted)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [record.id, record.content, record.project, record.workType,
-               record.createdAt, record.updatedAt, record.deleted]
+               record.status, record.createdAt, record.updatedAt, record.deleted]
             )
             successCount++
           } catch (error) {
@@ -640,6 +641,7 @@ function convertPlansToRecords(plans, createdAt) {
     content: plan.content,
     project: plan.project || null,
     workType: plan.workType || null,
+    status: PLAN_RECORD_STATUS,
     createdAt: createdAt,
     updatedAt: createdAt,
     deleted: 0,

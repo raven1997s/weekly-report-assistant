@@ -17,6 +17,7 @@ describe('API 集成测试 - 数据库结构验证', () => {
           content TEXT NOT NULL,
           project TEXT,
           workType TEXT,
+          status TEXT,
           createdAt TEXT NOT NULL,
           updatedAt TEXT NOT NULL,
           deleted INTEGER DEFAULT 0,
@@ -26,6 +27,7 @@ describe('API 集成测试 - 数据库结构验证', () => {
 
       expect(createTableSQL).toContain('deleted INTEGER DEFAULT 0')
       expect(createTableSQL).toContain('deletedAt TEXT')
+      expect(createTableSQL).toContain('status TEXT')
     })
 
     it('应该为 deleted 字段创建索引', () => {
@@ -180,11 +182,11 @@ describe('API 集成测试 - 数据库结构验证', () => {
   describe('数据序列化', () => {
     it('应该正确序列化 records 数组', () => {
       const records = [
-        { id: 'record-1', content: '完成WMS功能', project: 'WMS', workType: '需求开发' }
+        { id: 'record-1', content: '完成WMS功能', project: 'WMS', workType: '需求开发', status: '已完成' }
       ]
       const serialized = JSON.stringify(records)
 
-      expect(serialized).toBe('[{"id":"record-1","content":"完成WMS功能","project":"WMS","workType":"需求开发"}]')
+      expect(serialized).toBe('[{"id":"record-1","content":"完成WMS功能","project":"WMS","workType":"需求开发","status":"已完成"}]')
     })
 
     it('应该正确序列化 plans 数组', () => {
@@ -221,12 +223,14 @@ describe('API 集成测试 - 数据库结构验证', () => {
         content: '完成WMS功能开发',
         project: 'WMS',
         workType: '需求开发',
+        status: '已完成',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
 
       expect(record.id).toBeDefined()
       expect(record.content).toBeDefined()
+      expect(record.status).toBe('已完成')
       expect(record.createdAt).toBeDefined()
       expect(record.updatedAt).toBeDefined()
     })

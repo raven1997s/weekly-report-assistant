@@ -41,6 +41,12 @@
               {{ parseResult.workType || '待识别' }}
             </span>
           </div>
+          <label class="parse-item">
+            <span class="parse-label">状态</span>
+            <select v-model="selectedStatus" class="status-select" aria-label="工作状态">
+              <option v-for="status in statusOptions" :key="status" :value="status">{{ status }}</option>
+            </select>
+          </label>
           <div class="parse-confidence">
             <div class="confidence-bar">
               <div
@@ -88,6 +94,22 @@
               </button>
             </div>
           </div>
+          <div class="quick-section">
+            <span class="quick-label">选择状态</span>
+            <div class="quick-options">
+              <button
+                v-for="status in statusOptions"
+                :key="status"
+                class="quick-option"
+                type="button"
+                :class="{ active: selectedStatus === status }"
+                @mousedown.prevent
+                @click="selectedStatus = status"
+              >
+                {{ status }}
+              </button>
+            </div>
+          </div>
         </div>
       </Transition>
     </div>
@@ -109,10 +131,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRecordsStore } from '../stores/records'
 import { useSettingsStore } from '../stores/settings'
 import { useParser } from '../composables/useParser'
+import { DEFAULT_RECORD_STATUS, getDefaultRecordStatus } from '../../shared/record-status'
 
 const props = defineProps({
   disabled: {
@@ -142,10 +165,20 @@ const successMessage = ref('')
 const isError = ref(false)
 const manualProject = ref(null)
 const manualWorkType = ref(null)
+const selectedStatus = ref(DEFAULT_RECORD_STATUS)
 
 // 项目和类型列表
 const projects = computed(() => settingsStore.projectNames)
 const workTypes = computed(() => settingsStore.workTypeNames)
+const statusOptions = computed(() => settingsStore.recordStatusNames.length
+  ? settingsStore.recordStatusNames
+  : [DEFAULT_RECORD_STATUS])
+
+watch(statusOptions, (statuses) => {
+  if (!statuses.includes(selectedStatus.value)) {
+    selectedStatus.value = getDefaultRecordStatus(statuses)
+  }
+}, { immediate: true })
 
 const focusInput = async () => {
   await nextTick()
@@ -221,6 +254,7 @@ const handleSubmit = async () => {
     content: String(inputText.value.trim()),
     project: parseResult.value?.project ? String(parseResult.value.project) : null,
     workType: parseResult.value?.workType ? String(parseResult.value.workType) : null,
+    status: selectedStatus.value,
     createdAt: new Date().toISOString()
   }
 
@@ -247,6 +281,7 @@ const handleSubmit = async () => {
     showQuickSelect.value = false
     manualProject.value = null
     manualWorkType.value = null
+    selectedStatus.value = getDefaultRecordStatus(statusOptions.value)
 
     // 触发事件
     emit('record-added', result.data)
@@ -422,6 +457,22 @@ onMounted(() => {
       border-color: rgba($accent-primary, 0.3);
       font-weight: $font-weight-semibold;
     }
+  }
+}
+
+.status-select {
+  padding: 2px $spacing-2;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $accent-primary;
+  background: $accent-light;
+  border: 1px solid rgba($accent-primary, 0.3);
+  border-radius: $radius-sm;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: $accent-primary;
   }
 }
 
@@ -626,6 +677,10 @@ onMounted(() => {
   .quick-option {
     padding: 4px $spacing-2;
     font-size: $font-size-xs;
+  }
+
+  .status-select {
+    min-height: 44px;
   }
 }
 </style>

@@ -35,6 +35,7 @@ COPY --from=builder /app/dist ./dist
 
 # 复制服务端代码
 COPY server ./server
+COPY shared ./shared
 COPY index.html ./
 
 # 创建数据目录

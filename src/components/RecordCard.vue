@@ -4,6 +4,7 @@
       <div class="record-tags">
         <span v-if="record.project" class="tag project">{{ record.project }}</span>
         <span v-if="record.workType" class="tag type">{{ record.workType }}</span>
+        <span class="tag status">{{ recordStatus }}</span>
       </div>
       <div class="record-actions">
         <button
@@ -64,6 +65,12 @@
           @keyup.enter="saveEdit"
           @keyup.escape="cancelEdit"
         />
+        <label class="edit-status-field">
+          <span>工作状态</span>
+          <select v-model="editStatus" class="form-control edit-status-select">
+            <option v-for="status in statusOptions" :key="status" :value="status">{{ status }}</option>
+          </select>
+        </label>
         <div class="edit-actions">
           <button class="btn btn-primary btn-sm" @click="saveEdit">保存</button>
           <button class="btn btn-ghost btn-sm" @click="cancelEdit">取消</button>
@@ -110,7 +117,9 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useRecordsStore } from '../stores/records'
+import { useSettingsStore } from '../stores/settings'
 import { getRelativeTime } from '../utils/date'
+import { mergeRecordStatusNames, resolveRecordStatus } from '../../shared/record-status'
 
 const props = defineProps({
   record: {
@@ -126,19 +135,24 @@ const props = defineProps({
 const emit = defineEmits(['deleted', 'updated', 'moveToNextWeek'])
 
 const recordsStore = useRecordsStore()
+const settingsStore = useSettingsStore()
 
 // 编辑状态
 const isEditing = ref(false)
 const editContent = ref('')
+const editStatus = ref('')
 const editInputRef = ref(null)
 const showDeleteConfirm = ref(false)
 
 // 相对时间
 const relativeTime = computed(() => getRelativeTime(props.record.createdAt))
+const recordStatus = computed(() => resolveRecordStatus(props.record.status))
+const statusOptions = computed(() => mergeRecordStatusNames(settingsStore.recordStatuses, [props.record]))
 
 // 开始编辑
 const startEdit = async () => {
   editContent.value = props.record.content
+  editStatus.value = recordStatus.value
   isEditing.value = true
   await nextTick()
   editInputRef.value?.focus()
@@ -150,7 +164,8 @@ const saveEdit = () => {
     recordsStore.updateRecord(props.record.id, {
       content: editContent.value.trim(),
       project: props.record.project ?? null,
-      workType: props.record.workType ?? null
+      workType: props.record.workType ?? null,
+      status: editStatus.value
     })
     emit('updated', props.record)
   }
@@ -256,6 +271,12 @@ const handleMoveToNextWeek = () => {
       color: $accent-secondary;
       border-color: rgba($accent-secondary, 0.2);
     }
+
+    &.status {
+      background: rgba($info, 0.1);
+      color: $info;
+      border-color: rgba($info, 0.2);
+    }
   }
 }
 
@@ -311,6 +332,28 @@ const handleMoveToNextWeek = () => {
   display: flex;
   gap: $spacing-2;
   margin-top: $spacing-2;
+}
+
+.edit-status-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+  max-width: 180px;
+
+  span {
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: var(--text-secondary);
+  }
+}
+
+.edit-status-select {
+  min-height: 40px;
+
+  @media (max-width: $breakpoint-md) {
+    min-height: 44px;
+  }
 }
 
 .record-footer {

@@ -5,6 +5,7 @@
 import { useParser } from './useParser'
 import { copyToClipboard } from '../utils/clipboard'
 import { getWeekLabel, getWeekRange } from '../utils/date'
+import { resolveRecordStatus } from '../../shared/record-status'
 
 /**
  * 周报生成功能
@@ -166,8 +167,7 @@ export function useGenerator() {
 
             sortedRecords.forEach((record, index) => {
                 const content = polishContent(record.content)
-                // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
-                const tagStr = generateTags(record.project, record.workType)
+                const tagStr = `${generateTags(record.project, record.workType)}[${resolveRecordStatus(record.status)}]`
                 lines.push(`${index + 1}. ${tagStr} ${content}`)
             })
         }
@@ -236,8 +236,7 @@ export function useGenerator() {
 
             sortedRecords.forEach((record, index) => {
                 const content = polishContent(record.content)
-                // 使用统一的标签生成函数，确保与下周计划的标签逻辑一致
-                const tagStr = generateTags(record.project, record.workType)
+                const tagStr = `${generateTags(record.project, record.workType)}[${resolveRecordStatus(record.status)}]`
                 lines.push(`${index + 1}. ${tagStr} ${content}`)
             })
         }

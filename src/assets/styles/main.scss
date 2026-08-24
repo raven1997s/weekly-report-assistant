@@ -205,40 +205,6 @@
     }
 }
 
-// ========================================
-// 宽屏容器（用于需要横向滚动的页面，如数据库管理）
-// ========================================
-.page-container-wide {
-    max-width: 100%; // 限制最大宽度
-    width: 100%;
-    margin: 0 auto;
-    overflow-x: hidden; // 禁止页面容器水平滚动
-
-    @media (min-width: $breakpoint-xl) {
-        padding: 0 $spacing-12;
-    }
-
-    @media (min-width: 1600px) {
-        padding: 0 $spacing-16;
-    }
-
-    @media (min-width: 1920px) {
-        padding: 0 80px;
-    }
-
-    @media (max-width: $breakpoint-lg) {
-        padding: 0 $spacing-4;
-    }
-
-    @media (max-width: $breakpoint-md) {
-        padding: 0 $spacing-3;
-    }
-
-    @media (max-width: $breakpoint-sm) {
-        padding: 0 $spacing-2;
-    }
-}
-
 // 页面标题
 .page-header {
     margin-bottom: $spacing-8;

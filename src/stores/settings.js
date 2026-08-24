@@ -6,6 +6,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { saveToStorage, loadFromStorage } from '../utils/api'
 import { useToastStore } from './toast'
+import { DEFAULT_RECORD_STATUSES, getRecordStatusNames } from '../../shared/record-status'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -35,6 +36,12 @@ const DEFAULT_SETTINGS = {
         { id: '8', name: '技术调研', keywords: ['调研', '技术', '方案', '评估'] },
         { id: '9', name: '文档编写', keywords: ['文档', '文档', 'doc', '记录'] }
     ],
+
+    // 工作状态
+    recordStatuses: DEFAULT_RECORD_STATUSES.map((name, index) => ({
+        id: `status-${index + 1}`,
+        name
+    })),
 
     // 主题
     theme: 'dark',
@@ -95,6 +102,13 @@ export const useSettingsStore = defineStore('settings', () => {
         }))
         .filter(item => item.name)
 
+    const normalizeRecordStatusItems = (items = []) => items
+        .map((item, index) => ({
+            id: String(typeof item === 'string' ? `status-${index + 1}` : (item.id ?? `status-${index + 1}`)),
+            name: String(typeof item === 'string' ? item : (item.name || '')).trim()
+        }))
+        .filter(item => item.name)
+
     const normalizeTitleSuffix = (value) => {
         const trimmed = String(value || '').trim()
         if (!trimmed) {
@@ -130,6 +144,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // ============ 状态 ============
     const projects = ref([...DEFAULT_SETTINGS.projects])
     const workTypes = ref([...DEFAULT_SETTINGS.workTypes])
+    const recordStatuses = ref([...DEFAULT_SETTINGS.recordStatuses])
     const theme = ref(DEFAULT_SETTINGS.theme)
     const dingtalk = ref({ ...DEFAULT_SETTINGS.dingtalk })
     const mail = ref({ ...DEFAULT_SETTINGS.mail })
@@ -151,6 +166,11 @@ export const useSettingsStore = defineStore('settings', () => {
                 workTypes.value = typeof saved.workTypes === 'string'
                     ? JSON.parse(saved.workTypes)
                     : (saved.workTypes || DEFAULT_SETTINGS.workTypes)
+
+                const savedRecordStatuses = typeof saved.recordStatuses === 'string'
+                    ? JSON.parse(saved.recordStatuses)
+                    : (saved.recordStatuses || DEFAULT_SETTINGS.recordStatuses)
+                recordStatuses.value = normalizeRecordStatusItems(savedRecordStatuses)
 
                 theme.value = saved.theme || DEFAULT_SETTINGS.theme
 
@@ -231,6 +251,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 // 使用默认设置
                 projects.value = DEFAULT_SETTINGS.projects
                 workTypes.value = DEFAULT_SETTINGS.workTypes
+                recordStatuses.value = DEFAULT_SETTINGS.recordStatuses
                 theme.value = DEFAULT_SETTINGS.theme
                 dingtalk.value = DEFAULT_SETTINGS.dingtalk
                 mail.value = DEFAULT_SETTINGS.mail
@@ -246,6 +267,7 @@ export const useSettingsStore = defineStore('settings', () => {
             // 使用默认设置
             projects.value = DEFAULT_SETTINGS.projects
             workTypes.value = DEFAULT_SETTINGS.workTypes
+            recordStatuses.value = DEFAULT_SETTINGS.recordStatuses
             theme.value = DEFAULT_SETTINGS.theme
             dingtalk.value = DEFAULT_SETTINGS.dingtalk
             mail.value = DEFAULT_SETTINGS.mail
@@ -262,6 +284,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     // 工作类型名称列表
     const workTypeNames = computed(() => workTypes.value.map(t => t.name))
+    const recordStatusNames = computed(() => getRecordStatusNames(recordStatuses.value))
     const mailTemplate = computed(() => {
         const currentTemplateKey = mail.value.defaultTemplate || DEFAULT_SETTINGS.mail.defaultTemplate
         return normalizeMailTemplateConfig({
@@ -280,6 +303,7 @@ export const useSettingsStore = defineStore('settings', () => {
             const cleanData = {
                 projects: JSON.stringify(projects.value),
                 workTypes: JSON.stringify(workTypes.value),
+                recordStatuses: JSON.stringify(recordStatuses.value),
                 theme: theme.value,
                 // 钉钉配置转换为后端期望的分开键格式
                 dingtalk_webhookUrl: dingtalk.value.webhookUrl || '',
@@ -405,6 +429,12 @@ export const useSettingsStore = defineStore('settings', () => {
         await persist()
     }
 
+    // 批量覆盖工作状态
+    const setRecordStatuses = async (statusList) => {
+        recordStatuses.value = normalizeRecordStatusItems(statusList)
+        await persist()
+    }
+
     // 删除工作类型
     const deleteWorkType = async (id) => {
         const index = workTypes.value.findIndex(t => t.id === id)
@@ -453,6 +483,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const resetToDefault = async () => {
         projects.value = [...DEFAULT_SETTINGS.projects]
         workTypes.value = [...DEFAULT_SETTINGS.workTypes]
+        recordStatuses.value = [...DEFAULT_SETTINGS.recordStatuses]
         theme.value = DEFAULT_SETTINGS.theme
         dingtalk.value = { ...DEFAULT_SETTINGS.dingtalk }
         mail.value = { ...DEFAULT_SETTINGS.mail }
@@ -558,6 +589,7 @@ export const useSettingsStore = defineStore('settings', () => {
         // 状态
         projects,
         workTypes,
+        recordStatuses,
         theme,
         dingtalk,
         mail,
@@ -568,6 +600,7 @@ export const useSettingsStore = defineStore('settings', () => {
         // 计算属性
         projectNames,
         workTypeNames,
+        recordStatusNames,
         // 方法
         init,
         toggleTheme,
@@ -580,6 +613,7 @@ export const useSettingsStore = defineStore('settings', () => {
         updateWorkType,
         setWorkTypes,
         deleteWorkType,
+        setRecordStatuses,
         updateDingtalk,
         updateMail,
         updateMailTemplate,

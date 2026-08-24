@@ -41,6 +41,11 @@ describe('InputBox', () => {
             { id: '1', name: '需求开发', keywords: ['需求', '开发'] },
             { id: '2', name: 'Bug修复', keywords: ['bug', '修复'] },
             { id: '3', name: '优化', keywords: ['优化'] }
+          ],
+          recordStatuses: [
+            { id: '1', name: '进行中' },
+            { id: '2', name: '已完成' },
+            { id: '3', name: '已阻塞' }
           ]
         }
       }
@@ -55,6 +60,9 @@ describe('InputBox', () => {
     recordsStore = useRecordsStore()
     // 清空 store 中的记录
     recordsStore.records = []
+    global.fetch = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ success: true, data: {} })
+    })
   })
 
   describe('基础渲染', () => {
@@ -217,7 +225,7 @@ describe('InputBox', () => {
       const quickSelect = wrapper.find('.quick-select')
       if (quickSelect.exists()) {
         const sections = wrapper.findAll('.quick-section')
-        expect(sections.length).toBe(2) // 项目和类型
+        expect(sections.length).toBe(3) // 项目、类型和状态
       }
     })
   })
@@ -252,6 +260,21 @@ describe('InputBox', () => {
 
       // 记录应该被添加
       expect(recordsStore.records.length).toBeGreaterThan(0)
+    })
+
+    it('应该默认选择已完成并允许切换工作状态', async () => {
+      const input = wrapper.find('input[type="text"]')
+      await input.setValue('完成联调')
+      await input.trigger('input')
+
+      const statusSelect = wrapper.find('.status-select')
+      expect(statusSelect.element.value).toBe('已完成')
+
+      await statusSelect.setValue('进行中')
+      await input.trigger('keyup.enter')
+
+      const request = global.fetch.mock.calls[0][1]
+      expect(JSON.parse(request.body).status).toBe('进行中')
     })
 
     it('提交空内容不应该添加记录', async () => {

@@ -14,6 +14,7 @@ export const generateMockRecord = (overrides = {}) => {
     content: '完成WMS仓储功能开发',
     project: 'WMS',
     workType: '需求开发',
+    status: '已完成',
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     deleted: 0,
@@ -81,6 +82,7 @@ export const generateMockSettings = (overrides = {}) => {
     value: {
       projects: ['WMS', 'OMS', '其他'],
       workTypes: ['需求开发', 'Bug修复', '优化', '其他'],
+      recordStatuses: ['待开始', '进行中', '待验证', '已完成', '已阻塞', '已暂停'],
       theme: 'light',
       dingtalk: {
         webhookUrl: '',

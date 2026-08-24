@@ -6,6 +6,7 @@ import sqlite3 from 'sqlite3'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
+import { DEFAULT_RECORD_STATUSES } from '../shared/record-status.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -53,6 +54,7 @@ export async function initDatabase() {
           content TEXT NOT NULL,
           project TEXT,
           workType TEXT,
+          status TEXT,
           createdAt TEXT NOT NULL,
           updatedAt TEXT NOT NULL,
           deleted INTEGER DEFAULT 0,
@@ -61,6 +63,13 @@ export async function initDatabase() {
       `, (err) => {
         if (err) console.error('[DB] 创建 records 表失败:', err)
         else console.log('[DB] records 表已就绪')
+      })
+
+      // 兼容已有数据库
+      db.run(`ALTER TABLE records ADD COLUMN status TEXT`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('[DB] 添加 records status 字段失败:', err)
+        }
       })
 
       // 为 records 表创建软删除索引
@@ -194,15 +203,19 @@ export async function initDatabase() {
               // 首次运行，插入默认设置
               console.log('[DB] 首次运行，初始化默认设置...')
               initDefaultSettings(db).then(() => {
-                console.log('[DB] ✅ 数据库初始化完成')
-                resolve(db)
+                ensureRecordStatusSettings(db).finally(() => {
+                  console.log('[DB] ✅ 数据库初始化完成')
+                  resolve(db)
+                })
               }).catch((err) => {
                 console.error('[DB] 初始化默认设置失败:', err)
-                resolve(db) // 即使失败也继续，因为表已创建
+                ensureRecordStatusSettings(db).finally(() => resolve(db))
               })
             } else {
-              console.log('[DB] ✅ 数据库初始化完成')
-              resolve(db)
+              ensureRecordStatusSettings(db).finally(() => {
+                console.log('[DB] ✅ 数据库初始化完成')
+                resolve(db)
+              })
             }
           })
         }
@@ -233,6 +246,10 @@ async function initDefaultSettings(db) {
       { id: '8', name: '技术调研', keywords: ['调研', '技术', '方案', '评估'] },
       { id: '9', name: '文档编写', keywords: ['文档', '记录', 'doc'] }
     ]),
+    recordStatuses: JSON.stringify(DEFAULT_RECORD_STATUSES.map((name, index) => ({
+      id: `status-${index + 1}`,
+      name
+    }))),
     theme: 'dark',
     dingtalk_webhookUrl: '',
     dingtalk_secret: '',
@@ -250,6 +267,10 @@ async function initDefaultSettings(db) {
       if (err) console.error('[DB] 插入默认工作类型失败:', err)
     })
 
+    stmt.run(['recordStatuses', defaultSettings.recordStatuses], (err) => {
+      if (err) console.error('[DB] 插入默认工作状态失败:', err)
+    })
+
     stmt.run(['theme', defaultSettings.theme], (err) => {
       if (err) console.error('[DB] 插入默认主题失败:', err)
     })
@@ -263,6 +284,14 @@ async function initDefaultSettings(db) {
       else resolve()
     })
   })
+}
+
+function ensureRecordStatusSettings(db) {
+  const statuses = JSON.stringify(DEFAULT_RECORD_STATUSES.map((name, index) => ({
+    id: `status-${index + 1}`,
+    name
+  })))
+  return queryRun(db, 'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', ['recordStatuses', statuses])
 }
 
 /**

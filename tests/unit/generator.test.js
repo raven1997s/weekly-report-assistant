@@ -249,12 +249,24 @@ describe('generateMarkdown', () => {
 
   it('应该生成带标签的工作记录', () => {
     const records = [
-      { content: '完成WMS功能', project: 'WMS', workType: '需求开发' }
+      { content: '完成WMS功能', project: 'WMS', workType: '需求开发', status: '进行中' }
     ]
     const result = generator.generateMarkdown({ records, plans: [], reflections: {} })
 
-    expect(result).toContain('[WMS][需求开发]')
+    expect(result).toContain('[WMS][需求开发][进行中]')
     expect(result).toContain('完成WMS功能')
+  })
+
+  it('历史无状态记录应该按已完成生成且不改变下周计划格式', () => {
+    const result = generator.generateMarkdown({
+      records: [{ content: '历史工作', project: 'WMS', workType: '支持' }],
+      plans: [{ content: '下周计划', project: 'WMS', workType: '需求开发', status: 'pending' }],
+      reflections: {}
+    })
+
+    expect(result).toContain('[WMS][支持][已完成] 历史工作')
+    expect(result).toContain('[WMS][需求开发] 下周计划')
+    expect(result).not.toContain('[WMS][需求开发][pending]')
   })
 
   it('应该按优先级排序（明确的在前，其他的在后）', () => {
@@ -339,11 +351,11 @@ describe('generatePlainText', () => {
 
   it('应该生成带标签的工作记录', () => {
     const records = [
-      { content: '完成WMS功能', project: 'WMS', workType: '需求开发' }
+      { content: '完成WMS功能', project: 'WMS', workType: '需求开发', status: '待验证' }
     ]
     const result = generator.generatePlainText({ records, plans: [], reflections: {} })
 
-    expect(result).toContain('[WMS][需求开发]')
+    expect(result).toContain('[WMS][需求开发][待验证]')
     expect(result).toContain('完成WMS功能')
   })
 

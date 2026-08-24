@@ -7,6 +7,8 @@ import { ref, computed } from 'vue'
 import { getWeekStart, getWeekEnd, formatDate, getWorkWeekInfo } from '../utils/date'
 import { loadFromStorage } from '../utils/api'
 import { useToastStore } from './toast'
+import { useSettingsStore } from './settings'
+import { getDefaultRecordStatus, resolveRecordStatus } from '../../shared/record-status'
 
 // API 基础 URL（支持环境变量）
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
@@ -25,7 +27,10 @@ export const useRecordsStore = defineStore('records', () => {
             const saved = await loadFromStorage(STORAGE_KEY)
             console.log('[Records] 从数据库加载到数据:', saved?.length || 0, '条')
             if (saved) {
-                records.value = saved
+                records.value = saved.map(record => ({
+                    ...record,
+                    status: resolveRecordStatus(record.status)
+                }))
             }
         } catch (error) {
             console.error('[Records] ❌ 初始化失败:', error)
@@ -124,6 +129,7 @@ export const useRecordsStore = defineStore('records', () => {
             content: String(record.content),
             project: record.project ? String(record.project) : null,
             workType: record.workType ? String(record.workType) : null,
+            status: resolveRecordStatus(record.status || getDefaultRecordStatus(useSettingsStore().recordStatuses)),
             createdAt: record.createdAt ? String(record.createdAt) : new Date().toISOString(),
             updatedAt: new Date().toISOString()
         }
@@ -179,6 +185,7 @@ export const useRecordsStore = defineStore('records', () => {
                     records.value[index] = {
                         ...records.value[index],
                         ...data,
+                        status: resolveRecordStatus(data.status ?? records.value[index].status),
                         updatedAt: new Date().toISOString()
                     }
                 }
@@ -223,8 +230,11 @@ export const useRecordsStore = defineStore('records', () => {
             const result = await response.json()
 
             if (result.success) {
-                deletedRecords.value = result.data
-                return result.data
+                deletedRecords.value = result.data.map(record => ({
+                    ...record,
+                    status: resolveRecordStatus(record.status)
+                }))
+                return deletedRecords.value
             }
             return []
         } catch (error) {
