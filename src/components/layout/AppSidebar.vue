@@ -160,10 +160,8 @@ const handleNavClick = () => {
 
 .app-sidebar {
   width: $sidebar-width;
-  background: color-mix(in srgb, var(--bg-secondary) 90%, transparent);
+  background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
-  box-shadow: 8px 0 30px rgba(30, 41, 76, 0.035);
-  backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -174,7 +172,7 @@ const handleNavClick = () => {
   transition: transform $transition-normal;
 
   &-header {
-    padding: $spacing-5 $spacing-5;
+    padding: $spacing-6;
     border-bottom: 1px solid var(--border-color);
 
     .logo {
@@ -183,16 +181,15 @@ const handleNavClick = () => {
       gap: $spacing-3;
 
       &-icon {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         background: $accent-gradient;
-        border-radius: $radius-lg;
+        border-radius: $radius-md;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         flex-shrink: 0;
-        box-shadow: 0 8px 18px rgba($accent-primary, 0.24);
 
         svg {
           width: 20px;
@@ -202,21 +199,20 @@ const handleNavClick = () => {
 
       &-text {
         font-size: $font-size-lg;
-        font-weight: $font-weight-bold;
+        font-weight: $font-weight-semibold;
         color: var(--text-primary);
-        letter-spacing: -0.025em;
       }
     }
   }
 
   &-nav {
     flex: 1;
-    padding: $spacing-4 $spacing-3;
+    padding: $spacing-4;
     overflow-y: auto;
   }
 
   &-footer {
-    padding: $spacing-4 $spacing-3;
+    padding: $spacing-4;
     border-top: 1px solid var(--border-color);
   }
 }
@@ -234,9 +230,8 @@ const handleNavClick = () => {
     display: flex;
     align-items: center;
     gap: $spacing-3;
-    min-height: 44px;
-    padding: $spacing-3 $spacing-4;
-    border-radius: $radius-lg;
+    padding: $spacing-3;
+    border-radius: $radius-md;
     color: var(--text-secondary);
     font-size: $font-size-sm;
     font-weight: $font-weight-medium;
@@ -246,22 +241,20 @@ const handleNavClick = () => {
     &:hover {
       color: var(--text-primary);
       background: var(--bg-card);
-      transform: translateX(2px);
     }
 
     &.active {
       color: $accent-primary;
       background: $accent-light;
-      box-shadow: inset 0 0 0 1px rgba($accent-primary, 0.1), var(--shadow-xs);
 
       &::before {
         content: '';
         position: absolute;
-        left: 3px;
+        left: 0;
         top: 50%;
         transform: translateY(-50%);
         width: 3px;
-        height: 22px;
+        height: 20px;
         background: $accent-primary;
         border-radius: 0 $radius-full $radius-full 0;
       }
@@ -289,12 +282,11 @@ const handleNavClick = () => {
 
 // 底部信息区域
 .week-info {
-  padding: $spacing-4;
+  padding: $spacing-3;
   background: var(--bg-card);
-  border-radius: $radius-lg;
+  border-radius: $radius-md;
   margin-bottom: $spacing-3;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-xs);
 
   .week-label {
     font-size: $font-size-sm;

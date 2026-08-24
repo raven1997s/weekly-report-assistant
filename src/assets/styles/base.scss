@@ -82,6 +82,11 @@ body.dark-theme {
   --shadow-xl: #{$dark-shadow-xl};
 }
 
+:where(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid $accent-primary;
+    outline-offset: 2px;
+}
+
 // ========================================
 // 重置样式
 // ========================================
@@ -111,11 +116,8 @@ body {
     font-weight: $font-weight-normal;
     line-height: $line-height-normal;
     color: $text-primary;
-    background-color: var(--bg-primary);
-    background-image:
-        radial-gradient(circle at 88% 0%, rgba($accent-primary, 0.09), transparent 34rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 24rem);
-    min-height: 100dvh;
+    background: $bg-primary;
+    min-height: 100vh;
     overflow-x: hidden;
     transition: background-color $transition-normal, color $transition-normal;
 
@@ -127,15 +129,7 @@ body {
 // 深色主题 body
 body.dark-theme {
     color: $dark-text-primary;
-    background-color: $dark-bg-primary;
-    background-image:
-        radial-gradient(circle at 88% 0%, rgba($accent-primary, 0.18), transparent 34rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 24rem);
-}
-
-:where(a, button, input, textarea, select):focus-visible {
-    outline: 3px solid rgba($accent-primary, 0.35);
-    outline-offset: 2px;
+    background: $dark-bg-primary;
 }
 
 // ========================================
@@ -175,7 +169,6 @@ button {
     *,
     *::before,
     *::after {
-        scroll-behavior: auto !important;
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;

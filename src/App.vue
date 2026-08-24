@@ -262,6 +262,7 @@ onUnmounted(() => {
 .mobile-menu-btn {
   display: none;
 }
+
 .fab-group {
   position: fixed;
   bottom: $spacing-6;
@@ -279,7 +280,6 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
-  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -427,9 +427,10 @@ onUnmounted(() => {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: $radius-md;
-    box-shadow: var(--shadow-md);
   }
+}
 
+@media (max-width: $breakpoint-md) {
   .fab-group {
     bottom: $spacing-4;
     right: $spacing-4;

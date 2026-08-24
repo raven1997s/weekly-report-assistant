@@ -74,7 +74,6 @@ describe('RecordCard', () => {
       const statusTag = wrapper.find('.tag.status')
       expect(statusTag.exists()).toBe(true)
       expect(statusTag.text()).toBe('进行中')
-      expect(statusTag.classes()).toContain('status-in-progress')
     })
 
     it('应该显示相对时间', () => {

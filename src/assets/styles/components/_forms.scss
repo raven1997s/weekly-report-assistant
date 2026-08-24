@@ -8,7 +8,6 @@
 // ============ 表单控件基础 ============
 .form-control {
   width: 100%;
-  min-height: 44px;
   padding: $spacing-3 $spacing-4;
   font-size: $font-size-base;
   color: var(--text-primary);
@@ -24,7 +23,7 @@
   &:focus {
     outline: none;
     border-color: $accent-primary;
-    box-shadow: 0 0 0 4px $accent-light;
+    box-shadow: 0 0 0 3px rgba($accent-primary, 0.1);
   }
 
   &:disabled {
