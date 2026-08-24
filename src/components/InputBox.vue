@@ -333,15 +333,18 @@ onMounted(() => {
 .input-wrapper {
   display: flex;
   gap: $spacing-2;
-  padding: $spacing-2;
+  min-height: 64px;
+  padding: 7px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: $radius-lg;
+  border-radius: $radius-xl;
   transition: all $transition-fast;
+  box-shadow: var(--shadow-sm);
 
   &:focus-within {
     border-color: $accent-primary;
-    box-shadow: 0 0 0 3px $accent-light;
+    box-shadow: 0 0 0 4px $accent-light, var(--shadow-md);
+    transform: translateY(-1px);
   }
 
   // 抖动动画（重复记录时触发）
@@ -359,8 +362,9 @@ onMounted(() => {
 
 .input-field {
   flex: 1;
-  padding: $spacing-3 $spacing-2;
-  font-size: $font-size-base;
+  min-width: 0;
+  padding: $spacing-3 $spacing-4;
+  font-size: $font-size-lg;
   color: var(--text-primary);
   background: transparent;
   border: none;
@@ -375,26 +379,27 @@ onMounted(() => {
 }
 
 .submit-btn {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: $accent-primary;
   color: white;
   border: none;
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   cursor: pointer;
   transition: all $transition-fast;
   flex-shrink: 0;
+  box-shadow: 0 8px 18px rgba($accent-primary, 0.24);
 
   &:hover:not(:disabled) {
-    filter: brightness(0.95);
-    transform: scale(1.05);
+    filter: brightness(1.04);
+    transform: translateY(-1px);
   }
 
   &:active:not(:disabled) {
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
 
   &:disabled {
@@ -423,9 +428,9 @@ onMounted(() => {
   margin-top: $spacing-4;
   padding: $spacing-4;
   background: var(--bg-card);
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
 .parse-item {
@@ -513,9 +518,9 @@ onMounted(() => {
   margin-top: $spacing-4;
   padding: $spacing-4;
   background: var(--bg-card);
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
 .quick-section {
@@ -541,7 +546,8 @@ onMounted(() => {
 }
 
 .quick-option {
-  padding: $spacing-1 $spacing-3;
+  min-height: 36px;
+  padding: $spacing-2 $spacing-3;
   font-size: $font-size-sm;
   font-weight: $font-weight-medium;
   color: var(--text-secondary);
@@ -671,12 +677,13 @@ onMounted(() => {
   }
 
   .quick-options {
-    gap: $spacing-1;
+    gap: $spacing-2;
   }
 
   .quick-option {
-    padding: 4px $spacing-2;
-    font-size: $font-size-xs;
+    min-height: 44px;
+    padding: $spacing-2 $spacing-3;
+    font-size: $font-size-sm;
   }
 
   .status-select {

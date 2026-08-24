@@ -7,20 +7,20 @@
 // ========================================
 // 配色系统 - 浅色主题（默认）
 // ========================================
-$bg-primary: #ffffff;
-$bg-secondary: #f9fafb;
-$bg-tertiary: #f3f4f6;
+$bg-primary: #f4f6fb;
+$bg-secondary: #eef1f8;
+$bg-tertiary: #e7ebf4;
 $bg-card: #ffffff;
-$bg-card-hover: #f9fafb;
+$bg-card-hover: #f8f9fd;
 $bg-overlay: rgba(0, 0, 0, 0.4);
 
 // 文字颜色
-$text-primary: #111827;
-$text-secondary: #4b5563; // 提升对比度到 WCAG AAA (7.1:1)
-$text-muted: #9ca3af;
+$text-primary: #171c2b;
+$text-secondary: #566078;
+$text-muted: #8790a5;
 
 // 强调色 - 柔和蓝色系
-$accent-primary: #3b82f6;
+$accent-primary: #4f46e5;
 $accent-secondary: #6366f1;
 $accent-gradient: linear-gradient(135deg, $accent-primary, $accent-secondary);
 $accent-light: rgba($accent-primary, 0.08);
@@ -32,37 +32,37 @@ $error: #ef4444;
 $info: #3b82f6;
 
 // 边框
-$border-color: #e5e7eb;
-$border-color-hover: #d1d5db;
-$divider-color: #f3f4f6;
+$border-color: #dfe3ed;
+$border-color-hover: #cbd2e1;
+$divider-color: #edf0f6;
 
 // 阴影 - 极简风格
-$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
-$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
-$shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08);
+$shadow-xs: 0 1px 2px rgba(30, 41, 76, 0.05);
+$shadow-sm: 0 2px 8px rgba(30, 41, 76, 0.06);
+$shadow-md: 0 10px 28px rgba(30, 41, 76, 0.08);
+$shadow-lg: 0 18px 44px rgba(30, 41, 76, 0.11);
+$shadow-xl: 0 28px 64px rgba(30, 41, 76, 0.14);
 
 // ========================================
 // 深色主题变量 - 高级黑风格
 // ========================================
-// 纯黑背景系统
-$dark-bg-primary: #000000;
-$dark-bg-secondary: #0a0a0a;
-$dark-bg-tertiary: #141414;
-$dark-bg-card: #0a0a0a;
-$dark-bg-card-hover: #141414;
+// 带冷色调的深色背景系统
+$dark-bg-primary: #0b1020;
+$dark-bg-secondary: #10182a;
+$dark-bg-tertiary: #172138;
+$dark-bg-card: #121b2f;
+$dark-bg-card-hover: #19243b;
 $dark-bg-overlay: rgba(0, 0, 0, 0.85);
 
 // 深色模式文字 - 高对比度白色
-$dark-text-primary: #ffffff;
-$dark-text-secondary: #a1a1aa;
-$dark-text-muted: #71717a;
+$dark-text-primary: #f7f8fc;
+$dark-text-secondary: #b2bad0;
+$dark-text-muted: #7f8aa5;
 
 // 深色模式边框 - 微妙的边界
-$dark-border-color: #333333; // 提升可见性
-$dark-border-color-hover: #404040;
-$dark-divider-color: #1a1a1a;
+$dark-border-color: #293650;
+$dark-border-color-hover: #3b4965;
+$dark-divider-color: #202c43;
 
 // 深色模式阴影 - 白色光晕效果
 $dark-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -78,10 +78,10 @@ $dark-glow-md: 0 0 20px rgba(255, 255, 255, 0.03);
 // ========================================
 // 圆角 - 极简风格
 // ========================================
-$radius-sm: 6px;
-$radius-md: 8px;
-$radius-lg: 12px;
-$radius-xl: 16px;
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 22px;
 $radius-full: 9999px;
 
 // ========================================
@@ -110,9 +110,9 @@ $spacing-2xl: $spacing-12;
 // 字体系统 - 现代字体栈
 // ========================================
 // 优化后的系统字体栈，优先使用现代高质量字体
-$font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+$font-family: 'Avenir Next', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
 $font-family-mono: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
-$font-family-heading: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+$font-family-heading: 'Avenir Next', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
 $font-size-xs: 12px;
 $font-size-sm: 14px;
@@ -153,9 +153,9 @@ $transition-slow: $duration-slow $easing-default;
 // ========================================
 // 布局
 // ========================================
-$sidebar-width: 260px;
+$sidebar-width: 248px;
 $header-height: 60px;
-$content-max-width: 1024px;
+$content-max-width: 1160px;
 
 // 响应式断点
 $breakpoint-sm: 640px;
@@ -259,4 +259,3 @@ $transition-opacity: opacity $transition-fast;
 $transition-transform: transform $transition-normal;
 $transition-shadow: box-shadow $transition-normal;
 $transition-background: background-color $transition-fast;
-

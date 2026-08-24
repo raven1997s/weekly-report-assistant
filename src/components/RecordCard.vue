@@ -4,7 +4,7 @@
       <div class="record-tags">
         <span v-if="record.project" class="tag project">{{ record.project }}</span>
         <span v-if="record.workType" class="tag type">{{ record.workType }}</span>
-        <span class="tag status">{{ recordStatus }}</span>
+        <span class="tag status" :class="statusClass">{{ recordStatus }}</span>
       </div>
       <div class="record-actions">
         <button
@@ -147,6 +147,14 @@ const showDeleteConfirm = ref(false)
 // 相对时间
 const relativeTime = computed(() => getRelativeTime(props.record.createdAt))
 const recordStatus = computed(() => resolveRecordStatus(props.record.status))
+const statusClass = computed(() => ({
+  '待开始': 'status-not-started',
+  '进行中': 'status-in-progress',
+  '待验证': 'status-review',
+  '已完成': 'status-completed',
+  '已阻塞': 'status-blocked',
+  '已暂停': 'status-paused'
+}[recordStatus.value] || 'status-default'))
 const statusOptions = computed(() => mergeRecordStatusNames(settingsStore.recordStatuses, [props.record]))
 
 // 开始编辑
@@ -200,17 +208,14 @@ const handleMoveToNextWeek = () => {
 @use '../assets/styles/variables.scss' as *;
 
 .record-card {
-  padding: $spacing-5; // 增加卡片内边距
+  position: relative;
+  padding: $spacing-5;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: $radius-lg;
   transition: all $transition-normal;
   cursor: default;
-
-  // 大屏幕上增加更多内边距
-  @media (min-width: $breakpoint-xl) {
-    padding: $spacing-6;
-  }
+  box-shadow: var(--shadow-xs);
 
   &.draggable {
     cursor: grab;
@@ -222,6 +227,8 @@ const handleMoveToNextWeek = () => {
 
   &:hover {
     border-color: var(--border-color-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 
     .record-actions {
       opacity: 1;
@@ -231,6 +238,7 @@ const handleMoveToNextWeek = () => {
   &.editing {
     border-color: $accent-primary;
     box-shadow: 0 0 0 3px $accent-light;
+    transform: none;
   }
 
   // 移动端优化
@@ -273,30 +281,77 @@ const handleMoveToNextWeek = () => {
     }
 
     &.status {
-      background: rgba($info, 0.1);
-      color: $info;
-      border-color: rgba($info, 0.2);
+      &.status-not-started,
+      &.status-default {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        border-color: var(--border-color);
+      }
+
+      &.status-in-progress {
+        background: rgba($accent-primary, 0.1);
+        color: $accent-primary;
+        border-color: rgba($accent-primary, 0.22);
+      }
+
+      &.status-review {
+        background: rgba($warning, 0.12);
+        color: #a15c00;
+        border-color: rgba($warning, 0.24);
+      }
+
+      &.status-completed {
+        background: rgba($success, 0.11);
+        color: #047857;
+        border-color: rgba($success, 0.22);
+      }
+
+      &.status-blocked {
+        background: rgba($error, 0.1);
+        color: #c42b36;
+        border-color: rgba($error, 0.2);
+      }
+
+      &.status-paused {
+        background: rgba($text-muted, 0.12);
+        color: var(--text-secondary);
+        border-color: rgba($text-muted, 0.24);
+      }
     }
+  }
+}
+
+:global(.dark-theme) .record-tags .tag.status {
+  &.status-review {
+    color: #fbbf24;
+  }
+
+  &.status-completed {
+    color: #34d399;
+  }
+
+  &.status-blocked {
+    color: #fb7185;
   }
 }
 
 .record-actions {
   display: flex;
   gap: $spacing-1;
-  opacity: 0;
+  opacity: 0.78;
   transition: opacity $transition-fast;
 }
 
 .action-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: $font-size-sm;
   border-radius: $radius-md;
   transition: all $transition-fast;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -304,6 +359,7 @@ const handleMoveToNextWeek = () => {
   &:hover {
     color: var(--text-primary);
     background: var(--bg-secondary);
+    transform: translateY(-1px);
   }
 
   &.drag-handle {
@@ -325,7 +381,8 @@ const handleMoveToNextWeek = () => {
   font-size: $font-size-base;
   color: var(--text-primary);
   line-height: $line-height-relaxed; // 增加行高让文字更易读
-  margin-bottom: $spacing-3; // 增加内容与底部的间距
+  margin-bottom: $spacing-2;
+  text-wrap: pretty;
 }
 
 .edit-actions {
@@ -357,13 +414,24 @@ const handleMoveToNextWeek = () => {
 }
 
 .record-footer {
-  margin-top: $spacing-4; // 增加顶部间距
+  margin-top: $spacing-3;
   padding-top: $spacing-3;
   border-top: 1px solid var(--divider-color);
 
   .record-time {
     font-size: $font-size-xs;
     color: var(--text-muted);
+  }
+}
+
+@media (max-width: $breakpoint-md), (hover: none) {
+  .record-actions {
+    opacity: 1;
+  }
+
+  .action-btn {
+    width: 44px;
+    height: 44px;
   }
 }
 

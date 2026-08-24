@@ -20,6 +20,7 @@
   cursor: pointer;
   transition: all $transition-fast;
   user-select: none;
+  min-height: 44px;
 
   &:focus-visible {
     outline: 2px solid $accent-primary;
@@ -35,6 +36,7 @@
   &-sm {
     padding: $spacing-2 $spacing-3;
     font-size: $font-size-sm;
+    min-height: 36px;
   }
 
   &-lg {
@@ -46,15 +48,19 @@
   &-primary {
     background: $accent-primary;
     color: white;
+    box-shadow: 0 6px 14px rgba($accent-primary, 0.2);
 
     &:hover:not(:disabled) {
-      background: color.adjust($accent-primary, $lightness: -10%);
+      background: color.adjust($accent-primary, $lightness: -5%);
+      transform: translateY(-1px);
+      box-shadow: 0 9px 20px rgba($accent-primary, 0.24);
     }
   }
 
   &-secondary {
-    background: var(--bg-secondary);
+    background: var(--bg-card);
     color: var(--text-primary);
+    border-color: var(--border-color);
 
     &:hover:not(:disabled) {
       background: var(--bg-tertiary);
@@ -109,6 +115,12 @@
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
     }
+  }
+}
+
+@media (max-width: $breakpoint-md) {
+  .btn-sm {
+    min-height: 44px;
   }
 }
 

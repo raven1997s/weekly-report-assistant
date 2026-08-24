@@ -6,9 +6,6 @@
 @use './variables.scss' as *;
 @use 'sass:color';
 
-// Inter 字体导入
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 // ========================================
 // CSS 变量定义（用于运行时主题切换）
 // ========================================
@@ -114,8 +111,11 @@ body {
     font-weight: $font-weight-normal;
     line-height: $line-height-normal;
     color: $text-primary;
-    background: $bg-primary;
-    min-height: 100vh;
+    background-color: var(--bg-primary);
+    background-image:
+        radial-gradient(circle at 88% 0%, rgba($accent-primary, 0.09), transparent 34rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 24rem);
+    min-height: 100dvh;
     overflow-x: hidden;
     transition: background-color $transition-normal, color $transition-normal;
 
@@ -127,7 +127,15 @@ body {
 // 深色主题 body
 body.dark-theme {
     color: $dark-text-primary;
-    background: $dark-bg-primary;
+    background-color: $dark-bg-primary;
+    background-image:
+        radial-gradient(circle at 88% 0%, rgba($accent-primary, 0.18), transparent 34rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 24rem);
+}
+
+:where(a, button, input, textarea, select):focus-visible {
+    outline: 3px solid rgba($accent-primary, 0.35);
+    outline-offset: 2px;
 }
 
 // ========================================
@@ -155,10 +163,22 @@ button {
     outline: none;
     background: none;
     transition: all $transition-fast;
+    touch-action: manipulation;
 
     &:disabled {
         cursor: not-allowed;
         opacity: 0.5;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 

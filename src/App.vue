@@ -3,11 +3,22 @@
     <!-- 侧边栏 -->
     <AppSidebar :is-open="isSidebarOpen" @close="isSidebarOpen = false" />
 
+    <button
+      class="mobile-menu-btn"
+      type="button"
+      aria-label="打开导航菜单"
+      @click="isSidebarOpen = true"
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path d="M3 5.75A.75.75 0 013.75 5h12.5a.75.75 0 010 1.5H3.75A.75.75 0 013 5.75zm0 4A.75.75 0 013.75 9h12.5a.75.75 0 010 1.5H3.75A.75.75 0 013 9.75zm0 4A.75.75 0 013.75 13h12.5a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75z"/>
+      </svg>
+    </button>
+
     <!-- 移动端侧边栏遮罩 -->
     <Transition name="fade">
       <div
         v-if="isSidebarOpen"
-        class="sidebar-overlay"
+        class="sidebar-overlay visible"
         @click="isSidebarOpen = false"
       ></div>
     </Transition>
@@ -248,6 +259,9 @@ onUnmounted(() => {
 // 浮动按钮组
 // ========================================
 
+.mobile-menu-btn {
+  display: none;
+}
 .fab-group {
   position: fixed;
   bottom: $spacing-6;
@@ -265,6 +279,7 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
+  color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -397,7 +412,24 @@ onUnmounted(() => {
 // 响应式
 // ========================================
 
-@media (max-width: $breakpoint-md) {
+@media (max-width: $breakpoint-lg) {
+  .mobile-menu-btn {
+    position: fixed;
+    top: $spacing-4;
+    left: $spacing-4;
+    z-index: $z-fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: $radius-md;
+    box-shadow: var(--shadow-md);
+  }
+
   .fab-group {
     bottom: $spacing-4;
     right: $spacing-4;

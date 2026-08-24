@@ -11,6 +11,7 @@
   border-radius: $radius-lg;
   padding: $spacing-6;
   transition: all $transition-normal;
+  box-shadow: var(--shadow-xs);
 
   // ============ 交互式卡片 ============
   &-interactive {

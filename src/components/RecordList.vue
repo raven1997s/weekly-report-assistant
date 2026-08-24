@@ -211,37 +211,53 @@ const onDragEnd = (recordsList) => {
 @use '../assets/styles/variables.scss' as *;
 
 .record-list {
-  margin-top: $spacing-6;
+  margin-top: $spacing-5;
 }
 
 .record-filters {
-  display: flex;
-  align-items: center;
-  gap: $spacing-2;
-  flex-wrap: wrap;
-  margin-bottom: $spacing-6;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: $spacing-3;
+  margin-bottom: $spacing-8;
+  padding: $spacing-4;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  box-shadow: var(--shadow-xs);
 }
 
 .filter-field {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: $spacing-2;
 
   span {
     font-size: $font-size-xs;
-    font-weight: $font-weight-medium;
+    font-weight: $font-weight-semibold;
     color: var(--text-secondary);
+    padding-left: $spacing-1;
   }
 }
 
 .filter-select {
-  min-width: 140px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
   padding: $spacing-2 $spacing-3;
   color: var(--text-primary);
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
   font-size: $font-size-sm;
+  cursor: pointer;
+  transition: border-color $transition-fast, box-shadow $transition-fast, background-color $transition-fast;
+
+  &:hover {
+    border-color: var(--border-color-hover);
+    background: var(--bg-card-hover);
+  }
 
   &:focus {
     outline: none;
@@ -253,46 +269,27 @@ const onDragEnd = (recordsList) => {
 .record-groups {
   display: flex;
   flex-direction: column;
-  gap: $spacing-10; // 增加项目分组之间的间距
+  gap: $spacing-8;
 
   // 大屏幕上增加间距
   @media (min-width: $breakpoint-xl) {
-    gap: $spacing-12;
+    gap: $spacing-10;
   }
 }
 
 .record-group {
-  // 超大屏幕上使用网格布局展示记录卡片
-  @media (min-width: 1400px) {
-    .group-content {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $spacing-6; // 增加网格卡片之间的间距
-    }
-  }
-
-  // 极宽屏幕上进一步增加间距
-  @media (min-width: 1600px) {
-    .group-content {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: $spacing-8; // 更大的间距
-    }
-  }
-
   .group-header {
     display: flex;
     align-items: center;
     gap: $spacing-3;
-    margin-bottom: $spacing-4;
-    padding-bottom: $spacing-3;
+    margin-bottom: $spacing-3;
+    padding: 0 $spacing-1 $spacing-3;
     border-bottom: 1px solid var(--divider-color);
 
     // 大屏幕上增大尺寸
     @media (min-width: $breakpoint-xl) {
-      margin-bottom: $spacing-5;
-      padding-bottom: $spacing-4;
-      gap: $spacing-4;
+      margin-bottom: $spacing-4;
+      gap: $spacing-3;
     }
 
     .group-title {
@@ -303,21 +300,23 @@ const onDragEnd = (recordsList) => {
       line-height: 1.3;
 
       @media (min-width: $breakpoint-xl) {
-        font-size: $font-size-xl;
+        font-size: $font-size-lg;
       }
     }
 
     .group-count {
       font-size: $font-size-xs;
       font-weight: $font-weight-medium;
-      color: var(--text-muted);
+      color: $accent-primary;
+      min-width: 24px;
       padding: $spacing-1 $spacing-2;
-      background: var(--bg-secondary);
+      background: $accent-light;
       border-radius: $radius-full;
+      text-align: center;
 
       @media (min-width: $breakpoint-xl) {
-        font-size: $font-size-sm;
-        padding: $spacing-2 $spacing-3;
+        font-size: $font-size-xs;
+        padding: $spacing-1 $spacing-2;
       }
     }
   }
@@ -325,19 +324,18 @@ const onDragEnd = (recordsList) => {
   .group-content {
     display: flex;
     flex-direction: column;
-    gap: $spacing-6; // 进一步增加同一项目下卡片之间的间距
+    gap: $spacing-3;
     min-height: 50px;
 
     // 大屏幕上增加间距
     @media (min-width: $breakpoint-xl) {
-      gap: $spacing-8;
-    }
-
-    // 超大屏幕上进一步增加
-    @media (min-width: 1600px) {
-      gap: $spacing-10;
+      gap: $spacing-4;
     }
   }
+}
+
+:deep(.record-card + .record-card) {
+  margin-top: $spacing-3;
 }
 
 // 拖拽样式
@@ -386,13 +384,14 @@ const onDragEnd = (recordsList) => {
   }
 
   .record-filters {
+    grid-template-columns: 1fr;
     align-items: stretch;
+    margin-bottom: $spacing-6;
+    padding: $spacing-4;
   }
 
   .filter-field {
-    flex: 1 1 180px;
     align-items: stretch;
-    flex-direction: column;
   }
 
   .filter-select {
@@ -400,7 +399,7 @@ const onDragEnd = (recordsList) => {
   }
 
   .record-groups {
-    gap: $spacing-8; // 移动端也保持较大的间距
+    gap: $spacing-8;
   }
 
   .record-group {
@@ -414,7 +413,7 @@ const onDragEnd = (recordsList) => {
     }
 
     .group-content {
-      gap: $spacing-5; // 移动端也增加卡片间距
+      gap: $spacing-3;
     }
   }
 }
@@ -422,7 +421,7 @@ const onDragEnd = (recordsList) => {
 // 小屏手机
 @media (max-width: $breakpoint-sm) {
   .record-groups {
-    gap: $spacing-6; // 小屏也保持足够的间距
+    gap: $spacing-6;
   }
 
   .record-group {
@@ -431,7 +430,7 @@ const onDragEnd = (recordsList) => {
     }
 
     .group-content {
-      gap: $spacing-4; // 小屏也增加卡片间距
+      gap: $spacing-3;
     }
   }
 }

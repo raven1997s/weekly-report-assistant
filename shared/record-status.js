@@ -1,5 +1,5 @@
 export const DEFAULT_RECORD_STATUS = '已完成'
-export const PLAN_RECORD_STATUS = '待开始'
+export const PLAN_RECORD_STATUS = '进行中'
 export const DEFAULT_RECORD_STATUSES = ['待开始', '进行中', '待验证', '已完成', '已阻塞', '已暂停']
 
 export const getRecordStatusNames = (statuses = []) => statuses

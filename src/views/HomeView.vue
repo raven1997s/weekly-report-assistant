@@ -112,12 +112,20 @@ onMounted(() => {
 // 页面头部
 // ========================================
 .page-header {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: $spacing-6;
-  padding-top: $spacing-4; // 顶部留白
+  padding: $spacing-6;
   max-width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 92% 10%, rgba($accent-primary, 0.16), transparent 15rem),
+    var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-xl;
+  box-shadow: var(--shadow-sm);
 
   // 标题优化
   h1 {
@@ -125,6 +133,7 @@ onMounted(() => {
     letter-spacing: -0.03em; // 更紧凑的字间距
     line-height: 1.2; // 更紧凑的行高
     font-weight: 700; // 更粗的字体
+    font-size: clamp(28px, 3vw, 38px);
   }
 
   .page-header-subtitle {
@@ -154,12 +163,14 @@ onMounted(() => {
   align-items: center;
   gap: $spacing-3;
   padding: $spacing-2 $spacing-4;
-  background: var(--bg-secondary);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
   border: 1px solid var(--border-color);
   border-radius: $radius-full;
   font-size: $font-size-sm;
   white-space: nowrap;
   transition: all $transition-fast;
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: blur(10px);
 
   // 大屏幕上稍微增大
   @media (min-width: $breakpoint-xl) {
@@ -232,6 +243,11 @@ onMounted(() => {
   position: sticky;
   top: $spacing-4;
   z-index: 10;
+  padding: $spacing-2;
+  margin-left: -$spacing-2;
+  margin-right: -$spacing-2;
+  border-radius: $radius-xl;
+  backdrop-filter: blur(12px);
 
   // 大屏幕上增加间距
   @media (min-width: $breakpoint-xl) {
@@ -270,7 +286,7 @@ onMounted(() => {
   .page-header {
     flex-direction: column;
     gap: $spacing-4;
-    padding-top: $spacing-2;
+    padding: $spacing-5;
   }
 
   .week-info-wrapper {
@@ -289,6 +305,9 @@ onMounted(() => {
 
   .input-section {
     position: static;
+    padding: 0;
+    margin-left: 0;
+    margin-right: 0;
     margin-bottom: $spacing-6;
     margin-top: $spacing-4;
   }
@@ -298,7 +317,7 @@ onMounted(() => {
 @media (max-width: $breakpoint-sm) {
   .page-header {
     h1 {
-      font-size: $font-size-xl;
+      font-size: $font-size-2xl;
     }
 
     .page-header-subtitle {

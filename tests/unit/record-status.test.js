@@ -22,8 +22,8 @@ describe('工作记录状态规则', () => {
     expect(resolveRecordStatus(null)).toBe(DEFAULT_RECORD_STATUS)
   })
 
-  it('计划转换状态固定为待开始', () => {
-    expect(PLAN_RECORD_STATUS).toBe('待开始')
+  it('计划转换状态固定为进行中', () => {
+    expect(PLAN_RECORD_STATUS).toBe('进行中')
   })
 
   it('兼容字符串和对象格式的状态配置', () => {
